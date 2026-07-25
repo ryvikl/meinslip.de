@@ -47,7 +47,10 @@ $zugang ??= false;
     <section class="ms-abschnitt">
         <div>
             <p class="ms-kicker"><?= te('markt.bestellung_kicker') ?></p>
-            <h1 style="font-size:clamp(1.75rem,4vw,2.5rem)"><?= e((string) $bestellung['nummer']) ?></h1>
+            <?php // Die Bestellnummer ist eine Zeichenkette am Stueck (MS-JJJJMMTT-XXXXXX).
+                  // Sie bricht zwar an den Bindestrichen, aber nicht darin — auf 360 px
+                  // bleibt es knapp, deshalb der Umbruch an beliebiger Stelle. ?>
+            <h1 style="font-size:clamp(1.75rem,4vw,2.5rem);overflow-wrap:anywhere"><?= e((string) $bestellung['nummer']) ?></h1>
         </div>
 
         <?php if ($neu): ?>
@@ -80,25 +83,64 @@ $zugang ??= false;
 
         <?php foreach ($positionen as $position): ?>
             <article class="card elev-sm">
-                <h3 class="card-title"><?= e((string) $position['bezeichnung']) ?></h3>
+                <?php // Die Bezeichnung ist der uebernommene Angebotstitel, bis 190 Zeichen
+                      // und moeglicherweise ohne jede Leerstelle. ?>
+                <h3 class="card-title" style="overflow-wrap:anywhere"><?= e((string) $position['bezeichnung']) ?></h3>
                 <p class="card-meta">
                     <span class="tag tag-accent"><?= e(geld((int) $position['verkaufspreis_cent'], $waehrung)) ?></span>
                 </p>
 
                 <?php $spezifikationen = is_array($position['spezifikationen'] ?? null) ? $position['spezifikationen'] : []; ?>
                 <?php if ($spezifikationen !== []): ?>
-                    <p class="card-kicker"><?= te('markt.bestellung_spezifikationen') ?></p>
-                    <table class="table">
-                        <tbody>
-                        <?php foreach ($spezifikationen as $spezifikation): ?>
+                    <?php
+                    /*
+                     * Die Zeile "Deine Angaben" benennt die Tabelle ohnehin schon sichtbar.
+                     * Ueber eine Kennung wird daraus der Name des Bildlaufbereichs — das ist
+                     * belastbarer als ein zweiter, nur vorgelesener Text und haelt beides
+                     * zusammen. Die Kennung traegt die Positionsnummer, weil eine Bestellung
+                     * mehrere Positionen mit je eigener Tabelle haben kann und eine doppelte
+                     * Kennung im Dokument die Zuordnung zerstoerte.
+                     */
+                    $angabenKennung = 'angaben-' . (int) $position['id'];
+                    ?>
+                    <p class="card-kicker" id="<?= e($angabenKennung) ?>"><?= te('markt.bestellung_spezifikationen') ?></p>
+                    <?php
+                    /*
+                     * Drei bedeutungstragende Spalten — Angabe, gewaehlter Wert, Aufpreis.
+                     * Ohne Kopfzellen meldet ein Vorleseprogramm im Tabellenmodus nur
+                     * "Spalte 3: 5,00 Euro" und sagt nie, dass Spalte 3 der Aufpreis ist
+                     * (WCAG 1.3.1). Auf einem Beleg, bei dem das Widerrufsrecht nach
+                     * § 312g Abs. 2 Nr. 1 BGB ausgeschlossen ist, muss nachvollziehbar
+                     * bleiben, welcher Aufpreis zu welcher Angabe gehoert. Die Bezeichnung
+                     * ist der Kopf ihrer Zeile, deshalb <th scope="row"> — dasselbe Muster
+                     * wie in verwaltung/konto.php.
+                     *
+                     * Die Huelle scrollt statt der Seite: der Wert in Spalte 2 ist Freitext
+                     * der Kaeuferin und in der Laenge nicht begrenzt. tabindex="0", weil in
+                     * der Tabelle nichts Fokussierbares steht, ueber das sich der Behaelter
+                     * per Tastatur hinscrollen liesse (WCAG 2.1.1).
+                     */
+                    ?>
+                    <div class="ms-breit" tabindex="0" role="region" aria-labelledby="<?= e($angabenKennung) ?>">
+                        <table class="table">
+                            <thead>
                             <tr>
-                                <td><?= e((string) $spezifikation['bezeichnung']) ?></td>
-                                <td><?= e((string) ($spezifikation['wert'] ?? '')) ?></td>
-                                <td><?= e(geld((int) $spezifikation['aufpreis_cent'], $waehrung)) ?></td>
+                                <th scope="col"><?= te('markt.bestellung_spalte_angabe') ?></th>
+                                <th scope="col"><?= te('markt.bestellung_spalte_wert') ?></th>
+                                <th scope="col"><?= te('markt.bestellung_spalte_aufpreis') ?></th>
                             </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($spezifikationen as $spezifikation): ?>
+                                <tr>
+                                    <th scope="row" style="overflow-wrap:anywhere"><?= e((string) $spezifikation['bezeichnung']) ?></th>
+                                    <td style="overflow-wrap:anywhere"><?= e((string) ($spezifikation['wert'] ?? '')) ?></td>
+                                    <td><?= e(geld((int) $spezifikation['aufpreis_cent'], $waehrung)) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 <?php endif; ?>
             </article>
         <?php endforeach; ?>

@@ -18,6 +18,7 @@ use MeinSlip\Domain\Catalog\Angebote;
 use MeinSlip\Domain\Ledger\Hauptbuch;
 use MeinSlip\Domain\Order\BestellFehler;
 use MeinSlip\Domain\Order\Bestellungen;
+use MeinSlip\Domain\Order\Bestellzustand;
 use MeinSlip\Domain\Order\Preisrechner;
 
 /**
@@ -44,11 +45,31 @@ use MeinSlip\Domain\Order\Preisrechner;
  *
  *  3. JEDE FAEHIGKEIT WIRD SERVERSEITIG GEPRUEFT. Ein ausgeblendeter Knopf
  *     ist kein Zugriffsschutz.
+ *
+ *  4. DIE EINZELSEITE IST NICHT LAXER ALS DER KATALOG. Angebote::fuerKatalog()
+ *     zeigt nur freigegebene Angebote aktiver, verkaufsfaehiger Konten. Genau
+ *     dieselbe Bedingung entscheidet in angebotSeite() darueber, ob es das
+ *     Angebot fuer eine Fremde ueberhaupt gibt — sonst waere die gesamte
+ *     Freigabestrecke ueber /angebot/{id} zu umgehen.
+ *
+ *  5. BEZAHLT WIRD NUR, WAS VORHER AUF DEM BILDSCHIRM STAND. Zwischen dem
+ *     Aufbau der Angebotsseite und dem Absenden kann die Verkaeuferin Preis
+ *     oder Aufpreise geaendert haben. § 312j Abs. 2 BGB verlangt den
+ *     Gesamtpreis unmittelbar vor Abgabe der Bestellung, also wird die
+ *     Preisgrundlage beim Anzeigen festgehalten und beim Absenden verglichen.
  */
 final class MarktRouten
 {
     /** Angebote je Katalogseite. */
     private const PRO_SEITE = 24;
+
+    /**
+     * Cookie, das die zuletzt gezeigte Preisgrundlage festhaelt.
+     *
+     * Traegt '<angebotId>:<fingerabdruck>'. Siehe preisstandMerken() fuer die
+     * Begruendung, warum das ein Cookie ist und kein Formularfeld.
+     */
+    private const PREISSTAND_COOKIE = 'ms_preisstand';
 
     /**
      * Rueckmeldungen, die als Abfrageparameter durch eine Weiterleitung
@@ -77,7 +98,11 @@ final class MarktRouten
         'uebergabe_region_zu_lang',
         'waehrung_ungueltig',
         'angebot_unbekannt',
-        'nicht_der_eigentuemer',
+        // 'nicht_der_eigentuemer' fehlt hier absichtlich: Keine Route dieser
+        // Klasse setzt den Schluessel mehr (siehe ohneEigentuemerhinweis()).
+        // Bliebe er in der Liste, liesse sich der Text 'Dieses Angebot gehoert
+        // dir nicht.' ueber eine handgebaute Adresse doch noch hervorlocken —
+        // und damit die Zusicherung aus bearbeitenFormular() aushebeln.
         'nicht_bearbeitbar',
         'feld_unbekannt',
         'option_schluessel_ungueltig',
@@ -93,6 +118,23 @@ final class MarktRouten
         'preis_unlesbar',
         'allgemein',
     ];
+
+    /**
+     * Zwischenspeicher fuer die Dauer einer Anfrage.
+     *
+     * Beide Merker sind noetig, weil null in beiden Faellen ein gueltiges
+     * Ergebnis ist: keine Verbindung heisst Stoerung, keine Sitzung heisst
+     * abgemeldet. Ohne die Merker wuerde beides bei jedem Aufruf erneut
+     * versucht.
+     */
+    private ?Database $verbindung = null;
+
+    private bool $verbindungVersucht = false;
+
+    /** @var array<string,mixed>|null */
+    private ?array $sitzungZwischen = null;
+
+    private bool $sitzungGeladen = false;
 
     public function __construct(
         // Gleiche Bauform wie Routen: Wurzel und Ansicht. Der Marktplatz
@@ -251,9 +293,46 @@ final class MarktRouten
             ['id' => (int) $angebot['verkaeufer_id']]
         );
 
-        // Ein gesperrtes Verkaeuferkonto nimmt das Angebot mit vom Markt —
-        // fuerKatalog() filtert genauso, die Einzelseite darf nicht laxer sein.
-        if ($verkaeufer === null || (string) $verkaeufer['status'] !== 'aktiv') {
+        $konten = new Konten($db);
+        $verkaeuferId = (int) $angebot['verkaeufer_id'];
+
+        // Oeffentlich ist ein Angebot unter genau den Bedingungen, unter denen
+        // fuerKatalog() es auch listet: freigegeben, Konto aktiv, Faehigkeit
+        // 'verkaufen' vorhanden. Alles andere — Entwurf, in Pruefung,
+        // abgelehnt, pausiert, entfernt, gesperrtes Konto, entzogene
+        // Verkaufsfaehigkeit — existiert fuer Fremde nicht.
+        //
+        // Vorher stand hier nur eine Herabstufung auf 'pausiert'. Die hat den
+        // Bestellknopf verborgen, den Inhalt aber weiter ausgeliefert: Titel,
+        // Beschreibung, Preis und Pseudonym eines ungeprueften oder gesperrten
+        // Angebots waren ueber die fortlaufende Kennung /angebot/1..N komplett
+        // abrufbar. Damit lief die ganze Freigabestrecke ins Leere.
+        $oeffentlich = (string) $angebot['status'] === Angebote::STATUS_AKTIV
+            && $verkaeufer !== null
+            && (string) $verkaeufer['status'] === 'aktiv'
+            && $konten->hatFaehigkeit($verkaeuferId, Konten::FAEHIGKEIT_VERKAUFEN);
+
+        $benutzerId = $sitzung !== null ? (int) $sitzung['benutzer_id'] : 0;
+
+        // Die Vorschau bleibt erhalten: Die Eigentuemerin muss ihr Angebot vor
+        // der Freigabe ansehen koennen, die Verwaltung muss es zum Pruefen
+        // sehen. Ein gesperrtes Konto kommt hier nicht durch — Sitzungen::laden()
+        // filtert auf benutzer.status = 'aktiv', dann gibt es keine Sitzung.
+        $darfVorschau = $benutzerId !== 0
+            && ($benutzerId === $verkaeuferId
+                || $konten->hatFaehigkeit($benutzerId, Konten::FAEHIGKEIT_VERWALTEN));
+
+        if (!$oeffentlich && !$darfVorschau) {
+            // Bewusst dieselbe Antwort wie bei unbekannter Kennung — dasselbe
+            // Muster wie in bearbeitenFormular(): Wer das Angebot nicht sehen
+            // darf, soll nicht einmal erfahren, ob es die Kennung gibt.
+            return $this->rendern($anfrage, 'markt.angebot', t('markt.angebot_unbekannt_titel'), $daten);
+        }
+
+        // In der Vorschau bleibt der Konfigurator zu. Die Vorlage entscheidet
+        // das allein am Status, deshalb wird ein 'aktiv', das nur an Konto oder
+        // Faehigkeit der Verkaeuferin scheitert, hier auf 'pausiert' gesetzt.
+        if (!$oeffentlich && (string) $angebot['status'] === Angebote::STATUS_AKTIV) {
             $angebot['status'] = Angebote::STATUS_PAUSIERT;
         }
 
@@ -265,11 +344,15 @@ final class MarktRouten
             ['id' => (int) $angebot['kategorie_id']]
         );
 
-        if ($sitzung !== null) {
-            $daten['darfKaufen'] = (new Konten($db))->hatFaehigkeit(
-                (int) $sitzung['benutzer_id'],
-                Konten::FAEHIGKEIT_KAUFEN
-            );
+        if ($benutzerId !== 0) {
+            $daten['darfKaufen'] = $konten->hatFaehigkeit($benutzerId, Konten::FAEHIGKEIT_KAUFEN);
+        }
+
+        // Nur wo das Bestellformular tatsaechlich erscheint, wird die gezeigte
+        // Preisgrundlage festgehalten. Sonst legte jeder Streifzug durch den
+        // Katalog ein Cookie an, das nie jemand einloest.
+        if ($oeffentlich && $daten['darfKaufen'] === true) {
+            $this->preisstandMerken($angebot);
         }
 
         return $this->rendern(
@@ -523,7 +606,9 @@ final class MarktRouten
                     return Response::weiterleitung('/verkaufen/' . $angebotId);
             }
         } catch (AngebotFehler $fehler) {
-            return Response::weiterleitung('/verkaufen/' . $angebotId . '?fehler=' . $fehler->schluessel());
+            return Response::weiterleitung(
+                '/verkaufen/' . $angebotId . '?fehler=' . $this->ohneEigentuemerhinweis($fehler->schluessel())
+            );
         }
 
         return Response::weiterleitung('/verkaufen/' . $angebotId . '?erfolg=' . $erfolg);
@@ -547,7 +632,9 @@ final class MarktRouten
         try {
             (new Angebote($db))->zurPruefungEinreichen($angebotId, $zugang['benutzerId']);
         } catch (AngebotFehler $fehler) {
-            return Response::weiterleitung('/verkaufen/' . $angebotId . '?fehler=' . $fehler->schluessel());
+            return Response::weiterleitung(
+                '/verkaufen/' . $angebotId . '?fehler=' . $this->ohneEigentuemerhinweis($fehler->schluessel())
+            );
         }
 
         return Response::weiterleitung('/verkaufen/' . $angebotId . '?erfolg=eingereicht');
@@ -647,8 +734,9 @@ final class MarktRouten
         }
 
         $kaeuferId = (int) $sitzung['benutzer_id'];
+        $konten = new Konten($db);
 
-        if (!(new Konten($db))->hatFaehigkeit($kaeuferId, Konten::FAEHIGKEIT_KAUFEN)) {
+        if (!$konten->hatFaehigkeit($kaeuferId, Konten::FAEHIGKEIT_KAUFEN)) {
             return $this->angebotSeite($anfrage, $angebotId, 'kaufen_gesperrt');
         }
 
@@ -661,7 +749,16 @@ final class MarktRouten
         $verkaeuferId = (int) $angebot['verkaeufer_id'];
         $verkaeufer = $db->eine('SELECT status FROM benutzer WHERE id = :id', ['id' => $verkaeuferId]);
 
-        if ($verkaeufer === null || (string) $verkaeufer['status'] !== 'aktiv') {
+        // Die Faehigkeit 'verkaufen' zaehlt hier genauso wie der Kontostatus.
+        // Ihr Entzug ist eine eigenstaendige, begruendungspflichtige Massnahme
+        // neben der Kontosperre (Art. 17 DSA) — das mildere Mittel. Ohne diese
+        // Pruefung verkauft das Konto danach unveraendert weiter und nimmt
+        // weiter Geld ein, waehrend das Protokoll die Massnahme als vollzogen
+        // ausweist. Das ist zugleich die Sicherung gegen das Rennen zwischen
+        // Seitenaufbau und Absenden: Der Entzug wirkt ab dem naechsten POST.
+        if ($verkaeufer === null
+            || (string) $verkaeufer['status'] !== 'aktiv'
+            || !$konten->hatFaehigkeit($verkaeuferId, Konten::FAEHIGKEIT_VERKAUFEN)) {
             return $this->angebotSeite($anfrage, $angebotId, 'angebot');
         }
 
@@ -756,6 +853,33 @@ final class MarktRouten
             );
         }
 
+        // DER PREIS, DER GEBUCHT WIRD, MUSS DER PREIS SEIN, DER VOR DEM KNOPF
+        // STAND. Zwischen dem Aufbau der Angebotsseite und diesem POST kann die
+        // Verkaeuferin pausiert, den Grundpreis oder einen Aufpreis geaendert
+        // und wieder fortgesetzt haben — das ist der vorgesehene
+        // Bearbeitungsweg, kein Angriff mit Sonderrechten. Dieselbe Divergenz
+        // entsteht gutglaeubig, wenn die Seite eine Stunde offen liegt.
+        //
+        // Gerechnet wird deshalb weiter mit dem Datenbankwert; verglichen wird
+        // gegen den Stand, der beim Anzeigen festgehalten wurde. Ein Betrag aus
+        // dem Formular waere genau die Preismanipulation, die zu vermeiden ist:
+        // aus der Preiserhoehung der Verkaeuferin wuerde eine Preissenkung
+        // durch die Kaeuferin.
+        //
+        // Der Rueckweg ueber angebotSeite() rendert die Seite mit dem neuen
+        // Preis und allen bereits getroffenen Angaben, haelt den neuen Stand
+        // fest und verlangt ein zweites Absenden. Damit steht der Gesamtpreis
+        // nachweislich unmittelbar vor der Bestellung (§ 312j Abs. 2 BGB), und
+        // niemand tippt seine Auswahl neu.
+        if (!$this->preisstandGezeigt($angebot)) {
+            return $this->angebotSeite(
+                $anfrage,
+                $angebotId,
+                'preis_geaendert',
+                $this->gewaehlt($anfrage, $angebot)
+            );
+        }
+
         // Aufpreise muessen hier aufaddiert werden: Bestellungen::anlegen()
         // speichert spezifikationen[]['aufpreis_cent'], rechnet damit aber
         // nicht — der Positionspreis ist allein brutto_cent mal Menge.
@@ -768,6 +892,24 @@ final class MarktRouten
             'menge' => 1,
             'spezifikationen' => $spezifikationen,
         ];
+
+        // ZWEIMAL ABSENDEN DARF NICHT ZWEIMAL BINDEN. Das Formularschutz-Token
+        // lebt 30 Tage und wird nicht verbraucht (bewusst — Registrierung und
+        // Anmeldung finden vor der Sitzung statt), der Absendeknopf sperrt sich
+        // nicht, und Bestellungen::anlegen() nimmt keinen Idempotenzschluessel
+        // entgegen. Ein Doppelklick auf traeger Mobilverbindung erzeugte damit
+        // zwei vollstaendige Bestellungen mit zwei Treuhandbindungen.
+        //
+        // Hier greift deshalb die fachliche Sperre: Haelt dieselbe Kaeuferin auf
+        // dasselbe Angebot bereits eine Bestellung, die noch nicht angenommen
+        // ist, fuehrt der zweite POST auf genau diese Bestellung statt auf eine
+        // neue — dieselbe Antwort wie beim ersten, also idempotent nach aussen.
+        // Kein Fehler, weil der zweite Klick kein Fehler der Kaeuferin ist.
+        $laufende = $this->laufendeBestellung($db, $kaeuferId, $angebotId);
+
+        if ($laufende !== null) {
+            return Response::weiterleitung('/bestellung/' . $laufende);
+        }
 
         $satz = (int) (Env::get('PROVISION_SATZ', '1500') ?? '1500');
         $bestellungen = new Bestellungen($db, new Hauptbuch($db), new Preisrechner($satz));
@@ -899,6 +1041,163 @@ final class MarktRouten
     // --- Hilfen -----------------------------------------------------------
 
     /**
+     * Kennung einer noch nicht angenommenen Bestellung derselben Kaeuferin auf
+     * dasselbe Angebot, oder null.
+     *
+     * Bewusst nur 'zahlung_offen' und 'treuhand_gebunden': Das sind die
+     * Zustaende vor der Annahme durch die Verkaeuferin, und genau dort landet
+     * ein Doppelklick. Ab 'angenommen' laeuft die erste Bestellung, teils
+     * wochenlang bis zur Freigabe — eine zweite Bestellung ist dann ein
+     * eigener Kaufwunsch und darf nicht abgefangen werden.
+     *
+     * EINSCHRAENKUNG, die in der Route nicht zu schliessen ist: Zwei wirklich
+     * gleichzeitige Anfragen lesen beide, bevor die jeweils andere einfuegt.
+     * Dagegen hilft nur eine Datenbankbedingung — ein Idempotenzschluessel auf
+     * 'bestellungen' mit eindeutigem Index, den Bestellungen::anlegen()
+     * durchreicht (dieselbe Bauform, die Hauptbuch::buchen() bereits kennt).
+     */
+    private function laufendeBestellung(Database $db, int $kaeuferId, int $angebotId): ?int
+    {
+        $zeile = $db->eine(
+            'SELECT b.id
+               FROM bestellungen b
+               JOIN bestellpositionen p ON p.bestellung_id = b.id
+              WHERE b.kaeufer_id = :k
+                AND p.angebot_id = :a
+                AND b.zustand IN (:offen, :gebunden)
+              ORDER BY b.id DESC',
+            [
+                'k' => $kaeuferId,
+                'a' => $angebotId,
+                'offen' => Bestellzustand::ZahlungOffen->value,
+                'gebunden' => Bestellzustand::TreuhandGebunden->value,
+            ]
+        );
+
+        return $zeile === null ? null : (int) $zeile['id'];
+    }
+
+    /**
+     * Fingerabdruck der Preisgrundlage eines Angebots.
+     *
+     * Enthaelt alles, woraus sich der Gesamtbetrag ergibt: Grundpreis, Waehrung
+     * und den Aufpreis JEDER aktiven Option — nicht nur der gewaehlten. Sonst
+     * haenge der Stand an der Auswahl und schluege schon beim blossen
+     * Umkonfigurieren an.
+     *
+     * Bewusst ein Fingerabdruck ohne Geheimnis und keine Signatur: Der Wert
+     * wird nie zum Rechnen benutzt, sondern ausschliesslich auf Gleichheit
+     * geprueft. Wer ihn faelscht, unterdrueckt allein seine eigene Warnung und
+     * zahlt trotzdem den Preis aus der Datenbank — eine Signatur schuetzte hier
+     * also niemanden, verlangte aber einen gesetzten APP_SCHLUESSEL und liesse
+     * die Angebotsseite bei leerer Konfiguration mit einer Ausnahme abbrechen.
+     *
+     * @param array<string,mixed> $angebot
+     */
+    private function preisStand(array $angebot): string
+    {
+        $teile = [
+            (int) $angebot['id'],
+            (int) $angebot['grundpreis_cent'],
+            strtoupper((string) $angebot['waehrung']),
+        ];
+
+        foreach ($this->aktiveOptionen($angebot) as $option) {
+            $teile[] = (int) $option['id'] . ':' . (int) $option['aufpreis_cent'];
+        }
+
+        return (int) $angebot['id'] . ':' . hash('sha256', implode('|', $teile));
+    }
+
+    /**
+     * Haelt fest, welche Preisgrundlage der Kaeuferin zuletzt gezeigt wurde.
+     *
+     * WARUM EIN COOKIE UND KEIN VERSTECKTES FORMULARFELD: Ein Feld waere die
+     * genauere Loesung — es haengt am einzelnen Formular und traegt deshalb
+     * auch dann den richtigen Stand, wenn zwei Fenster mit demselben Angebot
+     * offen sind. Es setzt aber voraus, dass resources/views/markt/bestellen.php
+     * es ausgibt. Solange die Vorlage das nicht tut, gibt es nur zwei
+     * Moeglichkeiten: die Pruefung ganz auslassen (dann bleibt die Luecke) oder
+     * jede Bestellung abweisen (dann ist die einzige Kaufstrecke tot). Das
+     * Cookie ist der dritte Weg und traegt dieselbe Aussage — 'diese
+     * Preisgrundlage stand vor dem Knopf' —, nur an der Anfrage statt am
+     * Formular.
+     *
+     * Ein Cookie fuer alle Angebote, nicht eines je Angebot: Sonst sammelte ein
+     * Streifzug durch den Katalog Dutzende Cookies an, die in jeder weiteren
+     * Anfrage mitgeschickt wuerden. Der Preis dafuer ist, dass zwei gleichzeitig
+     * offene Bestellformulare zu verschiedenen Angeboten eine zusaetzliche
+     * Bestaetigung kosten — die Seite zeigt dann den aktuellen Gesamtbetrag,
+     * und das zweite Absenden geht durch.
+     *
+     * @param array<string,mixed> $angebot
+     */
+    private function preisstandMerken(array $angebot): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+
+        $stand = $this->preisStand($angebot);
+
+        setcookie(self::PREISSTAND_COOKIE, $stand, [
+            // Kein Ablauf: Das Cookie soll genau so lange gelten wie das
+            // Fenster offen ist. Liefe es vorher ab, meldete die Seite eine
+            // Preisaenderung, die es nie gegeben hat.
+            'expires' => 0,
+            'path' => '/',
+            'secure' => ($_SERVER['HTTPS'] ?? '') === 'on'
+                || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https',
+            // Anders als das Formularschutz-Token braucht JavaScript diesen
+            // Wert nicht.
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+
+        // Damit ein Aufruf im selben Prozess den frisch gesetzten Wert sieht —
+        // $_COOKIE wird von setcookie() nicht fortgeschrieben.
+        $_COOKIE[self::PREISSTAND_COOKIE] = $stand;
+    }
+
+    /**
+     * Stimmt die Preisgrundlage noch mit der ueberein, die gezeigt wurde?
+     *
+     * Ein fehlendes Cookie faellt in denselben Zweig wie ein abweichendes. Es
+     * gibt also keinen stillschweigenden Altfall, in dem ungeprueft gebucht
+     * wird — das war der Kern des Befunds.
+     *
+     * @param array<string,mixed> $angebot
+     */
+    private function preisstandGezeigt(array $angebot): bool
+    {
+        $gemerkt = $_COOKIE[self::PREISSTAND_COOKIE] ?? '';
+
+        if (!is_string($gemerkt) || $gemerkt === '') {
+            return false;
+        }
+
+        return hash_equals($this->preisStand($angebot), $gemerkt);
+    }
+
+    /**
+     * 'nicht_der_eigentuemer' verraet, dass es das Angebot gibt.
+     *
+     * bearbeitenFormular() verschmilzt fremdes und unbekanntes Angebot bewusst
+     * zu einem Fall. Die schreibenden Routen muessen dieselbe Zusicherung
+     * halten, sonst ist jede Angebotskennung durchzaehlbar: Der Schluessel der
+     * Fachklasse landete ungefiltert in der Adresszeile, und zwei sonst
+     * gleiche Antworten wurden unterscheidbar.
+     *
+     * Alle anderen Schluessel duerfen unveraendert durch — sie werden erst nach
+     * bestandener Eigentuemerpruefung geworfen, betreffen also nur eigene
+     * Angebote und muessen der Verkaeuferin ihren Fehler zeigen.
+     */
+    private function ohneEigentuemerhinweis(string $schluessel): string
+    {
+        return $schluessel === 'nicht_der_eigentuemer' ? 'angebot_unbekannt' : $schluessel;
+    }
+
+    /**
      * Sitzung, Datenbank und Verkaufsfaehigkeit in einem Griff.
      *
      * @return array{gesperrt:string|null, db:Database|null, benutzerId:int}
@@ -1011,15 +1310,39 @@ final class MarktRouten
         return $wert !== null && in_array($wert, $erlaubt, true) ? $wert : null;
     }
 
+    /**
+     * Die Datenbankverbindung dieser Anfrage.
+     *
+     * Database::ausEnv() oeffnet mit jedem Aufruf eine neue PDO-Verbindung. Ein
+     * GET auf /angebot/{id} lief dadurch dreimal durch den Verbindungsaufbau:
+     * einmal fuer die Sitzung, einmal fuer die Seite, einmal noch aus
+     * rendern(). Auf geteiltem Webhosting ist jede Verbindung ein eigener TCP-
+     * und Anmeldevorgang.
+     *
+     * Der Zwischenspeicher lebt nur so lange wie diese Instanz, und die wird in
+     * public/index.php je Anfrage frisch erzeugt.
+     *
+     * 'versucht' ist ein eigenes Feld, weil null ein gueltiges Ergebnis ist
+     * (Datenbankausfall) — ohne den Merker wuerde bei jeder Stoerung erneut
+     * verbunden.
+     */
     private function datenbank(): ?Database
     {
+        if ($this->verbindungVersucht) {
+            return $this->verbindung;
+        }
+
+        $this->verbindungVersucht = true;
+
         try {
-            return Database::ausEnv();
+            $this->verbindung = Database::ausEnv();
         } catch (\Throwable) {
             // Ein Datenbankausfall darf nicht die ganze Seite mitreissen —
             // die Vorlagen zeigen dann eine ehrliche Stoerungsmeldung.
-            return null;
+            $this->verbindung = null;
         }
+
+        return $this->verbindung;
     }
 
     /**
@@ -1037,17 +1360,38 @@ final class MarktRouten
         ]));
     }
 
-    /** @return array<string,mixed>|null */
+    /**
+     * Die Sitzung dieser Anfrage.
+     *
+     * Wird je Seitenaufbau mindestens zweimal gebraucht — von der Route selbst
+     * und von rendern() fuer die Kopfleiste. Die JOIN-Abfrage aus
+     * Sitzungen::laden() lief deshalb doppelt mit demselben Ergebnis. Auch hier
+     * ist null gueltig (kein Cookie, abgelaufen, Konto gesperrt), also braucht
+     * es den eigenen Merker.
+     *
+     * @return array<string,mixed>|null
+     */
     private function sitzung(Request $anfrage): ?array
     {
+        if ($this->sitzungGeladen) {
+            return $this->sitzungZwischen;
+        }
+
+        $this->sitzungGeladen = true;
         $kennung = $_COOKIE[Sitzungen::COOKIE] ?? null;
 
         if (!is_string($kennung) || $kennung === '') {
             return null;
         }
 
+        $db = $this->datenbank();
+
+        if ($db === null) {
+            return null;
+        }
+
         try {
-            return (new Sitzungen(Database::ausEnv()))->laden($kennung);
+            return $this->sitzungZwischen = (new Sitzungen($db))->laden($kennung);
         } catch (\Throwable) {
             return null;
         }

@@ -31,6 +31,15 @@ use MeinSlip\Domain\Ledger\Hauptbuch;
  * gibt; wer ihn sucht, bekommt genau die Antwort, die auch ein erfundener Pfad
  * bekommt. Deshalb ist die Pruefung genau EINMAL geschrieben und keine Route
  * registriert sich an ihr vorbei.
+ *
+ * ZUSTELLUNG. Jede beschraenkende Entscheidung — Angebot abgelehnt, Konto
+ * gesperrt, Faehigkeit entzogen — muss der betroffenen Person nach Art. 17
+ * Abs. 1 DSA begruendet werden. Ein Protokolleintrag erfuellt das nicht: Er
+ * belegt, DASS begruendet wurde, nicht, dass die Begruendung angekommen ist.
+ * Wirkung, Protokolleintrag und Zustellung gehoeren deshalb in dieselbe
+ * Transaktion. Faellt eines davon aus, faellt alles aus — eine Beschraenkung
+ * ohne Begruendung ist so wenig hinnehmbar wie eine Begruendung ohne
+ * Beschraenkung.
  */
 final class VerwaltungsRouten
 {
@@ -183,7 +192,19 @@ final class VerwaltungsRouten
                     return Response::weiterleitung($ziel);
                 }
 
-                $entziehen = ($a->eingabe('handlung', '') ?? '') === 'entziehen';
+                // Die Handlung muss ausdruecklich dastehen. Vorher galt
+                // "alles, was nicht 'entziehen' heisst" als Freischalten —
+                // eine unvollstaendige oder veraenderte Anfrage hat damit
+                // Rechte VERGEBEN, statt abgewiesen zu werden. Bei einer
+                // Verwaltungshandlung ist der stille Rueckfall immer die
+                // falsche Antwort: im Zweifel geschieht nichts.
+                $handlung = $a->eingabe('handlung', '') ?? '';
+
+                if (!in_array($handlung, ['freischalten', 'entziehen'], true)) {
+                    return $this->zurueck($ziel, 'fehler', 'handlung_fehlt');
+                }
+
+                $entziehen = $handlung === 'entziehen';
                 $verwaltung = new Verwaltung($z['db']);
 
                 try {
@@ -231,7 +252,16 @@ final class VerwaltungsRouten
                     return Response::weiterleitung($ziel);
                 }
 
-                $entsperren = ($a->eingabe('handlung', '') ?? '') === 'entsperren';
+                // Wie bei der Faehigkeit: ausdruecklich oder gar nicht. Hier
+                // wiegt es sogar schwerer — der bisherige Rueckfall SPERRTE
+                // ein Konto, sobald die Handlung fehlte oder verrutscht war.
+                $handlung = $a->eingabe('handlung', '') ?? '';
+
+                if (!in_array($handlung, ['sperren', 'entsperren'], true)) {
+                    return $this->zurueck($ziel, 'fehler', 'handlung_fehlt');
+                }
+
+                $entsperren = $handlung === 'entsperren';
                 $verwaltung = new Verwaltung($z['db']);
                 $begruendung = $a->eingabe('begruendung', '') ?? '';
 
@@ -285,8 +315,8 @@ final class VerwaltungsRouten
 
     /**
      * Freigabe und Ablehnung unterscheiden sich nur in einem Aufruf und einem
-     * Pflichtfeld — der ganze Rahmen aus Kennung, Formularschutz, Protokoll und
-     * Rueckleitung ist derselbe.
+     * Pflichtfeld — der ganze Rahmen aus Kennung, Formularschutz, Wirkung,
+     * Protokoll, Zustellung und Rueckleitung ist derselbe.
      *
      * @param array<string,string>                                             $parameter
      * @param array{db: Database, sitzung: array<string,mixed>, verwalter_id: int} $zugang
@@ -309,22 +339,86 @@ final class VerwaltungsRouten
         $angebote = new Angebote($zugang['db']);
 
         try {
-            if ($freigeben) {
-                $angebote->freigeben($id, $zugang['verwalter_id']);
-            } else {
-                $angebote->ablehnen($id, $zugang['verwalter_id'], $grund);
-            }
+            // EINE Transaktion um Wirkung, Protokoll und Zustellung. Vorher
+            // standen die Aufrufe nebeneinander: Scheiterte der Protokolleintrag,
+            // war der Statuswechsel schon geschrieben und ueber die Oberflaeche
+            // nicht mehr einzuholen — der zweite Versuch scheiterte am
+            // Uebergang. Die Verwalterin sah eine Fehlermeldung, das Angebot war
+            // trotzdem entschieden: eine Beschraenkung, die niemand zu
+            // verantworten hat. Database::transaktion() rollt bei jedem
+            // Throwable zurueck und wirft weiter, der catch unten bleibt also
+            // wirksam. Angebote und Verwaltung haengen beide an $zugang['db'],
+            // teilen sich damit Verbindung und Transaktionstiefe.
+            $zugang['db']->transaktion(function () use ($angebote, $zugang, $id, $freigeben, $grund): void {
+                // Vor dem Statuswechsel gelesen: Die Empfaengerin der
+                // Begruendung muss feststehen, bevor irgendetwas geschrieben
+                // wird. verkaeufer_id aendert sich durch die Entscheidung nicht.
+                $angebot = $angebote->laden($id);
 
-            // Der Statuswechsel steht in angebote, die Verantwortung dafuer nur
-            // hier. Ohne diesen Eintrag liesse sich spaeter nicht belegen, wer
-            // das Angebot durchgewinkt hat.
-            (new Verwaltung($zugang['db']))->ereignisSchreiben(
-                $zugang['verwalter_id'],
-                $freigeben ? self::HANDLUNG_ANGEBOT_FREIGEGEBEN : self::HANDLUNG_ANGEBOT_ABGELEHNT,
-                Verwaltung::GEGENSTAND_ANGEBOT,
-                $id,
-                $grund
-            );
+                if ($angebot === null) {
+                    // Woertlich derselbe Schluessel, den ablehnen()/freigeben()
+                    // eine Zeile spaeter werfen wuerden — die Rueckmeldung
+                    // bleibt damit unveraendert.
+                    throw new AngebotFehler('angebot_unbekannt');
+                }
+
+                if ($freigeben) {
+                    $angebote->freigeben($id, $zugang['verwalter_id']);
+                } else {
+                    $angebote->ablehnen($id, $zugang['verwalter_id'], $grund);
+                }
+
+                $verwaltung = new Verwaltung($zugang['db']);
+
+                // Der Statuswechsel steht in angebote, die Verantwortung dafuer
+                // nur hier. Ohne diesen Eintrag liesse sich spaeter nicht
+                // belegen, wer das Angebot durchgewinkt hat.
+                $ereignisId = $verwaltung->ereignisSchreiben(
+                    $zugang['verwalter_id'],
+                    $freigeben ? self::HANDLUNG_ANGEBOT_FREIGEGEBEN : self::HANDLUNG_ANGEBOT_ABGELEHNT,
+                    Verwaltung::GEGENSTAND_ANGEBOT,
+                    $id,
+                    $grund
+                );
+
+                if ($freigeben) {
+                    // Eine Freigabe beschraenkt nichts. Art. 17 DSA gilt fuer
+                    // Beschraenkungen, nicht fuer Entscheidungen zugunsten der
+                    // betroffenen Person — hier gibt es nichts zuzustellen.
+                    return;
+                }
+
+                // Art. 17 Abs. 1 DSA: Die Begruendung muss der betroffenen
+                // Person ZUR VERFUEGUNG GESTELLT werden. verwaltungs_ereignisse
+                // wird ausschliesslich unter /verwaltung gelesen und traegt die
+                // Verwalteridentitaet — es ist der interne Nachweis, nicht die
+                // Zustellung. Deshalb geht derselbe Text zusaetzlich in
+                // 'benachrichtigungen', verknuepft mit dem Protokolleintrag:
+                // Zu jeder Beschraenkung im Journal muss eine Zustellung
+                // auffindbar sein und umgekehrt. Beides in DIESER Transaktion,
+                // sonst entstuende entweder eine Ablehnung ohne Begruendung
+                // oder eine Begruendung ohne Ablehnung.
+                //
+                // VERLASS: Verwaltung::benachrichtigen() (app/Domain/Admin/
+                // Verwaltung.php) mit der Signatur
+                //   benachrichtigen(int $benutzerId, string $art,
+                //       ?string $gegenstandArt, ?int $gegenstandId,
+                //       string $begruendung, ?int $verwaltungsEreignisId): int
+                // schreibt eine Zeile in 'benachrichtigungen'
+                // (database/migrations/009_nachbesserung.php) und gibt deren
+                // Kennung zurueck. Fehlt die Methode, bricht dieser Aufruf ab
+                // und die Transaktion nimmt die Ablehnung mit zurueck — der
+                // Bereich faellt geschlossen aus, es entsteht keine
+                // Beschraenkung ohne Begruendung.
+                $verwaltung->benachrichtigen(
+                    (int) $angebot['verkaeufer_id'],
+                    self::HANDLUNG_ANGEBOT_ABGELEHNT,
+                    Verwaltung::GEGENSTAND_ANGEBOT,
+                    $id,
+                    $grund,
+                    $ereignisId
+                );
+            });
         } catch (AngebotFehler | VerwaltungsFehler $fehler) {
             return $this->zurueck($ziel, 'fehler', $fehler->schluessel());
         }

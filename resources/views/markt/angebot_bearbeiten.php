@@ -49,7 +49,10 @@ $euro = static function (int $cent): string {
     <section class="ms-abschnitt">
         <div>
             <p class="ms-kicker"><?= te('markt.bearbeiten_kicker') ?></p>
-            <h1 style="font-size:clamp(1.75rem,4vw,2.5rem)"><?= e((string) $angebot['titel']) ?></h1>
+            <?php // Der Titel stammt von der Verkaeuferin und darf 190 Zeichen ohne eine
+                  // einzige Leerstelle enthalten. Ohne Umbruch an beliebiger Stelle
+                  // schoebe eine solche Zeichenkette auf 360 px die ganze Seite auseinander. ?>
+            <h1 style="font-size:clamp(1.75rem,4vw,2.5rem);overflow-wrap:anywhere"><?= e((string) $angebot['titel']) ?></h1>
             <p style="margin-top:var(--space-3)">
                 <span class="tag tag-neutral"><?= te('markt.status.' . $status) ?></span>
             </p>
@@ -186,48 +189,72 @@ $euro = static function (int $cent): string {
         <?php if ($optionen === []): ?>
             <p class="card"><?= te('markt.optionen_leer') ?></p>
         <?php else: ?>
-            <table class="table">
-                <thead>
-                <tr>
-                    <th scope="col"><?= te('markt.option_schluessel') ?></th>
-                    <th scope="col"><?= te('markt.option_bezeichnung') ?></th>
-                    <th scope="col"><?= te('markt.option_art') ?></th>
-                    <th scope="col"><?= te('markt.option_aufpreis') ?></th>
-                    <th scope="col"><?= te('markt.konfigurator_spezifikation') ?></th>
-                    <?php if ($veraenderbar): ?>
-                        <th scope="col"><?= te('markt.spalte_aktion') ?></th>
-                    <?php endif; ?>
-                </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($optionen as $option): ?>
+            <?php
+            /*
+             * Sechs Spalten passen auf 360 px nicht nebeneinander: die Kopfzeilen
+             * allein, dazu die Tags "Spezifikation" und "Pflichtangabe" und der
+             * Knopf "Entfernen" brauchen mehr als die 326 px, die die Huelle uebrig
+             * laesst. Ohne eigenen Bildlauf scrollt das Dokument statt der Tabelle —
+             * die Spalte "Aktion" mit dem Entfernen-Knopf steht dann ausserhalb des
+             * Bildes, und beim Zurueckschieben geht die Zeilenzuordnung verloren.
+             *
+             * tabindex="0" ist Pflicht, nicht Zierde: In den Spalten Schluessel,
+             * Bezeichnung, Art und Aufpreis steht nichts Fokussierbares, ueber das
+             * sich der Behaelter per Tastatur hinscrollen liesse. Chrome macht
+             * Bildlaufbehaelter seit 127 von sich aus fokussierbar, Safari nicht.
+             * WCAG 2.1.1: Was die Maus erreicht, muss die Tastatur auch erreichen.
+             * role="region" braucht dazu einen Namen, sonst steht der Bereich
+             * namenlos in der Landmarkenliste.
+             */
+            ?>
+            <div class="ms-breit" tabindex="0" role="region" aria-label="<?= te('markt.optionen_titel') ?>">
+                <table class="table">
+                    <thead>
                     <tr>
-                        <td><?= e((string) $option['schluessel']) ?></td>
-                        <td><?= e((string) $option['bezeichnung']) ?></td>
-                        <td><?= te('markt.art.' . (string) $option['art']) ?></td>
-                        <td><?= e(geld((int) $option['aufpreis_cent'], $waehrung)) ?></td>
-                        <td>
-                            <?php if ((int) $option['ist_spezifikation'] === 1): ?>
-                                <span class="tag tag-accent-2"><?= te('markt.konfigurator_spezifikation') ?></span>
-                            <?php endif; ?>
-                            <?php if ((int) $option['pflicht'] === 1): ?>
-                                <span class="tag tag-accent"><?= te('markt.konfigurator_pflicht') ?></span>
-                            <?php endif; ?>
-                        </td>
+                        <th scope="col"><?= te('markt.option_schluessel') ?></th>
+                        <th scope="col"><?= te('markt.option_bezeichnung') ?></th>
+                        <th scope="col"><?= te('markt.option_art') ?></th>
+                        <th scope="col"><?= te('markt.option_aufpreis') ?></th>
+                        <th scope="col"><?= te('markt.konfigurator_spezifikation') ?></th>
                         <?php if ($veraenderbar): ?>
-                            <td>
-                                <form method="post" action="/verkaufen/<?= $angebotId ?>" style="margin:0">
-                                    <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                                    <input type="hidden" name="aktion" value="option_entfernen">
-                                    <input type="hidden" name="schluessel" value="<?= e((string) $option['schluessel']) ?>">
-                                    <button class="btn btn-ghost" type="submit"><?= te('markt.option_entfernen') ?></button>
-                                </form>
-                            </td>
+                            <th scope="col"><?= te('markt.spalte_aktion') ?></th>
                         <?php endif; ?>
                     </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($optionen as $option): ?>
+                        <tr>
+                            <?php // Der Schluessel erlaubt 80 Zeichen aus [a-z0-9_] — eine
+                                  // Zeichenkette voellig ohne Umbruchstelle. Ohne Umbruch an
+                                  // beliebiger Stelle belegte allein diese Spalte rund 440 px
+                                  // und schoebe die uebrigen Spalten weit nach rechts. ?>
+                            <td style="overflow-wrap:anywhere"><?= e((string) $option['schluessel']) ?></td>
+                            <td style="overflow-wrap:anywhere"><?= e((string) $option['bezeichnung']) ?></td>
+                            <td><?= te('markt.art.' . (string) $option['art']) ?></td>
+                            <td><?= e(geld((int) $option['aufpreis_cent'], $waehrung)) ?></td>
+                            <td>
+                                <?php if ((int) $option['ist_spezifikation'] === 1): ?>
+                                    <span class="tag tag-accent-2"><?= te('markt.konfigurator_spezifikation') ?></span>
+                                <?php endif; ?>
+                                <?php if ((int) $option['pflicht'] === 1): ?>
+                                    <span class="tag tag-accent"><?= te('markt.konfigurator_pflicht') ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <?php if ($veraenderbar): ?>
+                                <td>
+                                    <form method="post" action="/verkaufen/<?= $angebotId ?>" style="margin:0">
+                                        <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                                        <input type="hidden" name="aktion" value="option_entfernen">
+                                        <input type="hidden" name="schluessel" value="<?= e((string) $option['schluessel']) ?>">
+                                        <button class="btn btn-ghost" type="submit"><?= te('markt.option_entfernen') ?></button>
+                                    </form>
+                                </td>
+                            <?php endif; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php endif; ?>
 
         <?php if ($veraenderbar): ?>

@@ -72,6 +72,10 @@ return [
     'konten_leer' => 'Kein Konto gefunden.',
     'konto_ansehen' => 'Ansehen',
     'ohne_faehigkeit' => 'keine',
+    // Name des waagerecht scrollbaren Bereichs um die Kontentabelle. Eine
+    // role="region" ohne Namen steht namenlos in der Landmarkenliste und ist
+    // damit wertlos.
+    'tabelle_konten' => 'Kontenliste, waagerecht scrollbar',
 
     'konto_kicker' => 'Einzelnes Konto',
     'konto_guthaben' => 'Guthaben',
@@ -89,8 +93,16 @@ return [
         . 'Konto sofort entrechtet werden kann.',
 
     'begruendung' => 'Begründung',
-    'begruendung_hinweis' => 'Pflichtangabe. Art. 17 DSA verlangt eine Begründung für jede '
-        . 'Beschränkung; ohne Protokoll lässt sich später nicht belegen, wer was entschieden hat.',
+    // Der Satz stand hier vorher als „Art. 17 DSA verlangt eine Begründung …
+    // ohne Protokoll lässt sich später nicht belegen, wer was entschieden hat“
+    // und beschrieb damit den internen Nachweis als Erfüllung der Vorschrift.
+    // Art. 17 Abs. 1 DSA verlangt aber, dass die Begründung die betroffene
+    // Person ERREICHT. Der Hinweis sagt das jetzt und leitet die Verwalterin
+    // an, den Text an sie zu richten — sie bekommt ihn zu lesen.
+    'begruendung_hinweis' => 'Pflichtangabe. Art. 17 Abs. 1 DSA verlangt eine klare und '
+        . 'spezifische Begründung gegenüber der betroffenen Person, nicht nur einen Vermerk '
+        . 'im Protokoll. Schreibe den Text deshalb an sie gerichtet: was ab wann gilt und '
+        . 'worauf sich die Entscheidung stützt.',
 
     'sperre_titel' => 'Zugang',
     'konto_sperren' => 'Konto sperren',
@@ -113,8 +125,8 @@ return [
     'angebot_freigeben' => 'Freigeben',
     'angebot_ablehnen' => 'Ablehnen',
     'angebot_grund' => 'Grund der Ablehnung',
-    'angebot_grund_hinweis' => 'Wird der einreichenden Person gezeigt. Ohne Grund kann sie nur raten, '
-        . 'was zu ändern ist.',
+    'angebot_grund_hinweis' => 'Wird der einreichenden Person zugestellt (Art. 17 Abs. 1 DSA). '
+        . 'Ohne Grund kann sie nur raten, was zu ändern ist.',
     'angebot_vier_augen' => 'Wer ein Angebot selbst eingereicht hat, darf nicht darüber entscheiden.',
     'angebot_abgelehnt_ziel' => 'Eine Ablehnung stellt das Angebot zurück auf Entwurf, sie löscht es nicht.',
 
@@ -251,7 +263,8 @@ return [
     'erfolg.konto_gesperrt' => 'Das Konto ist gesperrt und protokolliert.',
     'erfolg.konto_entsperrt' => 'Die Sperre ist aufgehoben und protokolliert.',
     'erfolg.angebot_freigegeben' => 'Das Angebot ist freigegeben und protokolliert.',
-    'erfolg.angebot_abgelehnt' => 'Das Angebot ist abgelehnt und protokolliert.',
+    'erfolg.angebot_abgelehnt' => 'Das Angebot ist abgelehnt, die Begründung ist der '
+        . 'einreichenden Person zugestellt und protokolliert.',
     'erfolg.meldung_bearbeitet' => 'Die Meldung ist entschieden und protokolliert.',
 
     // Schlüssel aus VerwaltungsFehler::schluessel()

@@ -10,6 +10,14 @@ declare(strict_types=1);
  * Referrer. Der Schutz gehört an die Formulare, die etwas ändern — und die
  * stehen in konto.php.
  *
+ * KEINE E-MAIL-SPALTE. Zum Finden eines Kontos genügen Pseudonym und Kennung;
+ * gesucht wird weiterhin auch über die E-Mail (WHERE in Verwaltung::konten()),
+ * angezeigt wird sie erst auf der Einzelseite, wo tatsächlich entschieden wird.
+ * Eine Spalte hier machte aus jeder Seite dieser durchblätterbaren Liste einen
+ * vollständigen Adressexport — auf einer Plattform für getragene Wäsche ist die
+ * E-Mail das Bindeglied zur bürgerlichen Identität. Art. 5 Abs. 1 lit. c DSGVO
+ * verlangt die Beschränkung auf das für den Zweck notwendige Maß.
+ *
  * @var array{zeilen: list<array<string,mixed>>, anzahl: int, seite: int, seiten: int, pro_seite: int} $liste
  * @var string $suche
  */
@@ -39,13 +47,24 @@ $blaettern = static fn (int $seite): string => '/verwaltung/konten?seite=' . $se
     <?php else: ?>
         <p class="text-muted"><?= te('verwaltung.anzahl_gesamt', ['anzahl' => $liste['anzahl']]) ?></p>
 
-        <div style="overflow-x:auto">
+        <?php
+        /*
+         * tabindex="0" ist keine Zierde: Der Behaelter scrollt waagerecht, ist
+         * ohne ihn aber selbst nicht fokussierbar, und die mittleren Spalten
+         * tragen keinen fokussierbaren Inhalt, ueber den man sie ins Bild holen
+         * koennte. Chrome macht Bildlaufbehaelter seit 127 von sich aus
+         * fokussierbar, Safari nicht — und iOS ist hier die Hauptplattform.
+         * WCAG 2.1.1: Was die Maus erreicht, muss die Tastatur auch erreichen.
+         * role="region" braucht dazu zwingend einen Namen, sonst steht der
+         * Bereich namenlos in der Landmarkenliste.
+         */
+        ?>
+        <div class="ms-breit" tabindex="0" role="region" aria-label="<?= te('verwaltung.tabelle_konten') ?>">
             <table class="table">
                 <thead>
                 <tr>
                     <th scope="col"><?= te('verwaltung.spalte.kennung') ?></th>
                     <th scope="col"><?= te('verwaltung.spalte.pseudonym') ?></th>
-                    <th scope="col"><?= te('verwaltung.spalte.email') ?></th>
                     <th scope="col"><?= te('verwaltung.spalte.status') ?></th>
                     <th scope="col"><?= te('verwaltung.spalte.faehigkeiten') ?></th>
                     <th scope="col"><?= te('verwaltung.spalte.guthaben') ?></th>
@@ -59,7 +78,6 @@ $blaettern = static fn (int $seite): string => '/verwaltung/konten?seite=' . $se
                     <tr>
                         <td><?= e((string) $zeile['id']) ?></td>
                         <td><?= e((string) $zeile['pseudonym']) ?></td>
-                        <td><?= e((string) $zeile['email']) ?></td>
                         <td><?= te('verwaltung.konto_status.' . $zeile['status']) ?></td>
                         <td>
                             <?php if ($zeile['faehigkeiten'] === []): ?>

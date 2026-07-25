@@ -266,6 +266,23 @@ img { max-width: 100%; height: auto; display: block; }
   .ms-kategoriekarte:active { transform: none; }
 }
 
+/* Hülle für alles, was breiter sein darf als der Bildschirm.
+   Ohne sie schiebt eine mehrspaltige Tabelle die ganze Seite auseinander und
+   der Fließtext wandert nach rechts aus dem Bild — auf 360 px passiert das
+   schon bei fünf Spalten. Die Regel lautet: die Tabelle scrollt, die Seite
+   nie. tabindex="0" gehört ins Markup, damit der Bereich auch per Tastatur
+   erreichbar ist (WCAG 2.1.1); ohne ihn kommt man an die rechten Spalten mit
+   der Tastatur nicht heran, sobald darin nichts Fokussierbares steht. */
+.ms-breit {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ms-breit:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .ms-abschnitt { display: flex; flex-direction: column; gap: var(--space-6); }
 
 .ms-kicker {

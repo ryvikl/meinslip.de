@@ -17,6 +17,14 @@ namespace MeinSlip\Domain\Admin;
  * Fehler dieser Klasse betreffen fast immer eine konkrete Kennung. Ohne sie
  * laesst sich hinterher nicht mehr feststellen, welches Konto gemeint war —
  * und genau das muss ein Verwaltungsvorgang belegen koennen.
+ *
+ * ACHTUNG bei der Zustellung nach Art. 17 DSA: benachrichtigungen() und
+ * benachrichtigungGelesen() werden von der betroffenen Person aufgerufen, also
+ * ausserhalb von /verwaltung. Der Schluessel 'benachrichtigung_unbekannt'
+ * gehoert deshalb NICHT nach resources/lang/de-DE/verwaltung.php, sondern in
+ * die Sprachdatei des Bereichs, der die Route anbietet. Die Meldung selbst
+ * darf dort nicht erscheinen — sie nennt die Kennung und wuerde verraten,
+ * dass es die fremde Zustellung gibt.
  */
 final class VerwaltungsFehler extends \RuntimeException
 {

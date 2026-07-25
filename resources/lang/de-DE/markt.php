@@ -11,6 +11,30 @@ declare(strict_types=1);
  * unterrichten, folgt aus § 312d Abs. 1 BGB i. V. m. Art. 246a § 1 Abs. 3
  * Nr. 1 EGBGB. Wer diese Saetze kuerzt, kuerzt die Rechtsgrundlage mit.
  *
+ * DREI SCHLUESSEL SIND NICHT FREI WAEHLBAR:
+ *
+ *  - 'konfigurator_absenden' ist die Beschriftung der Bestellschaltflaeche.
+ *    § 312j Abs. 3 S. 2 BGB verlangt, dass sie "mit nichts anderem als den
+ *    Woertern 'zahlungspflichtig bestellen' oder mit einer entsprechenden
+ *    eindeutigen Formulierung" beschriftet ist. Nach EuGH C-249/21
+ *    (Fuhrmann-2) zaehlt allein der Text AUF der Schaltflaeche; Umgebungstext
+ *    heilt nichts. Wer hier 'Verbindlich bestellen', 'Sicher bestellen' oder
+ *    'Jetzt absenden' einsetzt, verhindert nach § 312j Abs. 4 BGB das
+ *    Zustandekommen des Vertrags — die Ware waere geliefert und bezahlt,
+ *    ohne dass ein Kaufvertrag bestuende.
+ *
+ *  - 'konfigurator_summe_gesamt' und 'konfigurator_summe_vorlaeufig' sind die
+ *    Beschriftungen des Betrags unmittelbar ueber der Schaltflaeche. Welche
+ *    von beiden erscheint, entscheidet resources/views/markt/bestellen.php
+ *    danach, ob der Betrag ohne JavaScript beweisbar vollstaendig ist.
+ *    § 312j Abs. 2 BGB verlangt dort den Gesamtpreis — eine Zahl, die
+ *    "Gesamtbetrag" heisst und es nicht ist, ist schlechter als keine.
+ *
+ *  - 'preis_hinweis' erfuellt § 6 Abs. 1 PAngV. Der Satz zu den Versandkosten
+ *    ist durch das Schema gedeckt: database/migrations/004_katalog.php kennt
+ *    keine Versandkostenspalte, Bestellungen::anlegen() addiert keine. Wird
+ *    das je eingefuehrt, muss dieser Satz im selben Schritt mitwandern.
+ *
  * Die Schluessel sind flach mit Punkt geschrieben — Lang::t zerlegt nur am
  * ersten Punkt, echte Unterarrays funktionieren nicht.
  */
@@ -30,12 +54,30 @@ return [
     'blaettern' => 'Seitenwahl',
     'blaettern_zurueck' => 'Zurück',
     'blaettern_weiter' => 'Weiter',
+    // ACHTUNG, DEFEKT: Lang::t ersetzt die Platzhalter nacheinander per
+    // str_replace. ':seite' ist ein Praefix von ':seiten' und frisst dessen
+    // Anfang — aus 'von :seiten' wird 'von 1n'. resources/lang/de-DE/verwaltung.php
+    // umgeht das seit jeher mit ':gesamt'. Die Behebung braucht ZWEI Zeilen in
+    // ZWEI Dateien und darf nur gemeinsam geschehen, sonst steht ein
+    // unersetzter Platzhalter auf der Seite:
+    //   hier:                             'Seite :seite von :gesamt'
+    //   resources/views/markt/kategorie.php:77:
+    //       te('markt.blaettern_stand', ['seite' => $seite, 'gesamt' => $seiten])
+    // kategorie.php gehoert zu dieser Aenderung nicht in meine Dateihoheit.
     'blaettern_stand' => 'Seite :seite von :seiten',
 
     // --- Angebotsseite -----------------------------------------------------
     'angebot_kicker' => 'Angebot',
     'angebot_von' => 'Angeboten von',
     'angebot_grundpreis' => 'Grundpreis',
+    // § 6 Abs. 1 PAngV: Zum Gesamtpreis gehoert die Angabe, dass die
+    // Umsatzsteuer enthalten ist und ob Versandkosten hinzukommen. Der
+    // angezeigte Betrag IST der Endpreis — Preisrechner::zerlegen() rechnet
+    // die Umsatzsteuer aus dem Bruttobetrag heraus, statt sie aufzuschlagen.
+    // Der Satz muss raeumlich am Preis stehen, nicht im Seitenfuss.
+    'preis_hinweis' => 'Alle Preise sind Endpreise einschließlich der gesetzlichen Umsatzsteuer. '
+        . 'Zusätzliche Fracht-, Liefer- oder Versandkosten fallen nicht an — '
+        . 'weder beim anonymen Versand noch bei persönlicher Übergabe.',
     'angebot_bearbeitungstage' => 'Anfertigung in etwa :tage Tagen',
     'angebot_versand' => 'Anonymer Versand möglich',
     'angebot_uebergabe' => 'Persönliche Übergabe möglich',
@@ -68,10 +110,24 @@ return [
     'konfigurator_lieferart_uebergabe' => 'Persönliche Übergabe',
     'konfigurator_summe_titel' => 'Das bestellst du',
     'konfigurator_summe_grundpreis' => 'Grundpreis',
+    // Beide Beschriftungen gehoeren zusammen: 'gesamt' erscheint nur, wenn das
+    // Angebot ueberhaupt keine Option mit Aufpreis hat und der Betrag damit
+    // auch ohne JavaScript beweisbar der Gesamtpreis ist. Sonst 'vorlaeufig'.
     'konfigurator_summe_gesamt' => 'Gesamtbetrag',
+    'konfigurator_summe_vorlaeufig' => 'Vorläufiger Gesamtbetrag',
+    'konfigurator_summe_aufpreise' => 'Aufpreise dieses Angebots',
+    'konfigurator_summe_aufpreis_zeile' => ':bezeichnung: Aufpreis :betrag',
+    'konfigurator_summe_offen' => 'Der Betrag enthält den Grundpreis und die Aufpreise der Angaben, '
+        . 'die beim Aufbau dieser Seite feststanden. Jede weitere Angabe, die du oben machst, '
+        . 'kostet den hier genannten Aufpreis zusätzlich.',
+    'konfigurator_summe_ohne_js' => 'Ohne JavaScript wird dieser Betrag nicht mitgerechnet. '
+        . 'Rechne die oben aufgeführten Aufpreise deiner Angaben selbst hinzu — '
+        . 'abgerechnet wird die Summe, die der Server nach dem Absenden bildet.',
     'konfigurator_summe_hinweis' => 'Der Betrag wird beim Bestellen aus deinem Guthaben hinterlegt '
         . 'und erst nach Ablauf deiner Prüfzeit an die Verkäuferin ausgezahlt.',
-    'konfigurator_absenden' => 'Verbindlich bestellen',
+    // Wortlaut des § 312j Abs. 3 S. 2 BGB. Siehe Kopfkommentar dieser Datei:
+    // "mit nichts anderem als" — keine Zusaetze, kein Betrag, kein Icon.
+    'konfigurator_absenden' => 'Zahlungspflichtig bestellen',
 
     // --- Widerruf: Pflichtinformation VOR der Bestellung -------------------
     'widerruf_titel' => 'Kein Widerrufsrecht bei Anfertigung nach deinen Angaben',
@@ -198,6 +254,13 @@ return [
     'bestellung_rolle' => 'Deine Rolle',
     'bestellung_rolle_kaeufer' => 'Käufer',
     'bestellung_rolle_verkaeufer' => 'Verkäuferin',
+
+    // Spaltenköpfe der Spezifikationstabelle. Bei „Aufpreis" bewusst ohne
+    // Währung: Die Zelle gibt den Betrag über geld() samt Währung der
+    // Bestellung aus, ein „in Euro" im Kopf wäre dort irgendwann falsch.
+    'bestellung_spalte_angabe' => 'Angabe',
+    'bestellung_spalte_wert' => 'Deine Wahl',
+    'bestellung_spalte_aufpreis' => 'Aufpreis',
     'bestellung_positionen' => 'Das hast du bestellt',
     'bestellung_spezifikationen' => 'Deine Angaben',
     'bestellung_summe' => 'Gesamtbetrag',

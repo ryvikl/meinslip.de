@@ -16,8 +16,10 @@ use MeinSlip\Domain\Account\Konten;
  *     Konten::FAEHIGKEIT_VERKAUFEN — freigeschaltet erst nach der
  *     Identitaetspruefung. Ein frisches Konto hat sie nicht.
  *
- *  2. KEIN ANGEBOT OHNE SPEZIFIKATIONSOPTION. Siehe
- *     zurPruefungEinreichen() — Grundlage des Widerrufsausschlusses.
+ *  2. KEIN ANGEBOT OHNE SPEZIFIKATIONSOPTION, DIE EINEN WERT DER KAEUFERIN
+ *     AUFNIMMT. Ein angekreuztes Kaestchen genuegt ausdruecklich NICHT. Siehe
+ *     self::SPEZIFIKATIONSARTEN und zurPruefungEinreichen() — Grundlage des
+ *     Widerrufsausschlusses.
  *
  *  3. JEDER STATUSWECHSEL GEHT DURCH EINE EINZIGE PRUEFUNG. Es gibt keinen
  *     zweiten Pfad, der 'status' schreibt; ein unerlaubter Wechsel wirft
@@ -60,6 +62,32 @@ final class Angebote
 
     /** Arten einer Konfigurator-Option, wie in 004_katalog.php vorgesehen. */
     public const OPTIONSARTEN = [self::ART_AUSWAHL, self::ART_ZAHL, self::ART_FREITEXT];
+
+    /**
+     * Arten, die als Spezifikation im Sinne von § 312g Abs. 2 Nr. 1 BGB taugen.
+     *
+     * ART_AUSWAHL fehlt hier absichtlich und das ist der Kern der Regel:
+     * resources/views/markt/bestellen.php rendert diese Art als Ankreuzfeld mit
+     * dem FESTEN Wert "ja". Die Kaeuferin kann es nur setzen oder weglassen —
+     * einen eigenen Wert traegt es nie, und in bestellung_spezifikationen.wert
+     * steht danach bei jeder Kaeuferin dasselbe. An der Ware individualisiert
+     * sich dadurch nichts.
+     *
+     * § 312g Abs. 2 Nr. 1 BGB nimmt aber nur Ware aus, die "nach
+     * Kundenspezifikation angefertigt" wird; der EuGH (C-529/19 "Moebel Kraft")
+     * verlangt dafuer eine Anfertigung nach der Spezifikation des Verbrauchers
+     * und nicht eine Zusatzwahl aus einem Standardkatalog. Ein
+     * Ja/Nein-Kaestchen wie "Geschenkverpackung" ist genau so eine Zusatzwahl.
+     * Traegt der Ausschluss nicht, kommt getragene Waesche binnen 14 Tagen
+     * zurueck — und die Hygiene-Ausnahme nach Nr. 3 faengt das nicht auf
+     * (EuGH C-681/17 "slewo", siehe zurPruefungEinreichen()).
+     *
+     * ART_ZAHL und ART_FREITEXT nehmen dagegen einen von der Kaeuferin
+     * geschriebenen Wert auf ("drei Tage", "38"). Sie sind damit die Grenze,
+     * und sie steht hier als Konstante, damit der Bestellpfad in
+     * app/Http/MarktRouten.php dieselbe Liste liest statt sie nachzubauen.
+     */
+    public const SPEZIFIKATIONSARTEN = [self::ART_ZAHL, self::ART_FREITEXT];
 
     /**
      * Die vollstaendige Zustandsmaschine. Was hier nicht steht, ist verboten.
@@ -223,6 +251,12 @@ final class Angebote
      * wandert in bestellung_spezifikationen.schluessel und muss dort auch dann
      * noch lesbar sein, wenn die Option laengst geloescht ist.
      *
+     * "Die gleichnamige" ist keine blosse Absichtserklaerung mehr, sondern eine
+     * Zusage der Datenbank: UNIQUE(angebot_id, schluessel) aus Migration 009
+     * traegt sie. Diese Methode arbeitet mit dem Index, nicht gegen ihn — sie
+     * ueberschreibt, wenn es den Schluessel gibt, und faengt den Verstoss ab,
+     * wenn eine gleichzeitige Anfrage schneller war.
+     *
      * @return int Kennung der Option
      *
      * @throws AngebotFehler
@@ -263,11 +297,6 @@ final class Angebote
             throw new AngebotFehler('option_aufpreis_ungueltig');
         }
 
-        $vorhanden = $this->db->eine(
-            'SELECT id FROM angebot_optionen WHERE angebot_id = :a AND schluessel = :s',
-            ['a' => $angebotId, 's' => $schluessel]
-        );
-
         $daten = [
             'bezeichnung' => $bezeichnung,
             'erlaeuterung' => $erlaeuterung,
@@ -279,27 +308,49 @@ final class Angebote
             'aktiv' => 1,
         ];
 
+        $vorhanden = $this->vorhandeneOption($angebotId, $schluessel);
+
         if ($vorhanden !== null) {
-            $this->db->ausfuehren(
-                'UPDATE angebot_optionen
-                    SET bezeichnung = :bezeichnung, erlaeuterung = :erlaeuterung,
-                        aufpreis_cent = :aufpreis_cent, art = :art,
-                        ist_spezifikation = :ist_spezifikation, pflicht = :pflicht,
-                        reihenfolge = :reihenfolge, aktiv = :aktiv
-                  WHERE id = :id',
-                $daten + ['id' => (int) $vorhanden['id']]
-            );
-
-            $this->geaendertAm($angebotId);
-
-            return (int) $vorhanden['id'];
+            return $this->optionUeberschreiben($angebotId, $vorhanden, $daten);
         }
 
-        $optionId = $this->db->einfuegen('angebot_optionen', $daten + [
-            'angebot_id' => $angebotId,
-            'schluessel' => $schluessel,
-            'angelegt_am' => $this->jetzt(),
-        ]);
+        try {
+            $optionId = $this->db->einfuegen('angebot_optionen', $daten + [
+                'angebot_id' => $angebotId,
+                'schluessel' => $schluessel,
+                'angelegt_am' => $this->jetzt(),
+            ]);
+        } catch (\PDOException $fehler) {
+            // SQLSTATE 23000 ist die Verletzung einer Eindeutigkeitsbedingung —
+            // MySQL wie SQLite melden sie so. Auf angebot_optionen kann das nur
+            // UNIQUE(angebot_id, schluessel) aus Migration 009 sein, und das
+            // heisst genau eines: Zwischen der Abfrage oben und diesem INSERT
+            // war eine zweite Anfrage mit demselben Schluessel schneller
+            // (Doppelklick auf 'Option speichern' bei traeger Verbindung).
+            //
+            // Der Index ist das tragende Teil, nicht dieser Block: Eine
+            // Transaktion um Abfrage und INSERT wuerde nichts helfen, weil
+            // beide Anfragen unter READ COMMITTED wie unter REPEATABLE READ in
+            // der Abfrage nichts sehen. Hier steht nur die Umgangsform —
+            // nachlesen und ueberschreiben. Fachlich ist das genau richtig:
+            // Der Aufruf wollte diesen Schluessel setzen, und das Ergebnis ist
+            // eine einzige Zeile mit den zuletzt gesendeten Werten. Ohne den
+            // Block bekaeme die Verkaeuferin statt 'option_gespeichert' eine
+            // Fehlerseite, denn MarktRouten faengt nur AngebotFehler.
+            if ((string) $fehler->getCode() !== '23000') {
+                throw $fehler;
+            }
+
+            $inzwischen = $this->vorhandeneOption($angebotId, $schluessel);
+
+            // Kein Treffer heisst: Der Verstoss kam von woanders her. Dann ist
+            // Verschlucken falsch — die Ausnahme muss sichtbar bleiben.
+            if ($inzwischen === null) {
+                throw $fehler;
+            }
+
+            return $this->optionUeberschreiben($angebotId, $inzwischen, $daten);
+        }
 
         $this->geaendertAm($angebotId);
 
@@ -337,12 +388,30 @@ final class Angebote
     /**
      * Reicht das Angebot zur Pruefung ein: entwurf -> in_pruefung.
      *
-     * Ohne mindestens eine Option mit ist_spezifikation = 1 wird abgewiesen.
+     * HIER SITZT DIE GRENZE DES WIDERRUFSAUSSCHLUSSES. Zwei Bedingungen, und
+     * die zweite ist die schaerfere:
+     *
+     *  a) Mindestens eine aktive Option mit ist_spezifikation = 1.
+     *  b) Mindestens eine davon von einer Art aus self::SPEZIFIKATIONSARTEN,
+     *     also eine, die einen von der Kaeuferin geschriebenen Wert aufnimmt.
+     *
      * Grund: Nur eine echte, vom Kaeufer gesetzte Spezifikation macht die Ware
      * "nach Kundenspezifikation angefertigt" im Sinne von § 312g Abs. 2 Nr. 1
-     * BGB — und genau darauf stuetzt sich der Widerrufsausschluss. Die
+     * BGB — und genau darauf stuetzt sich der Widerrufsausschluss. Bis hierher
+     * genuegte das blosse Kennzeichen ist_spezifikation, gleich welcher Art:
+     * ein angekreuztes "Geschenkverpackung" trug den Ausschluss formal mit,
+     * obwohl sich an der Ware nichts individualisiert hat. Das haelt der
+     * Auslegung des EuGH (C-529/19 "Moebel Kraft") nicht stand. Die
      * Hygiene-Ausnahme nach Nr. 3 traegt bei getragener Waesche nicht
-     * verlaesslich (EuGH C-681/17 "slewo").
+     * verlaesslich (EuGH C-681/17 "slewo") und faengt den Ausfall nicht auf.
+     *
+     * Die Pruefung steht bewusst HIER und nicht in optionSetzen(): Ob ein
+     * Angebot den Ausschluss traegt, entscheidet sich am ganzen Angebot, nicht
+     * an der einzelnen Option. Eine Verkaeuferin darf ein Kaestchen als
+     * Zusatzwahl anbieten und es sogar als Spezifikation meinen — sie darf das
+     * Angebot nur nicht auf dieser Grundlage einreichen. Ein Wurf schon beim
+     * Speichern der Option wuerde ausserdem den Entwurf sperren, in dem sie die
+     * Option gerade erst zurechtruecken will.
      *
      * Die Abweisung ist ausserdem eine Freundlichkeit: Bestellungen::anlegen()
      * weist Positionen ohne Spezifikation ohnehin ab. Ein Angebot ohne
@@ -362,6 +431,18 @@ final class Angebote
             );
         }
 
+        // Eigener Schluessel statt 'keine_spezifikation': Die Verkaeuferin HAT
+        // hier eine als Spezifikation gekennzeichnete Option. Ihr zu sagen, es
+        // fehle eine, schickt sie in die falsche Richtung — sie muss die ART
+        // aendern, nicht eine weitere Option anlegen.
+        if (!$this->hatTragendeSpezifikationsoption($angebotId)) {
+            throw new AngebotFehler(
+                'spezifikation_braucht_eingabe',
+                'Angebot ' . $angebotId . ' hat als Spezifikation nur Optionen der Art "'
+                . self::ART_AUSWAHL . '". Ein Ankreuzfeld traegt keinen Wert der Kaeuferin.'
+            );
+        }
+
         $this->statusWechseln($angebot, self::STATUS_IN_PRUEFUNG);
     }
 
@@ -376,6 +457,29 @@ final class Angebote
     {
         $angebot = $this->angebotZeile($angebotId);
         $this->pruefeVierAugen($angebot, $pruefendeId);
+
+        // Der Ausgangsstatus muss hier eigens geprueft werden, weil UEBERGAENGE
+        // ihn nicht ausdruecken kann: pausiert -> aktiv ist erlaubt, denn
+        // fortsetzen() braucht genau diesen Weg. Die Tabelle sagt, WELCHER
+        // Wechsel zulaessig ist, nicht WER ihn ausloesen darf.
+        //
+        // Ohne die Pruefung wirkt ein Klick auf /verwaltung/angebote/{id}/
+        // freigeben als Entpausierung: Das Angebot war nie in Pruefung, geht
+        // aber sofort live und ist bestellbar. Der Verkaeuferin nimmt das
+        // mitten in der Bearbeitung den einzigen Zustand, in dem sie
+        // Stammdaten und Optionen aendern darf (self::VERAENDERBAR) — das
+        // halbfertige Angebot steht dann im Katalog. Ein veraltetes
+        // Listenfenster der Verwaltung reicht dafuer aus.
+        //
+        // Bewusst AngebotFehler::unerlaubterWechsel() und kein neuer Schluessel:
+        // Der Fall IST ein unerlaubter Wechsel, 'statuswechsel_unzulaessig' ist
+        // in der Oberflaeche bereits uebersetzt, und die Zusicherung der Tests,
+        // dass jeder verbotene Uebergang denselben Schluessel meldet, bleibt.
+        $von = (string) $angebot['status'];
+
+        if ($von !== self::STATUS_IN_PRUEFUNG) {
+            throw AngebotFehler::unerlaubterWechsel($von, self::STATUS_AKTIV);
+        }
 
         $this->statusWechseln($angebot, self::STATUS_AKTIV);
     }
@@ -600,12 +704,84 @@ final class Angebote
         }
     }
 
+    /**
+     * Kennung der gleichnamigen Option, oder null.
+     *
+     * Eigene Methode, weil optionSetzen() zweimal danach fragt: einmal vor dem
+     * INSERT und einmal, nachdem der eindeutige Index einen Wettlauf gemeldet
+     * hat. Beide Male muss dieselbe Bedingung gelten wie im Index.
+     */
+    private function vorhandeneOption(int $angebotId, string $schluessel): ?int
+    {
+        $zeile = $this->db->eine(
+            'SELECT id FROM angebot_optionen WHERE angebot_id = :a AND schluessel = :s',
+            ['a' => $angebotId, 's' => $schluessel]
+        );
+
+        return $zeile === null ? null : (int) $zeile['id'];
+    }
+
+    /**
+     * Schreibt eine vorhandene Option um und haelt geaendert_am nach.
+     *
+     * @param array<string,mixed> $daten Die Spalten aus optionSetzen(); der
+     *        Schluessel selbst steht nicht darin und bleibt unveraendert.
+     *
+     * @return int Kennung der Option
+     */
+    private function optionUeberschreiben(int $angebotId, int $optionId, array $daten): int
+    {
+        $this->db->ausfuehren(
+            'UPDATE angebot_optionen
+                SET bezeichnung = :bezeichnung, erlaeuterung = :erlaeuterung,
+                    aufpreis_cent = :aufpreis_cent, art = :art,
+                    ist_spezifikation = :ist_spezifikation, pflicht = :pflicht,
+                    reihenfolge = :reihenfolge, aktiv = :aktiv
+              WHERE id = :id',
+            $daten + ['id' => $optionId]
+        );
+
+        $this->geaendertAm($angebotId);
+
+        return $optionId;
+    }
+
+    /** Gibt es ueberhaupt eine als Spezifikation gekennzeichnete Option? */
     private function hatSpezifikationsoption(int $angebotId): bool
     {
         $treffer = $this->db->wert(
             'SELECT COUNT(*) FROM angebot_optionen
               WHERE angebot_id = :a AND ist_spezifikation = 1 AND aktiv = 1',
             ['a' => $angebotId]
+        );
+
+        return (int) $treffer > 0;
+    }
+
+    /**
+     * Gibt es eine Spezifikationsoption, die einen Wert der Kaeuferin aufnimmt?
+     *
+     * Das ist die Bedingung, an der der Widerrufsausschluss haengt — siehe
+     * self::SPEZIFIKATIONSARTEN und zurPruefungEinreichen().
+     */
+    private function hatTragendeSpezifikationsoption(int $angebotId): bool
+    {
+        // Die Platzhalter entstehen aus der Klassenkonstanten, nie aus einer
+        // Eingabe — nur deshalb darf ihre Zahl in den SQL-Text wachsen. Die
+        // Werte selbst werden weiterhin gebunden.
+        $platzhalter = [];
+        $werte = ['a' => $angebotId];
+
+        foreach (self::SPEZIFIKATIONSARTEN as $nummer => $spezifikationsart) {
+            $platzhalter[] = ':art' . $nummer;
+            $werte['art' . $nummer] = $spezifikationsart;
+        }
+
+        $treffer = $this->db->wert(
+            'SELECT COUNT(*) FROM angebot_optionen
+              WHERE angebot_id = :a AND ist_spezifikation = 1 AND aktiv = 1
+                AND art IN (' . implode(', ', $platzhalter) . ')',
+            $werte
         );
 
         return (int) $treffer > 0;

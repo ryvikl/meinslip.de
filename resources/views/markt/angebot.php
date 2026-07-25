@@ -120,6 +120,12 @@ $gestoert ??= false;
                     <span class="tag tag-neutral"><?= te('markt.angebot_region', ['region' => (string) $angebot['uebergabe_region']]) ?></span>
                 <?php endif; ?>
             </p>
+            <?php // § 6 Abs. 1 PAngV verlangt zum Preis die Angabe, dass die
+                  // Umsatzsteuer enthalten ist und ob Liefer- oder
+                  // Versandkosten hinzukommen. Der Hinweis steht deshalb
+                  // unmittelbar unter dem Preisschild und nicht im Seitenfuss —
+                  // die Rechtsprechung verlangt den raeumlichen Zusammenhang. ?>
+            <p class="card-meta text-muted"><?= te('markt.preis_hinweis') ?></p>
             <?php if ($kategorie !== null): ?>
                 <p class="card-meta">
                     <a href="/kategorie/<?= e((string) $kategorie['pfad']) ?>"><?= te('kategorie.' . (string) $kategorie['schluessel']) ?></a>

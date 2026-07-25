@@ -142,6 +142,49 @@ final class VerwaltungTest extends Testfall
         self::assertSame(2, $this->verwaltung->konten('  ')['anzahl']);
     }
 
+    /**
+     * % und _ der Eingabe sind Suchtext, keine Platzhalter.
+     *
+     * Ohne die Maskierung liefert die Suche nach '%' die ganze Tabelle und
+     * 'l_na' auch 'lina' — an genau der Stelle, an der als naechstes gesperrt
+     * oder entrechtet wird.
+     */
+    public function testKontensucheBehandeltProzentUndUnterstrichAlsText(): void
+    {
+        $this->benutzer('Lina');
+        $this->benutzer('Mara');
+        // Ein Konto mit echtem Unterstrich in der Adresse: Sonst liesse sich
+        // nicht unterscheiden, ob die Suche den Unterstrich findet oder nur
+        // alles verwirft.
+        $this->benutzer('max_muster');
+
+        self::assertSame(0, $this->verwaltung->konten('%')['anzahl']);
+        self::assertSame(0, $this->verwaltung->konten('l_na')['anzahl']);
+        self::assertSame(0, $this->verwaltung->konten('100%')['anzahl']);
+
+        // Der Unterstrich findet nur das Konto, das ihn wirklich traegt.
+        $treffer = $this->verwaltung->konten('_');
+        self::assertSame(1, $treffer['anzahl']);
+        self::assertSame('max_muster', $treffer['zeilen'][0]['pseudonym']);
+
+        // Und die gewoehnliche Suche bleibt unveraendert.
+        self::assertSame(1, $this->verwaltung->konten('lina')['anzahl']);
+        self::assertSame(3, $this->verwaltung->konten('  ')['anzahl']);
+    }
+
+    /**
+     * Das Fluchtzeichen selbst darf nicht durchschlagen: Wer '!' eintippt,
+     * sucht nach einem Ausrufezeichen.
+     */
+    public function testKontensucheNimmtDasFluchtzeichenAlsGewoehnlichesZeichen(): void
+    {
+        $this->benutzer('Lina');
+
+        self::assertSame(0, $this->verwaltung->konten('!')['anzahl']);
+        self::assertSame(0, $this->verwaltung->konten('!%')['anzahl']);
+        self::assertSame(1, $this->verwaltung->konten('lina')['anzahl']);
+    }
+
     public function testKontoZeigtPruefungenBestellungenUndMeldungen(): void
     {
         $kaeufer = $this->benutzer('Kaeuferin');
@@ -342,6 +385,252 @@ final class VerwaltungTest extends Testfall
         $this->verwaltung->kontoSperren($verwalter, $ziel, '');
     }
 
+    // --- Zustellung (Art. 17 DSA) ------------------------------------------
+
+    /**
+     * Art. 17 Abs. 1 DSA verlangt, dass die betroffene Person die Begruendung
+     * ERHAELT. Ein Protokolleintrag, den nur die Verwaltung sieht, erfuellt das
+     * nicht — die Zustellung muss entstehen und am Protokolleintrag haengen.
+     */
+    public function testSperrenStelltDieBegruendungZu(): void
+    {
+        $verwalter = $this->verwalterin();
+        $ziel = $this->benutzer('Lina');
+
+        $ereignisId = $this->verwaltung->kontoSperren(
+            $verwalter,
+            $ziel,
+            'Mehrfach gemeldet, Ware nie versendet.'
+        );
+
+        $zustellungen = $this->verwaltung->benachrichtigungen($ziel);
+        self::assertCount(1, $zustellungen);
+        self::assertSame(Verwaltung::HANDLUNG_KONTO_GESPERRT, $zustellungen[0]['art']);
+        self::assertSame(Verwaltung::GEGENSTAND_BENUTZER, $zustellungen[0]['gegenstand_art']);
+        self::assertSame($ziel, $zustellungen[0]['gegenstand_id']);
+        self::assertSame('Mehrfach gemeldet, Ware nie versendet.', $zustellungen[0]['begruendung']);
+        self::assertNull($zustellungen[0]['gelesen_am']);
+        self::assertFalse($zustellungen[0]['gelesen']);
+
+        // Die Verbindung zum Journal: Zu jeder Beschraenkung muss eine
+        // Zustellung auffindbar sein und umgekehrt.
+        self::assertSame($ereignisId, (int) $this->db->wert(
+            'SELECT verwaltungs_ereignis_id FROM benachrichtigungen WHERE id = :id',
+            ['id' => $zustellungen[0]['id']]
+        ));
+
+        // Und die Verwalteridentitaet bleibt im Journal: Die Sicht der
+        // betroffenen Person traegt sie nicht.
+        self::assertArrayNotHasKey('verwalter_id', $zustellungen[0]);
+        self::assertArrayNotHasKey('verwaltungs_ereignis_id', $zustellungen[0]);
+    }
+
+    public function testEntziehenStelltDieBegruendungZu(): void
+    {
+        $verwalter = $this->verwalterin();
+        $ziel = $this->benutzer('Lina');
+        $this->konten->faehigkeitFreischalten($ziel, Konten::FAEHIGKEIT_VERKAUFEN, 'test');
+
+        $this->verwaltung->faehigkeitEntziehen(
+            $verwalter,
+            $ziel,
+            Konten::FAEHIGKEIT_VERKAUFEN,
+            'Identitaetsnachweis abgelaufen.'
+        );
+
+        $zustellungen = $this->verwaltung->benachrichtigungen($ziel);
+        self::assertCount(1, $zustellungen);
+        self::assertSame(Verwaltung::HANDLUNG_FAEHIGKEIT_ENTZOGEN, $zustellungen[0]['art']);
+        self::assertSame('faehigkeit_verkaufen', $zustellungen[0]['gegenstand_art']);
+        self::assertSame('Identitaetsnachweis abgelaufen.', $zustellungen[0]['begruendung']);
+    }
+
+    /**
+     * Wirkung, Protokoll und Zustellung sind EIN Vorgang. Scheitert das
+     * Protokoll, darf weder die Beschraenkung noch die Zustellung stehen
+     * bleiben.
+     */
+    public function testOhneProtokollEntstehtAuchKeineZustellung(): void
+    {
+        $ziel = $this->benutzer('Lina');
+        $this->konten->faehigkeitFreischalten($ziel, Konten::FAEHIGKEIT_KAUFEN, 'test');
+
+        try {
+            $this->verwaltung->faehigkeitEntziehen(999, $ziel, Konten::FAEHIGKEIT_KAUFEN, 'Begruendung liegt vor.');
+            self::fail('Ein unbekanntes verwaltendes Konto haette abgewiesen werden muessen.');
+        } catch (VerwaltungsFehler $fehler) {
+            self::assertSame('verwalter_unbekannt', $fehler->schluessel());
+        }
+
+        self::assertTrue($this->konten->hatFaehigkeit($ziel, Konten::FAEHIGKEIT_KAUFEN));
+        self::assertSame(0, $this->anzahlEreignisse());
+        self::assertSame([], $this->verwaltung->benachrichtigungen($ziel));
+    }
+
+    /**
+     * Das Aufheben einer Sperre beschraenkt nichts — Art. 17 DSA verlangt
+     * dafuer keine Zustellung, und eine Nachricht ohne Anlass ist keine.
+     */
+    public function testEntsperrenProtokolliertOhneZuzustellen(): void
+    {
+        $verwalter = $this->verwalterin();
+        $ziel = $this->benutzer('Lina');
+
+        $this->verwaltung->kontoSperren($verwalter, $ziel, 'Mehrfach gemeldet.');
+        $this->verwaltung->kontoEntsperren($verwalter, $ziel, 'Sachverhalt geklaert.');
+
+        self::assertSame(2, $this->anzahlEreignisse());
+        // Nur die Sperre wurde zugestellt, nicht ihre Aufhebung.
+        self::assertCount(1, $this->verwaltung->benachrichtigungen($ziel));
+    }
+
+    public function testBeschraenkungOhneBegruendungWirdAbgewiesen(): void
+    {
+        $verwalter = $this->verwalterin();
+        $ziel = $this->benutzer('Lina');
+
+        try {
+            $this->verwaltung->beschraenkungProtokollierenUndZustellen(
+                $verwalter,
+                $ziel,
+                'angebot_abgelehnt',
+                Verwaltung::GEGENSTAND_ANGEBOT,
+                7,
+                '   '
+            );
+            self::fail('Eine leere Begruendung haette abgewiesen werden muessen.');
+        } catch (VerwaltungsFehler $fehler) {
+            self::assertSame('begruendung_fehlt', $fehler->schluessel());
+        }
+
+        self::assertSame(0, $this->anzahlEreignisse());
+        self::assertSame([], $this->verwaltung->benachrichtigungen($ziel));
+    }
+
+    public function testSelbstbeschraenkungWirdAbgewiesen(): void
+    {
+        $verwalter = $this->verwalterin();
+
+        try {
+            $this->verwaltung->beschraenkungProtokollierenUndZustellen(
+                $verwalter,
+                $verwalter,
+                'angebot_abgelehnt',
+                Verwaltung::GEGENSTAND_ANGEBOT,
+                7,
+                'Passt mir nicht.'
+            );
+            self::fail('Eine Beschraenkung des eigenen Kontos haette abgewiesen werden muessen.');
+        } catch (VerwaltungsFehler $fehler) {
+            self::assertSame('selbstsperre_unzulaessig', $fehler->schluessel());
+        }
+
+        self::assertSame(0, $this->anzahlEreignisse());
+    }
+
+    /**
+     * Der Weg, den VerwaltungsRouten fuer die Angebotsablehnung nimmt: Die
+     * Wirkung loest Angebote aus, Protokoll und Zustellung entstehen hier.
+     */
+    public function testBeschraenkungSchreibtProtokollUndZustellungGemeinsam(): void
+    {
+        $verwalter = $this->verwalterin();
+        $verkaeufer = $this->benutzer('Verkaeuferin');
+        $angebotId = $this->angebot($verkaeufer, Verwaltung::ANGEBOT_IN_PRUEFUNG, 'Wartet');
+
+        $ereignisId = $this->verwaltung->beschraenkungProtokollierenUndZustellen(
+            $verwalter,
+            $verkaeufer,
+            'angebot_abgelehnt',
+            Verwaltung::GEGENSTAND_ANGEBOT,
+            $angebotId,
+            'Die Bilder zeigen eine dritte Person.'
+        );
+
+        self::assertSame(1, $this->anzahlEreignisse());
+
+        $zustellungen = $this->verwaltung->benachrichtigungen($verkaeufer);
+        self::assertCount(1, $zustellungen);
+        self::assertSame('angebot_abgelehnt', $zustellungen[0]['art']);
+        self::assertSame($angebotId, $zustellungen[0]['gegenstand_id']);
+        self::assertSame($ereignisId, (int) $this->db->wert(
+            'SELECT verwaltungs_ereignis_id FROM benachrichtigungen WHERE id = :id',
+            ['id' => $zustellungen[0]['id']]
+        ));
+    }
+
+    /**
+     * Die Kennungen sind fortlaufend und damit durchzaehlbar: Eine fremde
+     * Zustellung darf sich weder lesen noch als gelesen markieren lassen.
+     */
+    public function testFremdeZustellungLaesstSichNichtAlsGelesenMarkieren(): void
+    {
+        $verwalter = $this->verwalterin();
+        $betroffen = $this->benutzer('Lina');
+        $fremd = $this->benutzer('Mara');
+
+        $this->verwaltung->kontoSperren($verwalter, $betroffen, 'Mehrfach gemeldet.');
+        $id = $this->verwaltung->benachrichtigungen($betroffen)[0]['id'];
+
+        try {
+            $this->verwaltung->benachrichtigungGelesen($fremd, (int) $id);
+            self::fail('Eine fremde Zustellung haette nicht markiert werden duerfen.');
+        } catch (VerwaltungsFehler $fehler) {
+            self::assertSame('benachrichtigung_unbekannt', $fehler->schluessel());
+        }
+
+        // Unveraendert: Der Nachweis, wann die Begruendung angekommen ist,
+        // haengt an dieser Spalte.
+        self::assertNull($this->db->wert(
+            'SELECT gelesen_am FROM benachrichtigungen WHERE id = :id',
+            ['id' => $id]
+        ));
+
+        // Und die fremde Liste bleibt leer — sie zeigt nichts Fremdes an.
+        self::assertSame([], $this->verwaltung->benachrichtigungen($fremd));
+    }
+
+    public function testGelesenHaeltDenErstenZeitpunktFestUndFiltertDieListe(): void
+    {
+        $verwalter = $this->verwalterin();
+        $betroffen = $this->benutzer('Lina');
+
+        $this->verwaltung->kontoSperren($verwalter, $betroffen, 'Mehrfach gemeldet.');
+        $this->verwaltung->faehigkeitEntziehen(
+            $verwalter,
+            $betroffen,
+            Konten::FAEHIGKEIT_KAUFEN,
+            'Altersnachweis abgelaufen.'
+        );
+
+        self::assertCount(2, $this->verwaltung->benachrichtigungen($betroffen, true));
+
+        $id = (int) $this->verwaltung->benachrichtigungen($betroffen)[0]['id'];
+        $this->verwaltung->benachrichtigungGelesen($betroffen, $id);
+
+        $ungelesen = $this->verwaltung->benachrichtigungen($betroffen, true);
+        self::assertCount(1, $ungelesen);
+        self::assertNotSame($id, (int) $ungelesen[0]['id']);
+
+        $zuerst = (string) $this->db->wert(
+            'SELECT gelesen_am FROM benachrichtigungen WHERE id = :id',
+            ['id' => $id]
+        );
+        self::assertNotSame('', $zuerst);
+
+        // Ein zweiter Aufruf darf den Nachweis nicht nach hinten schieben.
+        $this->db->ausfuehren(
+            'UPDATE benachrichtigungen SET gelesen_am = :z WHERE id = :id',
+            ['z' => '2020-01-01 00:00:00', 'id' => $id]
+        );
+        $this->verwaltung->benachrichtigungGelesen($betroffen, $id);
+
+        self::assertSame('2020-01-01 00:00:00', $this->db->wert(
+            'SELECT gelesen_am FROM benachrichtigungen WHERE id = :id',
+            ['id' => $id]
+        ));
+    }
+
     // --- Angebote ----------------------------------------------------------
 
     public function testOffeneAngeboteZeigenVerkaeuferUndKategorie(): void
@@ -490,6 +779,41 @@ final class VerwaltungTest extends Testfall
         $this->assertHauptbuchAusgeglichen();
     }
 
+    /**
+     * Die Summen werden nicht mehr ueber das ganze Hauptbuch aggregiert,
+     * sondern in einem zweiten Schritt nur zu den Vorgaengen dieser Seite
+     * geholt. Ein Vorgang ohne Buchungen taucht dabei gar nicht auf — er muss
+     * trotzdem wie beim frueheren LEFT JOIN als 0/0 und ausgeglichen gelten.
+     */
+    public function testVorgangOhneBuchungenBleibtAusgeglichen(): void
+    {
+        $kaeufer = $this->benutzer('Kaeuferin');
+        $this->aufladen($kaeufer, 5000);
+
+        $this->db->einfuegen('hauptbuch_vorgaenge', [
+            'art' => 'leerlauf',
+            'bezug_art' => null,
+            'bezug_id' => null,
+            'beschreibung' => 'Vorgang ganz ohne Buchungen',
+            'idempotenz_schluessel' => null,
+            'angelegt_am' => gmdate('Y-m-d H:i:s'),
+        ]);
+
+        $seite = $this->verwaltung->hauptbuchVorgaenge();
+
+        self::assertSame(2, $seite['anzahl']);
+
+        $leer = $this->zeileNachArt($seite['zeilen'], 'leerlauf');
+        self::assertSame(0, $leer['summe_cent']);
+        self::assertSame(0, $leer['buchungen']);
+        self::assertTrue($leer['ausgeglichen']);
+
+        // Die Zeile mit Buchungen wird davon nicht beruehrt.
+        $aufladung = $this->zeileNachArt($seite['zeilen'], 'aufladung');
+        self::assertSame(0, $aufladung['summe_cent']);
+        self::assertSame(2, $aufladung['buchungen']);
+    }
+
     // --- Zugang ------------------------------------------------------------
 
     /**
@@ -523,6 +847,73 @@ final class VerwaltungTest extends Testfall
         );
 
         self::assertFalse($this->konten->hatFaehigkeit($zweite, Konten::FAEHIGKEIT_VERWALTEN));
+    }
+
+    /**
+     * Der Selbstentzug von 'verwalten' meldete frueher 'kein_verwaltungsrecht'
+     * und behauptete damit das Gegenteil der Lage: Das Konto HAT das Recht,
+     * sonst waere es nie bis hierher gekommen. Ursache war die Reihenfolge —
+     * Konten::faehigkeitEntziehen() lief zuerst, danach sah die Pruefung im
+     * Protokoll das eben entzogene Recht schon als entzogen.
+     */
+    public function testSelbstentzugMeldetDenSelbstbezugUndNichtFehlendesRecht(): void
+    {
+        $verwalter = $this->verwalterin();
+
+        try {
+            $this->verwaltung->faehigkeitEntziehen(
+                $verwalter,
+                $verwalter,
+                Konten::FAEHIGKEIT_VERWALTEN,
+                'Ich hoere auf.'
+            );
+            self::fail('Der Selbstentzug haette abgewiesen werden muessen.');
+        } catch (VerwaltungsFehler $fehler) {
+            self::assertSame('selbstsperre_unzulaessig', $fehler->schluessel());
+        }
+
+        self::assertTrue($this->konten->hatFaehigkeit($verwalter, Konten::FAEHIGKEIT_VERWALTEN));
+        self::assertSame(0, $this->anzahlEreignisse());
+        self::assertSame([], $this->verwaltung->benachrichtigungen($verwalter));
+    }
+
+    /**
+     * Grundsatz 3 gilt fuer jede Faehigkeit, nicht nur fuer 'verwalten': Wer
+     * sich selbst 'kaufen' geben oder nehmen duerfte, entschiede ueber das
+     * eigene Konto — und umginge im Fall des Vergebens die Altersverifikation.
+     */
+    public function testUeberDieEigenenFaehigkeitenEntscheidetJemandAnderes(): void
+    {
+        $verwalter = $this->verwalterin();
+        $this->konten->faehigkeitFreischalten($verwalter, Konten::FAEHIGKEIT_KAUFEN, 'altersnachweis');
+
+        foreach (['entziehen', 'freischalten'] as $richtung) {
+            try {
+                if ($richtung === 'entziehen') {
+                    $this->verwaltung->faehigkeitEntziehen(
+                        $verwalter,
+                        $verwalter,
+                        Konten::FAEHIGKEIT_KAUFEN,
+                        'Brauche ich nicht mehr.'
+                    );
+                } else {
+                    $this->verwaltung->faehigkeitFreischalten(
+                        $verwalter,
+                        $verwalter,
+                        Konten::FAEHIGKEIT_VERKAUFEN,
+                        'Will ich auch.'
+                    );
+                }
+
+                self::fail('Die Entscheidung ueber das eigene Konto haette abgewiesen werden muessen.');
+            } catch (VerwaltungsFehler $fehler) {
+                self::assertSame('selbstsperre_unzulaessig', $fehler->schluessel());
+            }
+        }
+
+        self::assertTrue($this->konten->hatFaehigkeit($verwalter, Konten::FAEHIGKEIT_KAUFEN));
+        self::assertFalse($this->konten->hatFaehigkeit($verwalter, Konten::FAEHIGKEIT_VERKAUFEN));
+        self::assertSame(0, $this->anzahlEreignisse());
     }
 
     public function testOhneVerwaltungsrechtWirdNichtProtokolliert(): void
@@ -560,6 +951,18 @@ final class VerwaltungTest extends Testfall
     private function kontostatus(int $benutzerId): string
     {
         return (string) $this->db->wert('SELECT status FROM benutzer WHERE id = :id', ['id' => $benutzerId]);
+    }
+
+    /** @param list<array<string,mixed>> $zeilen */
+    private function zeileNachArt(array $zeilen, string $art): array
+    {
+        foreach ($zeilen as $zeile) {
+            if ($zeile['art'] === $art) {
+                return $zeile;
+            }
+        }
+
+        self::fail('Kein Vorgang der Art "' . $art . '" gefunden.');
     }
 
     /** @param list<array<string,mixed>> $zeilen */

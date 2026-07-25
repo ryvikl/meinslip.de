@@ -22,20 +22,41 @@ use MeinSlip\Domain\Order\Bestellzustand;
  *     heraus. Wer hier eine schreibende Hauptbuchmethode ergaenzt, hebt die
  *     Zusicherung der doppelten Buchfuehrung auf.
  *
- *  2. KEINE ENTSCHEIDUNG OHNE PROTOKOLL UND BEGRUENDUNG. Jede Beschraenkung
- *     eines Kontos schreibt in derselben Transaktion ein Ereignis nach
- *     'verwaltungs_ereignisse'. Art. 17 DSA verlangt eine Begruendung fuer
- *     jede Beschraenkung; ohne Protokoll laesst sich spaeter nicht belegen,
- *     wer was entschieden hat. Deshalb wird eine leere Begruendung abgewiesen
- *     und nicht etwa durch einen Standardtext ersetzt.
+ *  2. KEINE BESCHRAENKUNG OHNE PROTOKOLL, BEGRUENDUNG UND ZUSTELLUNG. Jede
+ *     Beschraenkung schreibt in DERSELBEN Transaktion zwei Zeilen: eine nach
+ *     'verwaltungs_ereignisse' und eine nach 'benachrichtigungen'.
  *
- *  3. NIEMAND ENTSCHEIDET UEBER DAS EIGENE KONTO. Eine Selbstsperre — und
- *     ebenso die Selbstentsperrung — wird abgewiesen.
+ *     Die beiden Tabellen erfuellen verschiedene Pflichten und keine ersetzt
+ *     die andere. 'verwaltungs_ereignisse' ist die INTERNE Sicht — sie belegt
+ *     gegenueber Aufsicht und Gericht, WER entschieden hat, und wird nur unter
+ *     /verwaltung gelesen. Art. 17 Abs. 1 DSA verlangt aber, dass die
+ *     betroffene Person die Begruendung ERHAELT; ein Journal, das nur
+ *     Verwalter sehen, erfuellt das nicht. Es belegt, DASS begruendet wurde,
+ *     nicht, dass die Begruendung angekommen ist. Dafuer steht
+ *     'benachrichtigungen': die Sicht der betroffenen Person, ohne die
+ *     Verwalteridentitaet, mit Lesezeitpunkt als Nachweis.
+ *
+ *     Beides zusammen macht beschraenkungProtokollierenUndZustellen(); jede
+ *     beschraenkende Handlung dieser Klasse laeuft darueber. Eine leere
+ *     Begruendung wird abgewiesen und nicht durch einen Standardtext ersetzt.
+ *
+ *  3. NIEMAND ENTSCHEIDET UEBER DAS EIGENE KONTO. Sperre, Entsperrung,
+ *     Freischaltung und Entzug einer Faehigkeit sind allesamt Entscheidungen
+ *     ueber ein Konto und werden abgewiesen, wenn es das eigene ist —
+ *     pruefeFremdesKonto() ist die eine Stelle, an der das steht.
  *
  * Die Freigabe eines Angebots gehoert bewusst NICHT hierher: Den Statuswechsel
  * macht Angebote, weil dort die Zustandsmaschine und das Vier-Augen-Prinzip
  * sitzen. Diese Klasse liefert nur die Arbeitsliste (offeneAngebote()) und
- * protokolliert auf Zuruf ueber ereignisSchreiben().
+ * protokolliert auf Zuruf ueber ereignisSchreiben() beziehungsweise
+ * beschraenkungProtokollierenUndZustellen().
+ *
+ * Zwei Methoden richten sich ausnahmsweise NICHT an die Verwaltung, sondern an
+ * die betroffene Person: benachrichtigungen() und benachrichtigungGelesen().
+ * Sie stehen hier, weil die Zustellung an derselben Stelle entsteht wie die
+ * Entscheidung — waeren sie anderswo, liesse sich die Zusicherung aus
+ * Grundsatz 2 nicht mehr an einer Datei ablesen. Beide arbeiten
+ * ausschliesslich auf dem Konto, das ihnen uebergeben wird.
  */
 final class Verwaltung
 {
@@ -92,7 +113,14 @@ final class Verwaltung
     /** Vorsilbe der Gegenstandsart bei Faehigkeiten: 'faehigkeit_kaufen'. */
     public const GEGENSTAND_FAEHIGKEIT = 'faehigkeit';
 
-    /** Spaltenbreiten aus database/migrations/008_verwaltung.php. */
+    /**
+     * Spaltenbreiten aus database/migrations/008_verwaltung.php.
+     *
+     * Sie gelten auch fuer 'benachrichtigungen' aus 009_nachbesserung.php:
+     * art ist dort bewusst so breit wie handlung hier und gegenstand_art in
+     * beiden Tabellen gleich, damit sich Protokolleintrag und Zustellung ohne
+     * Uebersetzungstabelle zuordnen lassen.
+     */
     private const HANDLUNG_MAXLAENGE = 60;
     private const GEGENSTAND_ART_MAXLAENGE = 40;
 
@@ -196,8 +224,28 @@ final class Verwaltung
         if ($suche !== '') {
             // Zwei Platzhalter fuer denselben Wert: PDO bindet mit
             // abgeschalteter Emulation jeden Namen genau einmal.
-            $bedingung = ' WHERE LOWER(pseudonym) LIKE :suche_p OR LOWER(email) LIKE :suche_e';
-            $werte['suche_p'] = '%' . mb_strtolower($suche) . '%';
+            //
+            // % und _ aus der Eingabe sind Suchtext, keine Platzhalter: Wer
+            // 'max_muster' eintippt, meint den Unterstrich und nicht 'ein
+            // beliebiges Zeichen' — sonst zeigt die Liste Konten, die die
+            // Suchende nie gemeint hat, und entschieden wird direkt daneben.
+            //
+            // Das Fluchtzeichen ist '!' und ausdruecklich NICHT der Rueckstrich:
+            // Der ist in MySQL schon im Zeichenkettenliteral ein Fluchtzeichen
+            // und muesste dort doppelt stehen, waehrend SQLite genau das mit
+            // "ESCAPE expression must be a single character" abweist. Mit '!'
+            // steht in beiden Dialekten dasselbe da.
+            $bedingung = " WHERE LOWER(pseudonym) LIKE :suche_p ESCAPE '!'"
+                . " OR LOWER(email) LIKE :suche_e ESCAPE '!'";
+            // Reihenfolge tragend: Erst '!' verdoppeln, dann % und _ maskieren.
+            // str_replace arbeitet die Paare nacheinander auf dem
+            // Zwischenergebnis ab; umgekehrt wuerden die eben gesetzten
+            // Fluchtzeichen selbst noch einmal verdoppelt.
+            $werte['suche_p'] = '%' . str_replace(
+                ['!', '%', '_'],
+                ['!!', '!%', '!_'],
+                mb_strtolower($suche)
+            ) . '%';
             $werte['suche_e'] = $werte['suche_p'];
         }
 
@@ -299,6 +347,10 @@ final class Verwaltung
     ): int {
         $faehigkeit = $this->gepruefteFaehigkeit($faehigkeit, true);
         $begruendung = $this->pflichtBegruendung($begruendung);
+        // Auch das Vergeben ist eine Entscheidung ueber ein Konto (Grundsatz 3).
+        // Ohne diese Zeile koennte eine Verwalterin sich selbst 'kaufen' geben
+        // und damit die Altersverifikation umgehen.
+        $this->pruefeFremdesKonto($verwalterId, $benutzerId);
         $this->pruefeKontoVorhanden($benutzerId);
 
         return $this->db->transaktion(function () use ($verwalterId, $benutzerId, $faehigkeit, $begruendung): int {
@@ -318,7 +370,15 @@ final class Verwaltung
     }
 
     /**
-     * Entzieht eine Faehigkeit und protokolliert die Entscheidung.
+     * Entzieht eine Faehigkeit, protokolliert die Entscheidung und stellt die
+     * Begruendung der betroffenen Person zu.
+     *
+     * Die Selbstpruefung steht VOR der Transaktion, nicht darin. Sonst liefe
+     * zuerst Konten::faehigkeitEntziehen() und pruefeVerwalter() saehe beim
+     * Selbstentzug von 'verwalten' das eben entzogene Recht schon als entzogen
+     * — die Meldung waere 'kein_verwaltungsrecht' und behauptete damit das
+     * Gegenteil der Lage: Das Konto HAT das Recht, sonst waere es gar nicht
+     * bis hierher gekommen.
      *
      * @return int Kennung des Protokolleintrags
      *
@@ -332,15 +392,18 @@ final class Verwaltung
     ): int {
         $faehigkeit = $this->gepruefteFaehigkeit($faehigkeit, false);
         $begruendung = $this->pflichtBegruendung($begruendung);
+        $this->pruefeFremdesKonto($verwalterId, $benutzerId);
         $this->pruefeKontoVorhanden($benutzerId);
 
         return $this->db->transaktion(function () use ($verwalterId, $benutzerId, $faehigkeit, $begruendung): int {
             $this->konten->faehigkeitEntziehen($benutzerId, $faehigkeit);
 
-            // Auch wenn nichts zu entziehen war, wird protokolliert: Die
-            // Entscheidung ist gefallen und muss belegbar bleiben.
-            return $this->ereignisSchreiben(
+            // Auch wenn nichts zu entziehen war, wird protokolliert UND
+            // zugestellt: Die Entscheidung ist gefallen und muss belegbar
+            // bleiben — und die betroffene Person muss sie erfahren.
+            return $this->beschraenkungSchreiben(
                 $verwalterId,
+                $benutzerId,
                 self::HANDLUNG_FAEHIGKEIT_ENTZOGEN,
                 self::GEGENSTAND_FAEHIGKEIT . '_' . $faehigkeit,
                 $benutzerId,
@@ -367,7 +430,8 @@ final class Verwaltung
             $benutzerId,
             self::STATUS_GESPERRT,
             self::HANDLUNG_KONTO_GESPERRT,
-            $begruendung
+            $begruendung,
+            true
         );
     }
 
@@ -385,7 +449,8 @@ final class Verwaltung
             $benutzerId,
             self::STATUS_AKTIV,
             self::HANDLUNG_KONTO_ENTSPERRT,
-            $begruendung
+            $begruendung,
+            false
         );
     }
 
@@ -396,6 +461,15 @@ final class Verwaltung
      *
      * Nur die Liste: Freigabe und Ablehnung macht Angebote, weil dort die
      * Zustandsmaschine und das Vier-Augen-Prinzip sitzen.
+     *
+     * Beide Abfragen sind so geschrieben, dass sie
+     * idx_angebote_status_angelegt_am aus 009_nachbesserung.php benutzen
+     * koennen: Gleichheitsfilter auf a.status ohne Funktion darum, danach
+     * ORDER BY a.angelegt_am — genau die Spaltenfolge des Index. Nachgemessen
+     * mit EXPLAIN QUERY PLAN: 'SEARCH ... USING COVERING INDEX' beim COUNT,
+     * 'SEARCH a USING INDEX' bei der Liste, in beiden Faellen ohne temporaeren
+     * B-Baum fuer die Sortierung. Wer hier ein OR, ein LOWER(status) oder eine
+     * andere Sortierung einbaut, nimmt dem Index seine Wirkung.
      *
      * @return array{zeilen:list<array<string,mixed>>, anzahl:int, seite:int, seiten:int, pro_seite:int}
      */
@@ -441,6 +515,12 @@ final class Verwaltung
      * Anlass nur ein Klick war. Die Begruendungspflicht sitzt dort, wo eine
      * Beschraenkung entsteht — in faehigkeitEntziehen(), kontoSperren() und
      * meldungBearbeiten().
+     *
+     * NUR fuer Vorgaenge, die niemanden beschraenken — die Freigabe eines
+     * Angebots etwa. Fuer jede Beschraenkung ist
+     * beschraenkungProtokollierenUndZustellen() zu nehmen: Ein Eintrag allein
+     * in diesem Journal ist der interne Nachweis und erfuellt Art. 17 Abs. 1
+     * DSA nicht, weil die betroffene Person ihn nie zu sehen bekommt.
      *
      * @return int Kennung des Eintrags
      *
@@ -518,6 +598,192 @@ final class Verwaltung
         );
 
         return $this->seitenwerk($zeilen, $anzahl, $seite, $seiten);
+    }
+
+    // --- Zustellung an die betroffene Person (Art. 17 DSA) -----------------
+
+    /**
+     * Der einzige Weg, auf dem eine Beschraenkung entstehen darf.
+     *
+     * Schreibt in EINER Transaktion den Protokolleintrag nach
+     * 'verwaltungs_ereignisse' und die Zustellung nach 'benachrichtigungen'.
+     * Faellt eines von beiden aus, faellt alles aus: Eine Beschraenkung ohne
+     * Begruendung ist so wenig hinnehmbar wie eine Begruendung ohne
+     * Beschraenkung, und ueber die Oberflaeche liesse sich weder das eine noch
+     * das andere nachtragen.
+     *
+     * Oeffentlich, weil auch Handlungen darueber laufen muessen, deren Wirkung
+     * eine andere Fachklasse ausloest — die Ablehnung eines Angebots etwa
+     * macht Angebote, weil dort die Zustandsmaschine sitzt. Der Aufrufer legt
+     * dann seine eigene Transaktion um Wirkung und diesen Aufruf;
+     * Database::transaktion() ist verschachtelbar, es entsteht genau eine
+     * Klammer.
+     *
+     * @param int    $betroffenerId Wer die Beschraenkung traegt — nicht wer sie anordnet
+     * @param string $handlung      Wie in verwaltungs_ereignisse.handlung, z. B. 'konto_gesperrt'
+     *
+     * @return int Kennung des Verwaltungsereignisses
+     *
+     * @throws VerwaltungsFehler
+     */
+    public function beschraenkungProtokollierenUndZustellen(
+        int $verwalterId,
+        int $betroffenerId,
+        string $handlung,
+        string $gegenstandArt,
+        ?int $gegenstandId,
+        string $begruendung
+    ): int {
+        $begruendung = $this->pflichtBegruendung($begruendung);
+        $this->pruefeFremdesKonto($verwalterId, $betroffenerId);
+        $this->pruefeKontoVorhanden($betroffenerId);
+
+        return $this->db->transaktion(
+            fn (): int => $this->beschraenkungSchreiben(
+                $verwalterId,
+                $betroffenerId,
+                $handlung,
+                $gegenstandArt,
+                $gegenstandId,
+                $begruendung
+            )
+        );
+    }
+
+    /**
+     * Legt eine Zustellung an — ohne Protokolleintrag.
+     *
+     * Getrennt von beschraenkungProtokollierenUndZustellen(), damit ein
+     * Aufrufer, der den Protokolleintrag bereits selbst geschrieben hat
+     * (VerwaltungsRouten beim Angebot), die Zustellung an genau diesen Eintrag
+     * haengen kann. Wer beides braucht, nimmt die Methode darueber.
+     *
+     * @param string|null $gegenstandArt         Leer oder null = ohne Bezug
+     * @param int|null    $verwaltungsEreignisId Protokolleintrag, auf dem die Zustellung beruht
+     *
+     * @return int Kennung der Zustellung
+     *
+     * @throws VerwaltungsFehler
+     */
+    public function benachrichtigen(
+        int $benutzerId,
+        string $art,
+        ?string $gegenstandArt,
+        ?int $gegenstandId,
+        string $begruendung,
+        ?int $verwaltungsEreignisId = null
+    ): int {
+        $art = trim($art);
+        $gegenstandArt = $gegenstandArt === null ? '' : trim($gegenstandArt);
+
+        // Dieselben Schluessel wie in ereignisSchreiben(): Die Spalte 'art' ist
+        // die Entsprechung zu 'handlung' und genauso breit. Zwei Wortpaare
+        // fuer denselben Sachverhalt braeuchten nur zwei Uebersetzungen mehr.
+        if ($art === '') {
+            throw new VerwaltungsFehler('handlung_fehlt');
+        }
+
+        if (mb_strlen($art) > self::HANDLUNG_MAXLAENGE) {
+            throw new VerwaltungsFehler(
+                'handlung_zu_lang',
+                'Art "' . $art . '" ist laenger als ' . self::HANDLUNG_MAXLAENGE . ' Zeichen.'
+            );
+        }
+
+        if (mb_strlen($gegenstandArt) > self::GEGENSTAND_ART_MAXLAENGE) {
+            throw new VerwaltungsFehler(
+                'gegenstand_art_zu_lang',
+                'Gegenstandsart "' . $gegenstandArt . '" ist laenger als '
+                . self::GEGENSTAND_ART_MAXLAENGE . ' Zeichen.'
+            );
+        }
+
+        // Eine Zustellung ohne Text erfuellt Art. 17 Abs. 1 DSA nicht — sie
+        // teilt der betroffenen Person mit, dass etwas geschehen ist, ohne ihr
+        // zu sagen, warum. Das ist schlechter als nichts.
+        $begruendung = $this->pflichtBegruendung($begruendung);
+
+        // Der Fremdschluessel wuerde ein unbekanntes Konto ebenfalls abweisen,
+        // aber als PDOException — und die faengt oben niemand ab.
+        $this->pruefeKontoVorhanden($benutzerId);
+
+        return $this->db->einfuegen('benachrichtigungen', [
+            'benutzer_id' => $benutzerId,
+            'art' => $art,
+            'gegenstand_art' => $gegenstandArt === '' ? null : $gegenstandArt,
+            'gegenstand_id' => $gegenstandId,
+            'begruendung' => $begruendung,
+            'verwaltungs_ereignis_id' => $verwaltungsEreignisId,
+            'gelesen_am' => null,
+            'angelegt_am' => $this->zeitpunkt(null),
+        ]);
+    }
+
+    /**
+     * Die Zustellungen einer Person, neueste zuerst.
+     *
+     * Die Sicht der BETROFFENEN Person, nicht die der Verwaltung — deshalb
+     * steht verwaltungs_ereignis_id bewusst nicht in der Auswahl. Der
+     * Protokolleintrag traegt die Verwalteridentitaet; er ist der Nachweis
+     * gegenueber der Aufsicht und geht die betroffene Person nichts an.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function benachrichtigungen(int $benutzerId, bool $nurUngelesene = false): array
+    {
+        $bedingung = $nurUngelesene ? ' AND gelesen_am IS NULL' : '';
+
+        $zeilen = $this->db->alle(
+            'SELECT id, art, gegenstand_art, gegenstand_id, begruendung, gelesen_am, angelegt_am
+               FROM benachrichtigungen
+              WHERE benutzer_id = :b' . $bedingung . '
+              ORDER BY angelegt_am DESC, id DESC',
+            ['b' => $benutzerId]
+        );
+
+        foreach ($zeilen as $i => $zeile) {
+            $zeilen[$i]['gegenstand_id'] = $zeile['gegenstand_id'] === null
+                ? null
+                : (int) $zeile['gegenstand_id'];
+            $zeilen[$i]['gelesen'] = $zeile['gelesen_am'] !== null;
+        }
+
+        return array_values($zeilen);
+    }
+
+    /**
+     * Markiert eine Zustellung als gelesen — ausschliesslich die eigene.
+     *
+     * benutzer_id steht in der Bedingung und nicht nur in einer vorgelagerten
+     * Pruefung: Die Kennung kommt aus der Adresszeile und ist durchzaehlbar.
+     * Eine fremde Zustellung meldet denselben Fehler wie eine, die es gar
+     * nicht gibt — sonst liesse sich ueber die Fehlermeldung abzaehlen, wie
+     * viele Beschraenkungen die Plattform ausgesprochen hat.
+     *
+     * @throws VerwaltungsFehler
+     */
+    public function benachrichtigungGelesen(int $benutzerId, int $id): void
+    {
+        $vorhanden = $this->zahl(
+            'SELECT COUNT(*) FROM benachrichtigungen WHERE id = :id AND benutzer_id = :b',
+            ['id' => $id, 'b' => $benutzerId]
+        );
+
+        if ($vorhanden === 0) {
+            throw new VerwaltungsFehler(
+                'benachrichtigung_unbekannt',
+                'Benachrichtigung ' . $id . ' gehoert nicht zu Konto ' . $benutzerId . '.'
+            );
+        }
+
+        // 'gelesen_am IS NULL' haelt den ERSTEN Lesezeitpunkt fest. Er ist der
+        // Nachweis, wann die Begruendung angekommen ist; ein zweiter Aufruf
+        // darf ihn nicht nach hinten schieben.
+        $this->db->ausfuehren(
+            'UPDATE benachrichtigungen SET gelesen_am = :z
+              WHERE id = :id AND benutzer_id = :b AND gelesen_am IS NULL',
+            ['z' => $this->zeitpunkt(null), 'id' => $id, 'b' => $benutzerId]
+        );
     }
 
     // --- Meldungen ---------------------------------------------------------
@@ -641,25 +907,34 @@ final class Verwaltung
         $anzahl = $this->zahl('SELECT COUNT(*) FROM hauptbuch_vorgaenge');
         [$seite, $versatz, $seiten] = $this->blaettern($seite, $anzahl);
 
-        // Alle nicht aggregierten Spalten stehen im GROUP BY, weil MySQL mit
-        // ONLY_FULL_GROUP_BY sonst abweist — SQLite waere toleranter.
+        // Zwei Abfragen statt einer: Erst die 25 Vorgaenge dieser Seite, dann
+        // die Summen nur zu diesen Kennungen.
+        //
+        // Vorher stand hier EIN Aufruf, der hauptbuch_vorgaenge per LEFT JOIN
+        // mit saemtlichen Buchungen verband, ueber sieben Spalten gruppierte,
+        // sortierte — und erst danach 25 Zeilen abschnitt. Der Aufwand hing
+        // damit an der Groesse des gesamten Hauptbuchs statt an der Laenge der
+        // Seite. Ausgerechnet die Seite, die man bei einer Abweichung oeffnet,
+        // wurde also genau dann langsam, wenn viele Daten da sind.
         $zeilen = $this->db->alle(
-            'SELECT v.id, v.art, v.bezug_art, v.bezug_id, v.beschreibung,
-                    v.idempotenz_schluessel, v.angelegt_am,
-                    COALESCE(SUM(hb.betrag_cent), 0) AS summe_cent,
-                    COUNT(hb.id) AS buchungen
-               FROM hauptbuch_vorgaenge v
-               LEFT JOIN hauptbuch_buchungen hb ON hb.vorgang_id = v.id
-              GROUP BY v.id, v.art, v.bezug_art, v.bezug_id, v.beschreibung,
-                       v.idempotenz_schluessel, v.angelegt_am
-              ORDER BY v.angelegt_am DESC, v.id DESC
+            'SELECT id, art, bezug_art, bezug_id, beschreibung,
+                    idempotenz_schluessel, angelegt_am
+               FROM hauptbuch_vorgaenge
+              ORDER BY angelegt_am DESC, id DESC
               LIMIT ' . self::PRO_SEITE . ' OFFSET ' . $versatz
         );
 
+        $summen = $this->buchungssummen(
+            array_map(static fn (array $z): int => (int) $z['id'], $zeilen)
+        );
+
         foreach ($zeilen as $i => $zeile) {
-            $summe = (int) $zeile['summe_cent'];
+            // Ein Vorgang ohne Buchungen taucht in $summen nicht auf. Er zaehlt
+            // wie zuvor beim LEFT JOIN als 0/0 — und bleibt damit
+            // 'ausgeglichen', denn eine leere Summe ist null.
+            $summe = $summen[(int) $zeile['id']]['summe_cent'] ?? 0;
             $zeilen[$i]['summe_cent'] = $summe;
-            $zeilen[$i]['buchungen'] = (int) $zeile['buchungen'];
+            $zeilen[$i]['buchungen'] = $summen[(int) $zeile['id']]['buchungen'] ?? 0;
             $zeilen[$i]['ausgeglichen'] = $summe === 0;
         }
 
@@ -671,6 +946,14 @@ final class Verwaltung
     /**
      * Setzt benutzer.status und protokolliert — in einer Transaktion.
      *
+     * @param bool $beschraenkung true bei der Sperre, false beim Aufheben.
+     *                            Nur die Sperre wird zugestellt: Art. 17 DSA
+     *                            gilt fuer Beschraenkungen, nicht fuer
+     *                            Entscheidungen zugunsten der betroffenen
+     *                            Person. Wer das Aufheben ebenfalls zustellen
+     *                            will, ruft benachrichtigen() zusaetzlich auf —
+     *                            eine Pflicht ist es nicht.
+     *
      * @throws VerwaltungsFehler
      */
     private function statusSetzen(
@@ -678,27 +961,29 @@ final class Verwaltung
         int $benutzerId,
         string $status,
         string $handlung,
-        string $begruendung
+        string $begruendung,
+        bool $beschraenkung
     ): int {
         $begruendung = $this->pflichtBegruendung($begruendung);
-
-        // Vier-Augen-Prinzip: Wer sich selbst sperren duerfte, duerfte sich
-        // auch selbst wieder entsperren. Beides ist eine Entscheidung ueber das
-        // eigene Konto und gehoert in fremde Hand.
-        if ($verwalterId === $benutzerId) {
-            throw new VerwaltungsFehler(
-                'selbstsperre_unzulaessig',
-                'Konto ' . $verwalterId . ' darf den eigenen Status nicht setzen.'
-            );
-        }
-
+        $this->pruefeFremdesKonto($verwalterId, $benutzerId);
         $this->pruefeKontoVorhanden($benutzerId);
 
-        return $this->db->transaktion(function () use ($verwalterId, $benutzerId, $status, $handlung, $begruendung): int {
+        return $this->db->transaktion(function () use ($verwalterId, $benutzerId, $status, $handlung, $begruendung, $beschraenkung): int {
             $this->db->ausfuehren(
                 'UPDATE benutzer SET status = :s WHERE id = :id',
                 ['s' => $status, 'id' => $benutzerId]
             );
+
+            if ($beschraenkung) {
+                return $this->beschraenkungSchreiben(
+                    $verwalterId,
+                    $benutzerId,
+                    $handlung,
+                    self::GEGENSTAND_BENUTZER,
+                    $benutzerId,
+                    $begruendung
+                );
+            }
 
             return $this->ereignisSchreiben(
                 $verwalterId,
@@ -708,6 +993,88 @@ final class Verwaltung
                 $begruendung
             );
         });
+    }
+
+    /**
+     * Protokolleintrag und Zustellung, ohne eigene Transaktion.
+     *
+     * Der Kern von beschraenkungProtokollierenUndZustellen(). Getrennt, damit
+     * ihn Methoden benutzen koennen, die die Wirkung selbst ausloesen und
+     * bereits eine Transaktion offen haben — ohne dass deren Vorpruefungen ein
+     * zweites Mal laufen.
+     *
+     * @return int Kennung des Verwaltungsereignisses
+     *
+     * @throws VerwaltungsFehler
+     */
+    private function beschraenkungSchreiben(
+        int $verwalterId,
+        int $betroffenerId,
+        string $handlung,
+        string $gegenstandArt,
+        ?int $gegenstandId,
+        string $begruendung
+    ): int {
+        $ereignisId = $this->ereignisSchreiben(
+            $verwalterId,
+            $handlung,
+            $gegenstandArt,
+            $gegenstandId,
+            $begruendung
+        );
+
+        // verwaltungs_ereignis_id verbindet beide Seiten: Zu jeder
+        // Beschraenkung im Journal muss eine Zustellung auffindbar sein, und
+        // jede Zustellung nennt den Vorgang, auf dem sie beruht. Ohne diese
+        // Verbindung liesse sich weder zeigen, dass zugestellt wurde, noch dass
+        // das Zugestellte der Entscheidung entspricht.
+        $this->benachrichtigen(
+            $betroffenerId,
+            $handlung,
+            $gegenstandArt,
+            $gegenstandId,
+            $begruendung,
+            $ereignisId
+        );
+
+        return $ereignisId;
+    }
+
+    /**
+     * Buchungssummen zu einer Handvoll Vorgaengen.
+     *
+     * Die Gruppierung laeuft ueber den vorhandenen
+     * idx_hauptbuch_buchungen_vorgang_id und beruehrt nur die Buchungen der
+     * angefragten Vorgaenge — nicht das ganze Hauptbuch.
+     *
+     * @param list<int> $vorgangIds
+     *
+     * @return array<int,array{summe_cent:int, buchungen:int}>
+     */
+    private function buchungssummen(array $vorgangIds): array
+    {
+        if ($vorgangIds === []) {
+            return [];
+        }
+
+        [$platzhalter, $werte] = $this->inListe('v', $vorgangIds);
+
+        $ergebnis = [];
+
+        foreach ($this->db->alle(
+            'SELECT vorgang_id, COALESCE(SUM(betrag_cent), 0) AS summe_cent, COUNT(id) AS buchungen
+               FROM hauptbuch_buchungen
+              WHERE vorgang_id IN (' . $platzhalter . ')
+              GROUP BY vorgang_id',
+            $werte
+        ) as $zeile) {
+            $ergebnis[(int) $zeile['vorgang_id']] = [
+                'summe_cent' => (int) $zeile['summe_cent'],
+                'buchungen' => (int) $zeile['buchungen'],
+            ];
+        }
+
+        return $ergebnis;
     }
 
     /** @return list<array<string,mixed>> */
@@ -927,6 +1294,31 @@ final class Verwaltung
         }
 
         return $status;
+    }
+
+    /**
+     * Grundsatz 3: Niemand entscheidet ueber das eigene Konto.
+     *
+     * Eine Stelle fuer alle Entscheidungswege — Sperre, Entsperrung,
+     * Freischaltung, Entzug, Beschraenkung. Wer sich selbst sperren duerfte,
+     * duerfte sich auch selbst entsperren; wer sich eine Faehigkeit selbst
+     * geben duerfte, braeuchte keine Pruefung mehr.
+     *
+     * Der Schluessel heisst weiterhin 'selbstsperre_unzulaessig', weil sein
+     * Text ("Ueber das eigene Konto entscheidet jemand anderes.") den ganzen
+     * Fall traegt und in resources/lang/de-DE/verwaltung.php sowie in der
+     * Allowlist von VerwaltungsRouten bereits steht.
+     *
+     * @throws VerwaltungsFehler
+     */
+    private function pruefeFremdesKonto(int $verwalterId, int $benutzerId): void
+    {
+        if ($verwalterId === $benutzerId) {
+            throw new VerwaltungsFehler(
+                'selbstsperre_unzulaessig',
+                'Konto ' . $verwalterId . ' darf nicht ueber sich selbst entscheiden.'
+            );
+        }
     }
 
     /** @throws VerwaltungsFehler */

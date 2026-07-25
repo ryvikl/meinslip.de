@@ -43,6 +43,46 @@ $bereiche = [
 
     <link rel="icon" href="/assets/symbole/app-icon.png" type="image/png">
     <link rel="stylesheet" href="/assets/css/app.css">
+
+    <?php
+    /*
+     * Kopfleiste des Verwaltungsbereichs.
+     *
+     * Nocturnes .nav ist eine Zeile ohne Umbruch (nocturne.css). Diese Leiste
+     * hat neun Kinder — Marke, sechs Bereiche, "Zur Website", Pseudonym —, die
+     * zusammen rund 600 px brauchen. Auf einem 360-px-Telefon bleiben nach
+     * .ms-huelle und den Innenabstaenden 304 px. Flex-Kinder schrumpfen wegen
+     * min-width:auto nicht unter ihr min-content, also ragte die Leiste ueber
+     * den Rand hinaus und schob das ganze Dokument seitwaerts. Damit liefen
+     * zugleich die .ms-breit-Huellen um die Tabellen ins Leere: die Seite
+     * wanderte schon, bevor die Tabelle ueberhaupt scrollte.
+     *
+     * Die Regeln stehen hier und nicht in app.css, weil .nav ausschliesslich
+     * von diesem Layout benutzt wird und der Bereich bewusst nichts laedt, was
+     * er nicht braucht (siehe Kopfkommentar). Ausschliesslich Tokens, keine
+     * harten Werte — --tippziel und --space-* kommen aus nocturne.css.
+     */
+    ?>
+    <style>
+        .nav { flex-wrap: wrap; row-gap: var(--space-2); }
+
+        /* Unter 560 px nimmt die Marke eine eigene Zeile. Ihr margin-right:auto
+           loest bei negativem Freiraum auf 0 auf und drueckt die Verweise sonst
+           an den Rand, statt sie umbrechen zu lassen. */
+        @media (max-width: 559px) {
+            .nav-brand { flex: 1 0 100%; margin-right: 0; }
+        }
+
+        /* Die Verweise sind die einzigen Bedienelemente der Leiste. Als reine
+           14-px-Textzeilen waren sie rund 17 px hoch — sie muessen dasselbe
+           Fingerziel treffen wie .btn und .input. */
+        .nav a {
+            display: inline-flex;
+            align-items: center;
+            min-height: var(--tippziel);
+            touch-action: manipulation;
+        }
+    </style>
 </head>
 <body>
 <a class="ms-sprungmarke" href="#hauptinhalt"><?= te('allgemein.zum_inhalt') ?></a>

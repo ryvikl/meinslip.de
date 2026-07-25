@@ -200,6 +200,55 @@ final class AngeboteTest extends Testfall
         self::assertSame(500, (int) $angebot['optionen'][0]['aufpreis_cent']);
     }
 
+    /**
+     * Die Zusage "ein Schluessel je Angebot" traegt der eindeutige Index aus
+     * Migration 009, nicht die Abfrage in optionSetzen(): Zwei gleichzeitige
+     * Anfragen sehen dort beide nichts und fuegen beide ein. Danach laeuft der
+     * Bestellpfad ueber die Optionszeilen und addiert denselben Aufpreis
+     * zweimal — die Kaeuferin zahlt einen einmal gewaehlten Aufpreis doppelt.
+     *
+     * Der Test haelt zugleich den SQLSTATE fest, auf den sich der Fangblock in
+     * optionSetzen() stuetzt. Faellt der Index weg oder meldet die Datenbank
+     * anders, faellt das hier auf und nicht erst im Hauptbuch.
+     */
+    public function testDatenbankWeistDieZweiteOptionMitGleichemSchluesselAb(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->entwurf($verkaeufer);
+        $this->angebote->optionSetzen($angebotId, $verkaeufer, 'tragedauer', 'Tragedauer', Angebote::ART_ZAHL);
+
+        try {
+            $this->db->einfuegen('angebot_optionen', [
+                'angebot_id' => $angebotId,
+                'schluessel' => 'tragedauer',
+                'bezeichnung' => 'Tragedauer, zweite Zeile',
+                'erlaeuterung' => null,
+                'aufpreis_cent' => 500,
+                'art' => Angebote::ART_ZAHL,
+                'ist_spezifikation' => 1,
+                'pflicht' => 0,
+                'reihenfolge' => 0,
+                'aktiv' => 1,
+                'angelegt_am' => gmdate('Y-m-d H:i:s'),
+            ]);
+            self::fail('Der eindeutige Index haette die zweite Zeile abweisen muessen.');
+        } catch (\PDOException $fehler) {
+            self::assertSame(
+                '23000',
+                (string) $fehler->getCode(),
+                'optionSetzen() faengt genau diesen SQLSTATE ab.'
+            );
+        }
+
+        self::assertSame(
+            1,
+            (int) $this->db->wert(
+                'SELECT COUNT(*) FROM angebot_optionen WHERE angebot_id = :a AND schluessel = :s',
+                ['a' => $angebotId, 's' => 'tragedauer']
+            )
+        );
+    }
+
     public function testOptionEntfernenLoeschtSie(): void
     {
         $verkaeufer = $this->verkaeufer('Lina');
@@ -258,6 +307,140 @@ final class AngeboteTest extends Testfall
         self::assertSame(Angebote::STATUS_ENTWURF, $this->statusVon($angebotId));
     }
 
+    /**
+     * Ein Ja/Nein-Kaestchen traegt den Widerrufsausschluss nicht.
+     *
+     * ART_AUSWAHL rendert als Ankreuzfeld mit dem festen Wert "ja"
+     * (resources/views/markt/bestellen.php) — die Kaeuferin schreibt nichts,
+     * an der Ware individualisiert sich nichts. § 312g Abs. 2 Nr. 1 BGB und
+     * EuGH C-529/19 ("Moebel Kraft") verlangen aber eine Anfertigung nach
+     * Kundenspezifikation. Ohne diese Grenze machte die Vorbelegung des
+     * Verkaeuferformulars (art = auswahl, ist_spezifikation angekreuzt) aus
+     * jeder Zusatzwahl eine Scheinspezifikation.
+     */
+    public function testEinreichenMitBlossemAnkreuzfeldAlsSpezifikationScheitert(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->entwurf($verkaeufer);
+
+        $this->angebote->optionSetzen(
+            $angebotId,
+            $verkaeufer,
+            'geschenkverpackung',
+            'Geschenkverpackung',
+            Angebote::ART_AUSWAHL,
+            0,
+            true
+        );
+
+        try {
+            $this->angebote->zurPruefungEinreichen($angebotId, $verkaeufer);
+            self::fail('Es haette ein AngebotFehler geworfen werden muessen.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('spezifikation_braucht_eingabe', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_ENTWURF, $this->statusVon($angebotId));
+    }
+
+    /**
+     * Der Weg aus dem Fehler heraus muss offen sein: Die Verkaeuferin aendert
+     * die Art derselben Option und reicht erneut ein. Ohne diese Zusicherung
+     * waere ein Angebot mit Kaestchen-Spezifikation eine Sackgasse.
+     */
+    public function testArtDerOptionAendernOeffnetDieEinreichungWieder(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->entwurf($verkaeufer);
+        $this->angebote->optionSetzen(
+            $angebotId,
+            $verkaeufer,
+            'tragedauer',
+            'Tragedauer',
+            Angebote::ART_AUSWAHL,
+            0,
+            true
+        );
+
+        $this->angebote->optionSetzen(
+            $angebotId,
+            $verkaeufer,
+            'tragedauer',
+            'Tragedauer in Tagen',
+            Angebote::ART_ZAHL,
+            0,
+            true
+        );
+
+        $this->angebote->zurPruefungEinreichen($angebotId, $verkaeufer);
+
+        self::assertSame(Angebote::STATUS_IN_PRUEFUNG, $this->statusVon($angebotId));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function tragendeSpezifikationsarten(): iterable
+    {
+        yield 'Zahl' => [Angebote::ART_ZAHL];
+        yield 'Freitext' => [Angebote::ART_FREITEXT];
+    }
+
+    /** Nur diese beiden Arten nehmen einen von der Kaeuferin geschriebenen Wert auf. */
+    #[\PHPUnit\Framework\Attributes\DataProvider('tragendeSpezifikationsarten')]
+    public function testSpezifikationMitEigenemWertTraegtDieEinreichung(string $art): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->entwurf($verkaeufer);
+        $this->angebote->optionSetzen($angebotId, $verkaeufer, 'tragedauer', 'Tragedauer', $art, 0, true);
+
+        $this->angebote->zurPruefungEinreichen($angebotId, $verkaeufer);
+
+        self::assertSame(Angebote::STATUS_IN_PRUEFUNG, $this->statusVon($angebotId));
+    }
+
+    /**
+     * Die Grenze verbietet das Kaestchen nicht, sie laesst es nur nicht als
+     * Spezifikation zaehlen. Neben einer echten Spezifikation darf es bleiben.
+     */
+    public function testKaestchenNebenEchterSpezifikationSchadetNicht(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->entwurf($verkaeufer);
+        $this->angebote->optionSetzen(
+            $angebotId,
+            $verkaeufer,
+            'geschenkverpackung',
+            'Geschenkverpackung',
+            Angebote::ART_AUSWAHL,
+            200,
+            true
+        );
+        $this->angebote->optionSetzen(
+            $angebotId,
+            $verkaeufer,
+            'tragedauer',
+            'Tragedauer',
+            Angebote::ART_FREITEXT,
+            0,
+            true
+        );
+
+        $this->angebote->zurPruefungEinreichen($angebotId, $verkaeufer);
+
+        self::assertSame(Angebote::STATUS_IN_PRUEFUNG, $this->statusVon($angebotId));
+    }
+
+    /**
+     * Die Liste ist die veroeffentlichte Grenze: app/Http/MarktRouten.php muss
+     * beim Bestellen dieselbe lesen, statt sie nachzubauen. Wer ART_AUSWAHL
+     * hier ergaenzt, hebt den Widerrufsausschluss auf.
+     */
+    public function testAnkreuzenGehoertNichtZuDenSpezifikationsarten(): void
+    {
+        self::assertNotContains(Angebote::ART_AUSWAHL, Angebote::SPEZIFIKATIONSARTEN);
+        self::assertContains(Angebote::ART_ZAHL, Angebote::SPEZIFIKATIONSARTEN);
+        self::assertContains(Angebote::ART_FREITEXT, Angebote::SPEZIFIKATIONSARTEN);
+    }
+
     public function testWegVomEntwurfUeberDiePruefungZuAktiv(): void
     {
         $verkaeufer = $this->verkaeufer('Lina');
@@ -272,6 +455,36 @@ final class AngeboteTest extends Testfall
 
         $this->angebote->freigeben($angebotId, $pruefende);
         self::assertSame(Angebote::STATUS_AKTIV, $this->statusVon($angebotId));
+    }
+
+    /**
+     * Freigeben ist das Ergebnis einer Pruefung, nicht der Weg aus der Pause.
+     *
+     * Die Uebergangstabelle kann diesen Fall nicht erfassen: pausiert -> aktiv
+     * ist erlaubt, weil fortsetzen() ihn braucht. Ohne die eigene Vorbedingung
+     * in freigeben() entpausiert ein Klick der Verwaltung ein Angebot, das nie
+     * in Pruefung war — mitten in der Bearbeitung, denn 'pausiert' ist neben
+     * 'entwurf' der einzige Zustand, in dem Aenderungen erlaubt sind.
+     */
+    public function testFreigebenEntpausiertNicht(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->aktivesAngebot($verkaeufer);
+        $this->angebote->pausieren($angebotId, $verkaeufer);
+
+        try {
+            $this->angebote->freigeben($angebotId, $this->pruefstelle());
+            self::fail('Die Freigabe darf ein pausiertes Angebot nicht aktivieren.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('statuswechsel_unzulaessig', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_PAUSIERT, $this->statusVon($angebotId));
+
+        // Die Verkaeuferin behaelt ihren Bearbeitungszustand — genau das
+        // nimmt ihr die Freigabe sonst weg.
+        $this->angebote->bearbeiten($angebotId, $verkaeufer, ['grundpreis_cent' => 3900]);
+        self::assertSame(3900, (int) $this->angebote->laden($angebotId)['grundpreis_cent']);
     }
 
     public function testAblehnenFuehrtZurueckInDenEntwurf(): void

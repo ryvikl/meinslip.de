@@ -15,6 +15,7 @@ use MeinSlip\Core\View;
 use MeinSlip\Domain\Account\Konten;
 use MeinSlip\Domain\Account\KontoFehler;
 use MeinSlip\Domain\Account\Sitzungen;
+use MeinSlip\Domain\Admin\Verwaltung;
 use MeinSlip\Domain\Ledger\Hauptbuch;
 
 /**
@@ -94,7 +95,7 @@ final class Routen
         // Bereiche der unteren Navigation, die noch kein Backend haben. Sie
         // duerfen nicht ins Leere laufen — eine ehrliche Auskunft ist besser
         // als eine Fehlerseite.
-        foreach (['/nachrichten' => 'nachrichten', '/guthaben' => 'guthaben', '/profil' => 'profil'] as $pfad => $name) {
+        foreach (['/nachrichten' => 'nachrichten', '/guthaben' => 'guthaben'] as $pfad => $name) {
             $router->get($pfad, fn (Request $a): Response => $this->rendern(
                 $a,
                 'seite',
@@ -107,6 +108,73 @@ final class Routen
                 ]
             ));
         }
+
+        $this->profil($router);
+    }
+
+    /**
+     * Das Profil — und darin die Zustellung nach Art. 17 DSA.
+     *
+     * Das ist der Grund, warum diese Seite vor Nachrichten und Guthaben
+     * entstanden ist: Wenn die Verwaltung eine Faehigkeit entzieht, ein Konto
+     * sperrt oder ein Angebot ablehnt, verlangt Art. 17 Abs. 1 DSA, dass die
+     * betroffene Person die Begruendung ERHAELT. Ein internes Protokoll belegt
+     * nur, DASS begruendet wurde — es erreicht niemanden. Ohne diese Seite
+     * laegen die Begruendungen in der Datenbank und die Pflicht waere trotzdem
+     * verletzt.
+     */
+    private function profil(Router $router): void
+    {
+        $router->get('/profil', function (Request $anfrage): Response {
+            $sitzung = $this->sitzung($anfrage);
+
+            if ($sitzung === null) {
+                return Response::weiterleitung('/anmelden');
+            }
+
+            $benachrichtigungen = [];
+            $gestoert = false;
+
+            try {
+                $benachrichtigungen = (new Verwaltung(Database::ausEnv()))
+                    ->benachrichtigungen((int) $sitzung['benutzer_id']);
+            } catch (\Throwable $fehler) {
+                error_log('[MeinSlip] Profil: ' . $fehler->getMessage());
+                $gestoert = true;
+            }
+
+            return $this->rendern($anfrage, 'profil', t('profil.titel') . ' — ' . t('allgemein.marke'), [
+                'aktiv' => '/profil',
+                'benachrichtigungen' => $benachrichtigungen,
+                'gestoert' => $gestoert,
+            ]);
+        });
+
+        $router->post('/profil/gelesen', function (Request $anfrage): Response {
+            if (!Formularschutz::gueltig($anfrage)) {
+                return Response::weiterleitung('/profil');
+            }
+
+            $sitzung = $this->sitzung($anfrage);
+
+            if ($sitzung === null) {
+                return Response::weiterleitung('/anmelden');
+            }
+
+            $kennung = (int) ($anfrage->eingabe('id', '0') ?? '0');
+
+            try {
+                // benachrichtigungGelesen() prueft selbst, dass die Zustellung
+                // zu diesem Konto gehoert — eine fremde Kennung meldet
+                // dasselbe wie eine nicht vorhandene.
+                (new Verwaltung(Database::ausEnv()))
+                    ->benachrichtigungGelesen((int) $sitzung['benutzer_id'], $kennung);
+            } catch (\Throwable $fehler) {
+                error_log('[MeinSlip] Profil gelesen: ' . $fehler->getMessage());
+            }
+
+            return Response::weiterleitung('/profil');
+        });
     }
 
     // --- Konten ----------------------------------------------------------

@@ -12,15 +12,32 @@ declare(strict_types=1);
  *  1. PFLICHTFELDER TRAGEN 'required'. Das ist Bequemlichkeit, keine
  *     Sicherung — app/Http/MarktRouten.php prueft dasselbe noch einmal.
  *
- *  2. VOR DEM ABSENDEN STEHT DIE RECHNUNG. Grundpreis, jede Option mit ihrem
- *     Aufpreis und die Summe sind sichtbar, bevor der Knopf erreichbar ist.
- *     Ohne JavaScript bleibt die Summe der Grundpreis; jede Option nennt
- *     ihren Aufpreis dann an Ort und Stelle.
+ *  2. VOR DEM ABSENDEN STEHT DIE RECHNUNG, UND SIE STEHT UNMITTELBAR DAVOR.
+ *     § 312j Abs. 2 BGB verlangt Gegenstand (Art. 246a § 1 Abs. 1 S. 1 Nr. 1
+ *     EGBGB), Gesamtpreis und Lieferkosten "unmittelbar bevor der Verbraucher
+ *     seine Bestellung abgibt". Deshalb steht die Uebersichtskarte als
+ *     letzter Block vor dem Knopf, und deshalb traegt sie Titel und
+ *     Beschreibung der Ware, nicht nur Zahlen.
+ *
+ *     Der Betrag darf dabei nie mehr behaupten, als er ohne JavaScript
+ *     einloest. public/assets/js/app.js rechnet die Aufpreise live mit; faellt
+ *     das Skript aus, bleibt die Zahl auf dem Stand des Seitenaufbaus stehen.
+ *     Deshalb heisst sie nur dann "Gesamtbetrag", wenn das Angebot keine
+ *     einzige Option mit Aufpreis hat — dann kann sie sich gar nicht aendern.
+ *     Sonst heisst sie "Vorlaeufiger Gesamtbetrag", und alle Aufpreise, die
+ *     noch hinzukommen koennen, stehen einzeln und vollstaendig daneben.
+ *     Eine serverseitig gerechnete Uebersichtsseite waere der sauberere Weg;
+ *     sie braucht eine zweite Route in app/Http/MarktRouten.php.
  *
  *  3. VOR DEM ABSENDEN STEHT DIE UNTERRICHTUNG. § 312d Abs. 1 BGB i. V. m.
  *     Art. 246a § 1 Abs. 3 Nr. 1 EGBGB verlangt die Information ueber den
  *     Ausschluss des Widerrufsrechts VOR Abgabe der Vertragserklaerung —
  *     nicht in den AGB und nicht auf der Bestaetigungsseite.
+ *
+ *  4. DER ABSENDEKNOPF TRAEGT DEN WORTLAUT DES § 312j Abs. 3 S. 2 BGB. Er ist
+ *     nicht frei waehlbar und vertraegt keinen Zusatz. Fehlt die
+ *     Zahlungspflicht in der Beschriftung, kommt nach § 312j Abs. 4 BGB kein
+ *     Vertrag zustande. Begruendung im Kopf von resources/lang/de-DE/markt.php.
  *
  * @var array<string,mixed> $angebot
  * @var list<array<string,mixed>> $optionen
@@ -88,9 +105,17 @@ declare(strict_types=1);
     <?php endforeach; ?>
 
     <?php if (count($lieferwege) > 1): ?>
+        <?php // Eine Gruppe aus Optionsfeldern laesst sich nicht mit einem
+              // for-Attribut beschriften: for zeigte hier auf ein div und lief
+              // ins Leere — die Gruppe hatte keinen Namen, obwohl an ihr das
+              // Diskretionsversprechen haengt (WCAG 1.3.1, ueber das BFSG
+              // verbindlich). role="radiogroup" plus aria-labelledby gibt ihr
+              // den Namen. Das label bleibt ein label, damit die Regel
+              // ".field > label" in nocturne.css weiter greift; ein fieldset
+              // mit legend waere nativer, braucht aber einen CSS-Reset. ?>
         <div class="field">
-            <label for="lieferart"><?= te('markt.konfigurator_lieferart') ?></label>
-            <div class="seg" id="lieferart">
+            <label id="lieferart-beschriftung"><?= te('markt.konfigurator_lieferart') ?></label>
+            <div class="seg" role="radiogroup" aria-labelledby="lieferart-beschriftung">
                 <?php foreach ($lieferwege as $weg): ?>
                     <label class="seg-opt">
                         <input type="radio" name="lieferart" value="<?= e($weg) ?>"
@@ -107,15 +132,6 @@ declare(strict_types=1);
     <?php endif; ?>
 
     <article class="card elev-sm">
-        <p class="card-kicker"><?= te('markt.konfigurator_summe_titel') ?></p>
-        <p class="card-body"><?= te('markt.konfigurator_summe_grundpreis') ?>: <?= e(geld($grundpreis, $waehrung)) ?></p>
-        <p class="card-title"><?= te('markt.konfigurator_summe_gesamt') ?>:
-            <span data-summe><?= e(geld($grundpreis, $waehrung)) ?></span>
-        </p>
-        <p class="card-meta"><?= te('markt.konfigurator_summe_hinweis') ?></p>
-    </article>
-
-    <article class="card elev-sm">
         <h3 class="card-title"><?= te('markt.widerruf_titel') ?></h3>
         <p class="card-body"><?= te('markt.widerruf_text') ?></p>
         <label class="radio">
@@ -124,6 +140,89 @@ declare(strict_types=1);
             <span class="dot"></span>
             <span><?= te('markt.widerruf_bestaetigung') ?></span>
         </label>
+    </article>
+
+    <?php
+    // Die Uebersicht steht bewusst als LETZTER Block vor dem Knopf: § 312j
+    // Abs. 2 BGB verlangt die Angaben "unmittelbar bevor der Verbraucher seine
+    // Bestellung abgibt". Vorher stand sie vor der Widerrufskarte, also durch
+    // einen ganzen Block vom Knopf getrennt.
+    //
+    // Der Betrag wird hier genauso gebildet wie beim Absenden in
+    // app/Http/MarktRouten.php: Jede Option, deren Feld einen Wert traegt,
+    // steuert ihren Aufpreis bei. Damit stimmt die Zahl auch dann, wenn die
+    // Seite nach einem abgewiesenen Versuch mit den alten Eingaben neu
+    // aufgebaut wird — vorher stand dort in diesem Fall stets der blosse
+    // Grundpreis.
+    $aufpreisOptionen = [];
+    $vorlaeufigeSumme = $grundpreis;
+
+    foreach ($optionen as $moegliche) {
+        if ((int) $moegliche['aufpreis_cent'] > 0) {
+            $aufpreisOptionen[] = $moegliche;
+        }
+
+        if (trim((string) ($eingaben['option_' . (string) $moegliche['schluessel']] ?? '')) !== '') {
+            $vorlaeufigeSumme += (int) $moegliche['aufpreis_cent'];
+        }
+    }
+
+    // Hat das Angebot keine einzige Option mit Aufpreis, kann sich der Betrag
+    // durch nichts mehr aendern, was die Kaeuferin hier tut — dann und nur
+    // dann ist er auch ohne JavaScript der Gesamtpreis und darf so heissen.
+    $summeIstEndgueltig = $aufpreisOptionen === [];
+    ?>
+    <article class="card elev-sm">
+        <p class="card-kicker"><?= te('markt.konfigurator_summe_titel') ?></p>
+
+        <?php // Gegenstand der Bestellung: Art. 246a § 1 Abs. 1 S. 1 Nr. 1
+              // EGBGB ueber § 312j Abs. 2 BGB. Ohne Titel und Beschreibung
+              // benennt die Uebersicht nicht, worueber der Vertrag geschlossen
+              // wird — auf langer Konfiguratorseite ist der Kopf der Seite
+              // beim Klick auf den Knopf laengst ausserhalb des Sichtfelds. ?>
+        <h3 class="card-title"><?= e((string) $angebot['titel']) ?></h3>
+        <p class="card-body"><?= nl2br(e((string) ($angebot['beschreibung'] ?? ''))) ?></p>
+
+        <p class="card-body"><?= te('markt.konfigurator_summe_grundpreis') ?>: <?= e(geld($grundpreis, $waehrung)) ?></p>
+
+        <?php if (!$summeIstEndgueltig): ?>
+            <?php // Vollstaendige Liste dessen, was den Preis noch bewegen
+                  // kann. Sie steht hier ein zweites Mal, obwohl jeder Aufpreis
+                  // auch am Feld steht: Wer unten auf den Knopf schaut, soll
+                  // nicht nach oben scrollen muessen, um den Preis zu pruefen. ?>
+            <p class="card-meta"><?= te('markt.konfigurator_summe_aufpreise') ?></p>
+            <?php foreach ($aufpreisOptionen as $mitAufpreis): ?>
+                <p class="card-body"><?= te('markt.konfigurator_summe_aufpreis_zeile', [
+                    'bezeichnung' => (string) $mitAufpreis['bezeichnung'],
+                    'betrag' => geld((int) $mitAufpreis['aufpreis_cent'], $waehrung),
+                ]) ?></p>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
+        <?php // data-gesamt ist die Naht fuer public/assets/js/app.js: Sobald
+              // das Skript laeuft, ist der Betrag exakt und die Beschriftung
+              // darf auf "Gesamtbetrag" wechseln. Der Text kommt aus dem
+              // Attribut, damit er in der Sprachdatei bleibt und nicht ins
+              // Skript wandert. Die zwei Zeilen dafuer gehoeren in app.js. ?>
+        <p class="card-title">
+            <span data-summe-beschriftung data-gesamt="<?= te('markt.konfigurator_summe_gesamt') ?>"><?=
+                $summeIstEndgueltig
+                    ? te('markt.konfigurator_summe_gesamt')
+                    : te('markt.konfigurator_summe_vorlaeufig')
+            ?></span>:
+            <span data-summe><?= e(geld($vorlaeufigeSumme, $waehrung)) ?></span>
+        </p>
+
+        <?php // § 6 Abs. 1 PAngV: Am Gesamtpreis muss stehen, dass die
+              // Umsatzsteuer enthalten ist und ob Versandkosten hinzukommen. ?>
+        <p class="card-meta"><?= te('markt.preis_hinweis') ?></p>
+
+        <?php if (!$summeIstEndgueltig): ?>
+            <p class="card-meta"><?= te('markt.konfigurator_summe_offen') ?></p>
+            <noscript><p class="card-meta"><?= te('markt.konfigurator_summe_ohne_js') ?></p></noscript>
+        <?php endif; ?>
+
+        <p class="card-meta"><?= te('markt.konfigurator_summe_hinweis') ?></p>
     </article>
 
     <p class="ms-fehler" data-spezifikation-warnung role="alert" hidden><?= te('markt.konfigurator_warnung') ?></p>
