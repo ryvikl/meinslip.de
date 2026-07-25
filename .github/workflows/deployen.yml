@@ -42,6 +42,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Zuerst prüfen, ob überhaupt alles da ist. Ohne diesen Schritt
+      # scheitert der Lauf irgendwo in der Mitte mit einer Meldung, aus der
+      # nicht hervorgeht, welches Geheimnis fehlt.
+      - name: Voraussetzungen prüfen
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_BENUTZER: ${{ secrets.SSH_BENUTZER }}
+          SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
+          SSH_SCHLUESSEL: ${{ secrets.SSH_SCHLUESSEL }}
+          SSH_FINGERPRINT: ${{ secrets.SSH_FINGERPRINT }}
+          SEITE_URL: ${{ secrets.SEITE_URL }}
+        run: |
+          fehlt=""
+          for name in SSH_HOST SSH_BENUTZER SSH_ZIEL SSH_SCHLUESSEL SEITE_URL; do
+            if [ -z "${!name}" ]; then
+              fehlt="${fehlt} ${name}"
+            else
+              echo "  vorhanden: ${name}"
+            fi
+          done
+
+          if [ -z "${SSH_FINGERPRINT}" ]; then
+            echo "  HINWEIS: SSH_FINGERPRINT fehlt — der Server wird dann nicht überprüft."
+          else
+            echo "  vorhanden: SSH_FINGERPRINT"
+          fi
+
+          if [ -n "${fehlt}" ]; then
+            echo
+            echo "FEHLER: Diese Geheimnisse fehlen:${fehlt}"
+            echo
+            echo "Anzulegen unter Settings → Secrets and variables → Actions."
+            echo "Welcher Wert wohin gehört, steht in deployment/README.md."
+            exit 1
+          fi
+
+          # Der private Schlüssel muss vollständig sein — ein häufiger Fehler
+          # ist, nur die mittlere Zeile zu kopieren oder den öffentlichen zu
+          # erwischen.
+          if ! echo "${SSH_SCHLUESSEL}" | grep -q 'BEGIN .*PRIVATE KEY'; then
+            echo "FEHLER: SSH_SCHLUESSEL sieht nicht nach einem privaten Schlüssel aus."
+            echo "Erwartet wird der Inhalt der Datei OHNE .pub am Ende,"
+            echo "beginnend mit '-----BEGIN OPENSSH PRIVATE KEY-----'."
+            exit 1
+          fi
+
+          echo
+          echo "Alle Voraussetzungen erfüllt."
+
       - name: Quellcode holen
         uses: actions/checkout@v4
 
