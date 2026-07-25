@@ -52,7 +52,7 @@ final class UebersetzungenTest extends TestCase
                     || preg_match('/aria-label="[A-ZÄÖÜ][a-zäöüß]{3,}/u', $zeile);
 
                 if ($treffer && !str_contains($zeile, 'te(') && !str_contains($zeile, 't(')) {
-                    $verstoesse[] = basename($pfad) . ':' . ($nummer + 1) . ' ' . trim($roh);
+                    $verstoesse[] = $this->kurz($pfad) . ':' . ($nummer + 1) . ' ' . trim($roh);
                 }
             }
         }
@@ -75,7 +75,7 @@ final class UebersetzungenTest extends TestCase
 
             foreach ($treffer[1] as $schluessel) {
                 if (str_starts_with(Lang::t($schluessel), '[[')) {
-                    $fehlend[] = basename($pfad) . ': ' . $schluessel;
+                    $fehlend[] = $this->kurz($pfad) . ': ' . $schluessel;
                 }
             }
         }
@@ -98,13 +98,44 @@ final class UebersetzungenTest extends TestCase
         );
     }
 
-    /** @return list<string> */
+    /**
+     * Alle Vorlagen, auch in Unterverzeichnissen.
+     *
+     * Vorher war das ein flaches glob(). Wer Vorlagen in einem Unterordner
+     * angelegt haette — etwa resources/views/verwaltung/ — haette die Pruefung
+     * lautlos verloren: kein Fehler, nur keine Abdeckung mehr.
+     *
+     * @return list<string>
+     */
     private function vorlagen(): array
     {
-        return array_values(array_filter(
-            glob(__DIR__ . '/../resources/views/*.php') ?: [],
-            'is_readable'
-        ));
+        $verzeichnis = new \RecursiveDirectoryIterator(
+            __DIR__ . '/../resources/views',
+            \FilesystemIterator::SKIP_DOTS
+        );
+
+        $gefunden = [];
+
+        foreach (new \RecursiveIteratorIterator($verzeichnis) as $datei) {
+            if ($datei->isFile() && $datei->getExtension() === 'php' && $datei->isReadable()) {
+                $gefunden[] = $datei->getPathname();
+            }
+        }
+
+        sort($gefunden);
+
+        return $gefunden;
+    }
+
+    /** Pfad relativ zu resources/views/, damit Unterordner sichtbar bleiben. */
+    private function kurz(string $pfad): string
+    {
+        $wurzel = realpath(__DIR__ . '/../resources/views');
+        $echt = realpath($pfad);
+
+        return $wurzel !== false && $echt !== false && str_starts_with($echt, $wurzel)
+            ? ltrim(substr($echt, strlen($wurzel)), '/')
+            : basename($pfad);
     }
 
     private function istUnverdaechtig(string $zeile): bool

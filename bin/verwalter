@@ -1,0 +1,145 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MeinSlip\Core\Database;
+use MeinSlip\Core\Env;
+use MeinSlip\Domain\Account\Konten;
+use MeinSlip\Domain\Account\KontoFehler;
+
+/*
+ * Ernennt und entlaesst Verwalterinnen.
+ *
+ * Die Faehigkeit 'verwalten' ist der Generalschluessel des Verwaltungsbereichs
+ * und wird nirgends automatisch vergeben. Dieses Skript ist der einzige Weg zu
+ * ihr — bewusst ausserhalb des Webs: eine Route, die Verwaltungsrechte
+ * vergibt, waere eine Hintertuer, die jede Rechtekontrolle aushebelt, weil sie
+ * ueber das Netz erreichbar ist. Wer hier ernennt, hat bereits Zugriff auf den
+ * Server; genau das ist die Absicherung.
+ */
+
+// Deshalb der Riegel: liegt das Skript versehentlich unter public/ oder wird es
+// ueber einen falsch gesetzten Alias vom Webserver ausgeliefert, waere es genau
+// jene Hintertuer. PHP_SAPI ist die einzige Angabe, die der Aufrufer nicht
+// faelschen kann.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    echo "Nur ueber die Kommandozeile.\n";
+    exit(1);
+}
+
+$wurzel = dirname(__DIR__);
+
+require $wurzel . '/app/Core/Autoloader.php';
+MeinSlip\Core\Autoloader::starten($wurzel);
+
+Env::laden($wurzel . '/.env');
+
+$argumente = array_slice($argv, 1);
+$befehl = $argumente[0] ?? '';
+
+if (!in_array($befehl, ['ernennen', 'entlassen', 'liste'], true)) {
+    fwrite(STDERR, "Aufruf:\n");
+    fwrite(STDERR, "  php bin/verwalter ernennen <email> [begruendung]\n");
+    fwrite(STDERR, "  php bin/verwalter entlassen <email>\n");
+    fwrite(STDERR, "  php bin/verwalter liste\n");
+    exit(2);
+}
+
+try {
+    $db = Database::ausEnv();
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Datenbankverbindung fehlgeschlagen: {$fehler->getMessage()}\n");
+    fwrite(STDERR, "Pruefe die Werte in .env (Vorlage: .env.example).\n");
+    exit(1);
+}
+
+$konten = new Konten($db);
+
+if ($befehl === 'liste') {
+    try {
+        $verwaltung = $konten->mitFaehigkeit(Konten::FAEHIGKEIT_VERWALTEN);
+    } catch (Throwable $fehler) {
+        fwrite(STDERR, "Abfrage fehlgeschlagen: {$fehler->getMessage()}\n");
+        exit(1);
+    }
+
+    if ($verwaltung === []) {
+        echo "Niemand verwaltet.\n";
+        echo "Ernennen mit: php bin/verwalter ernennen <email>\n";
+        exit(0);
+    }
+
+    foreach ($verwaltung as $zeile) {
+        echo "{$zeile['pseudonym']} <{$zeile['email']}>"
+            . " seit {$zeile['freigeschaltet_am']} ({$zeile['grundlage']})\n";
+    }
+
+    echo 'Gesamt: ' . count($verwaltung) . "\n";
+    exit(0);
+}
+
+$email = trim($argumente[1] ?? '');
+
+if ($email === '') {
+    fwrite(STDERR, "E-Mail-Adresse fehlt.\n");
+    fwrite(STDERR, "Aufruf: php bin/verwalter {$befehl} <email>\n");
+    exit(2);
+}
+
+try {
+    $konto = $konten->nachEmail($email);
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Abfrage fehlgeschlagen: {$fehler->getMessage()}\n");
+    exit(1);
+}
+
+if ($konto === null) {
+    fwrite(STDERR, "Kein Konto zu {$email}.\n");
+    exit(1);
+}
+
+$id = (int) $konto['id'];
+$anzeige = "{$konto['pseudonym']} <{$konto['email']}>";
+
+try {
+    // Der Zustand wird vorher abgefragt, damit die Meldung stimmt: beide
+    // Fachmethoden sind idempotent und tun beim zweiten Aufruf nichts mehr.
+    // Ohne diese Abfrage meldete das Skript eine Aenderung, die ausblieb —
+    // beim Ernennen etwa eine Grundlage, die gar nicht gespeichert wurde.
+    $verwaltet = $konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN);
+
+    if ($befehl === 'ernennen') {
+        if ($verwaltet) {
+            echo "{$anzeige} verwaltet bereits. Nichts geaendert.\n";
+            exit(0);
+        }
+
+        // Die Grundlage bleibt in der Datenbank stehen und beantwortet spaeter,
+        // warum jemand Zugriff bekam. Die Spalte fasst 40 Zeichen.
+        $begruendung = trim($argumente[2] ?? '');
+        $grundlage = $begruendung !== '' ? mb_substr($begruendung, 0, 40) : 'kommandozeile';
+
+        $konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_VERWALTEN, $grundlage);
+
+        echo "{$anzeige} verwaltet jetzt. Grundlage: {$grundlage}\n";
+    } else {
+        if (!$verwaltet) {
+            echo "{$anzeige} verwaltet ohnehin nicht. Nichts geaendert.\n";
+            exit(0);
+        }
+
+        $konten->faehigkeitEntziehen($id, Konten::FAEHIGKEIT_VERWALTEN);
+
+        echo "{$anzeige} verwaltet nicht mehr.\n";
+    }
+} catch (KontoFehler $fehler) {
+    fwrite(STDERR, "Abgelehnt: {$fehler->schluessel()}\n");
+    exit(1);
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Fehlgeschlagen: {$fehler->getMessage()}\n");
+    exit(1);
+}
+
+exit(0);

@@ -17,6 +17,28 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+
+  /*
+   * Doppeltipp-Zoom abschalten — aber NICHT über user-scalable=no oder
+   * maximum-scale im viewport-Meta.
+   *
+   * Der bequeme Weg wäre eine Zeile in resources/views/layout.php. Er ist
+   * hier verboten: user-scalable=no sperrt zusätzlich das Aufziehen mit zwei
+   * Fingern. Damit könnte jemand mit schwachem Sehvermögen den Text nicht
+   * mehr vergrößern, und das verletzt WCAG 1.4.4 (Textgröße ändern, AA).
+   * Seit dem 28.06.2025 ist WCAG 2.1 AA für den elektronischen
+   * Geschäftsverkehr über das Barrierefreiheitsstärkungsgesetz verbindlich —
+   * diese Seite fällt darunter. Das viewport-Meta bleibt deshalb, wie es ist.
+   *
+   * touch-action: manipulation macht genau das Richtige: es nimmt dem
+   * Doppeltipp seine Zoomwirkung (und damit auch die 300 ms, die der Browser
+   * sonst auf einen zweiten Tipp wartet), lässt Wischen und den Kneifzoom mit
+   * zwei Fingern aber unangetastet. Global gesetzt, weil sonst jedes neue
+   * Bedienelement die Zeile einzeln bräuchte; die Bedienelemente in
+   * nocturne.css wiederholen sie trotzdem, damit sie auch dann greift, wenn
+   * ein Element in einem Container mit eigenem touch-action steckt.
+   */
+  touch-action: manipulation;
 }
 
 body {
@@ -197,6 +219,8 @@ img { max-width: 100%; height: auto; display: block; }
 
 .ms-hero__knoepfe { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 
+/* Bewusst über --tippziel: der Hero ist die erste Entscheidung der Seite,
+   die beiden Knöpfe dürfen dafür größer sein als das Mindestmaß. */
 .ms-hero__knoepfe .btn { min-height: 48px; padding-inline: var(--space-8); font-size: 1rem; }
 
 .ms-merkmale {
@@ -219,6 +243,27 @@ img { max-width: 100%; height: auto; display: block; }
   display: grid;
   gap: var(--space-4);
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Eine Karte, die selbst der Verweis ist.
+   Auf dem Telefon ist die Fläche das Bedienelement — eine verlinkte
+   Überschrift in einer ansonsten toten Karte ist ein zu kleines Ziel und
+   sieht auch nicht danach aus, als könnte man sie antippen. */
+.ms-kategoriekarte {
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.ms-kategoriekarte:hover {
+  background: color-mix(in srgb, var(--color-surface) 80%, var(--color-accent));
+}
+
+.ms-kategoriekarte:active { transform: scale(0.995); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-kategoriekarte { transition: none; }
+  .ms-kategoriekarte:active { transform: none; }
 }
 
 .ms-abschnitt { display: flex; flex-direction: column; gap: var(--space-6); }
@@ -270,7 +315,7 @@ img { max-width: 100%; height: auto; display: block; }
 
 .ms-untennav__eintrag {
   flex: 1;
-  min-height: 44px;
+  min-height: var(--tippziel);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -280,6 +325,10 @@ img { max-width: 100%; height: auto; display: block; }
   text-decoration: none;
   font-size: 0.6875rem;
   color: var(--color-neutral-500);
+  /* Der meistgetippte Bereich der App. Die Regel steht hier zusätzlich zur
+     globalen, damit sie auch dann gilt, wenn die Leiste je in einem Behälter
+     mit eigenem touch-action landet. */
+  touch-action: manipulation;
 }
 
 .ms-untennav__eintrag[aria-current="page"] { color: var(--color-accent); }

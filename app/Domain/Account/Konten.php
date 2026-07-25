@@ -20,6 +20,31 @@ final class Konten
     public const FAEHIGKEIT_KAUFEN = 'kaufen';
     public const FAEHIGKEIT_VERKAUFEN = 'verkaufen';
 
+    /**
+     * Zugang zum Verwaltungsbereich.
+     *
+     * Wird niemals durch eine Pruefung, eine Registrierung oder irgendeinen
+     * Weg ueber das Web vergeben, sondern ausschliesslich von Hand ueber
+     * bin/verwalter. Wer sie vergeben kann, hat bereits Zugriff auf den
+     * Server — das ist die Absicherung.
+     */
+    public const FAEHIGKEIT_VERWALTEN = 'verwalten';
+
+    /**
+     * Alle bekannten Faehigkeiten.
+     *
+     * Ohne diese Liste nimmt faehigkeitFreischalten() jede Zeichenkette an und
+     * ein Tippfehler ('verwaltn') legt still eine wirkungslose Zeile an, die
+     * niemandem auffaellt, weil hatFaehigkeit() weiter false liefert.
+     *
+     * @var list<string>
+     */
+    public const FAEHIGKEITEN = [
+        self::FAEHIGKEIT_KAUFEN,
+        self::FAEHIGKEIT_VERKAUFEN,
+        self::FAEHIGKEIT_VERWALTEN,
+    ];
+
     private const PSEUDONYM_MUSTER = '/^[\p{L}\p{N}_-]{3,30}$/u';
 
     public function __construct(private readonly Database $db)
@@ -126,9 +151,57 @@ final class Konten
         return $this->db->eine('SELECT * FROM benutzer WHERE id = :id', ['id' => $benutzerId]);
     }
 
+    /**
+     * Konto zu einer E-Mail-Adresse, unabhaengig vom Status.
+     *
+     * Anders als anmelden() filtert diese Abfrage NICHT auf status = 'aktiv':
+     * die Kommandozeile muss auch ein gesperrtes Konto finden koennen, um ihm
+     * die Verwaltung zu entziehen.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function nachEmail(string $email): ?array
+    {
+        return $this->db->eine(
+            'SELECT * FROM benutzer WHERE email = :e',
+            ['e' => strtolower(trim($email))]
+        );
+    }
+
+    /** @return list<string> */
+    public static function bekannteFaehigkeiten(): array
+    {
+        return self::FAEHIGKEITEN;
+    }
+
+    public static function faehigkeitBekannt(string $faehigkeit): bool
+    {
+        return in_array($faehigkeit, self::FAEHIGKEITEN, true);
+    }
+
+    /** @throws KontoFehler wenn die Faehigkeit unbekannt ist */
     public function faehigkeitFreischalten(int $benutzerId, string $faehigkeit, string $grundlage): void
     {
+        $this->faehigkeitPruefen($faehigkeit);
+
         if ($this->hatFaehigkeit($benutzerId, $faehigkeit)) {
+            return;
+        }
+
+        $jetzt = gmdate('Y-m-d H:i:s');
+
+        // Der eindeutige Index ueber (benutzer_id, faehigkeit) laesst keine
+        // zweite Zeile zu. Eine entzogene Faehigkeit wird deshalb wiederbelebt
+        // statt neu eingefuegt — sonst scheitert jedes erneute Freischalten am
+        // Index, obwohl fachlich nichts dagegen spricht.
+        if ($this->faehigkeitszeileVorhanden($benutzerId, $faehigkeit)) {
+            $this->db->ausfuehren(
+                'UPDATE benutzer_faehigkeiten
+                    SET entzogen_am = NULL, grundlage = :g, freigeschaltet_am = :z
+                  WHERE benutzer_id = :b AND faehigkeit = :f',
+                ['g' => $grundlage, 'z' => $jetzt, 'b' => $benutzerId, 'f' => $faehigkeit]
+            );
+
             return;
         }
 
@@ -136,9 +209,32 @@ final class Konten
             'benutzer_id' => $benutzerId,
             'faehigkeit' => $faehigkeit,
             'grundlage' => $grundlage,
-            'freigeschaltet_am' => gmdate('Y-m-d H:i:s'),
+            'freigeschaltet_am' => $jetzt,
             'entzogen_am' => null,
         ]);
+    }
+
+    /**
+     * Entzieht eine Faehigkeit.
+     *
+     * Die Zeile bleibt stehen und bekommt nur entzogen_am gesetzt: dass jemand
+     * eine Berechtigung einmal hatte und wann sie endete, muss nachvollziehbar
+     * bleiben. Loeschen wuerde diese Spur vernichten.
+     *
+     * Mehrfaches Entziehen ist folgenlos — die Bedingung entzogen_am IS NULL
+     * trifft beim zweiten Aufruf keine Zeile mehr, der erste Zeitpunkt bleibt.
+     *
+     * @throws KontoFehler wenn die Faehigkeit unbekannt ist
+     */
+    public function faehigkeitEntziehen(int $benutzerId, string $faehigkeit): void
+    {
+        $this->faehigkeitPruefen($faehigkeit);
+
+        $this->db->ausfuehren(
+            'UPDATE benutzer_faehigkeiten SET entzogen_am = :z
+              WHERE benutzer_id = :b AND faehigkeit = :f AND entzogen_am IS NULL',
+            ['z' => gmdate('Y-m-d H:i:s'), 'b' => $benutzerId, 'f' => $faehigkeit]
+        );
     }
 
     public function hatFaehigkeit(int $benutzerId, string $faehigkeit): bool
@@ -162,6 +258,47 @@ final class Konten
         );
 
         return array_map(static fn (array $z): string => (string) $z['faehigkeit'], $zeilen);
+    }
+
+    /**
+     * Alle Konten, die eine Faehigkeit derzeit besitzen.
+     *
+     * Gedacht fuer bin/verwalter: wer den Verwaltungsbereich betreten darf,
+     * muss von aussen aufzaehlbar sein, sonst weiss niemand, wer Zugriff hat.
+     *
+     * @return list<array<string,mixed>>
+     *
+     * @throws KontoFehler wenn die Faehigkeit unbekannt ist
+     */
+    public function mitFaehigkeit(string $faehigkeit): array
+    {
+        $this->faehigkeitPruefen($faehigkeit);
+
+        return $this->db->alle(
+            'SELECT b.id, b.pseudonym, b.email, b.status, f.grundlage, f.freigeschaltet_am
+               FROM benutzer_faehigkeiten f
+               JOIN benutzer b ON b.id = f.benutzer_id
+              WHERE f.faehigkeit = :f AND f.entzogen_am IS NULL
+              ORDER BY b.pseudonym',
+            ['f' => $faehigkeit]
+        );
+    }
+
+    /** @throws KontoFehler */
+    private function faehigkeitPruefen(string $faehigkeit): void
+    {
+        if (!self::faehigkeitBekannt($faehigkeit)) {
+            throw new KontoFehler('faehigkeit_unbekannt');
+        }
+    }
+
+    /** Auch entzogene Zeilen zaehlen — im Gegensatz zu hatFaehigkeit(). */
+    private function faehigkeitszeileVorhanden(int $benutzerId, string $faehigkeit): bool
+    {
+        return (int) $this->db->wert(
+            'SELECT COUNT(*) FROM benutzer_faehigkeiten WHERE benutzer_id = :b AND faehigkeit = :f',
+            ['b' => $benutzerId, 'f' => $faehigkeit]
+        ) > 0;
     }
 
     private function emailVergeben(string $email): bool

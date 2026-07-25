@@ -8,7 +8,10 @@ Das Barrierefreiheitsstaerkungsgesetz gilt seit dem 28.06.2025 fuer den
 elektronischen Geschaeftsverkehr und verlangt WCAG 2.1 AA: Text braucht 4.5:1,
 Bedienelemente und ihre Rahmen nach 1.4.11 mindestens 3:1.
 
-Die Werte muessen mit public/assets/css/nocturne.css uebereinstimmen.
+Die Werte muessen mit public/assets/css/nocturne.css uebereinstimmen. Das
+Skript liest das CSS NICHT ein, es haelt die Hexwerte als Literale — wer eine
+Farbrolle ergaenzt oder einen Wert dreht, muss hier von Hand nachziehen, sonst
+meldet die CI weiter gruen fuer Farben, die es nicht mehr gibt.
 
 Beim Uebernehmen des Designsystems fand diese Pruefung einen echten Mangel:
 Der Rahmen von Eingabefeldern erreichte im Ruhezustand nur 1.58:1. Deshalb
@@ -54,6 +57,12 @@ SCHRIFT = {
     'accent-300': '#d2cefd',
     'accent-400': '#b5abfc',
     'accent-500': '#968ae0',
+    # Die zweite Akzentrampe wird genauso geprueft wie die erste: als Schrift
+    # kommen nur die Stufen 300 bis 500 in Frage, darunter wird es zu dunkel.
+    'accent-2': '#a7a1db',
+    'accent-2-300': '#d2cefd',
+    'accent-2-400': '#b5afe8',
+    'accent-2-500': '#9690c9',
     'neutral-300': '#cfd3e5',
     'neutral-400': '#b2b6ca',
     'neutral-500': '#9397ab',
@@ -67,6 +76,10 @@ NUR_FLAECHE = {
     'neutral-700': '#595d6c',
     'neutral-800': '#3f424d',
     'neutral-900': '#292b31',
+    'accent-2-600': '#7972a9',
+    'accent-2-700': '#5c5783',
+    'accent-2-800': '#423e5d',
+    'accent-2-900': '#2b293a',
 }
 
 # Bedienelemente — Schwelle 3:1 nach WCAG 1.4.11
@@ -78,9 +91,18 @@ BEDIENELEMENTE = {
 }
 
 # Tints mit Text darauf — Schwelle 4.5:1
+#
+# Hier stehen auch --color-section, --color-section-glow und
+# --color-section-ghost. Sie sind laut nocturne.css ausdruecklich Deck-Flaechen
+# und keine Interface-Farben, also nie Schrift — geprueft wird deshalb die
+# Schrift, die auf ihnen liegt, gegen die Schwelle fuer Text.
 TINTS = {
     '.tag-neutral: neutral-100 auf neutral-800': ('#f3f5fe', '#3f424d'),
     '.tag-accent: accent-100 auf accent-800': ('#f5f4ff', '#423a6a'),
+    '.tag-accent-2: accent-2-100 auf accent-2-800': ('#f5f4ff', '#423e5d'),
+    'Deck: Text auf --color-section': (TEXT, '#262a60'),
+    'Deck: Text auf --color-section-glow': (TEXT, '#353b80'),
+    'Deck: Text auf --color-section-ghost': (TEXT, '#4c5397'),
 }
 
 

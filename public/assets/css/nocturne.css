@@ -1,7 +1,7 @@
 /* Nocturne — Designsystem von MeinSlip.
  *
- * Uebernommen aus dem Claude-Design-Export, mit zwei Korrekturen gegenueber
- * dem Original. Beide sind unten an Ort und Stelle kommentiert:
+ * Uebernommen aus dem Claude-Design-Export, mit vier Korrekturen gegenueber
+ * dem Original. Alle sind unten an Ort und Stelle kommentiert:
  *
  *   1. Die Schrift wird SELBST GEHOSTET statt von Google geladen. Der
  *      urspruengliche @import haette bei jedem Seitenaufruf die IP-Adresse
@@ -14,7 +14,15 @@
  *      WCAG 2.1 AA verlangt nach 1.4.11 mindestens 3:1 fuer Bedienelemente,
  *      und das BFSG macht das seit dem 28.06.2025 verbindlich.
  *
- * Geprueft wird beides von docs/kontrast-pruefung.py.
+ *   3. Formularelemente standen auf 14px. Der Export ist fuer den Schreibtisch
+ *      entworfen; auf iOS zoomt Safari beim Antippen jedes Textfeldes unter
+ *      16px automatisch hinein und danach nicht wieder heraus. Siehe
+ *      --feld-schriftgroesse.
+ *
+ *   4. Bedienelemente hatten keine Mindestkante fuers Fingerziel und kein
+ *      touch-action. Siehe --tippziel und die Kommentare bei .btn.
+ *
+ * Geprueft werden die Farbwerte von docs/kontrast-pruefung.py.
  */
 
 /* Nocturne — design-system tokens and component classes. This file is the source of truth for the system's look; retune it here and see readme.md. */
@@ -147,6 +155,28 @@
   --font-heading-weight: 500;
   --font-body: "Inter", system-ui, sans-serif;
 
+  /* Schriftgroesse JEDES Formularelements.
+     WARUM ein harter Pixelwert und keine Stufe der Typoskala: 16px ist hier
+     keine gestalterische Entscheidung, sondern eine Schwelle der
+     Browserplattform. Safari auf iOS zoomt beim Antippen eines Textfeldes
+     automatisch in die Seite hinein, sobald dessen Schrift kleiner als 16px
+     gesetzt ist — und zoomt danach NICHT wieder heraus. Die Seite steht dann
+     verschoben da, bis die Nutzerin selbst wieder herauszieht; auf einer
+     Seite, die man in der Oeffentlichkeit schnell wegdrueckt, ist das mehr
+     als ein Schoenheitsfehler.
+     Der Wert darf deshalb nicht "der Konsistenz zuliebe" auf eine kleinere
+     Stufe zurueckgedreht werden. Die Dichte 0.70x des Systems traegt der
+     Rest der Skala — hier waechst nur die Eingabe selbst. */
+  --feld-schriftgroesse: 16px;
+
+  /* Mindestkante eines Fingerziels.
+     WCAG 2.5.8 (AA) verlangt 24x24px, die iOS-Richtlinie empfiehlt 44x44px.
+     Wir nehmen die 44px: sie sind die strengere der beiden und passen zur
+     unteren Navigation, die ohnehin schon 44px hoch ist. Auch das ist ein
+     harter Wert — kein --space-Token trifft ihn, und er soll ihn auch nicht
+     treffen, weil er kein Raummass ist, sondern die Groesse einer Fingerkuppe. */
+  --tippziel: 44px;
+
   --space-1: 2.8px;
   --space-2: 5.6px;
   --space-3: 8.4px;
@@ -223,11 +253,19 @@ figcaption {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   cursor: pointer; text-decoration: none;
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: 14px; line-height: 1.2; color: var(--color-text); /* matches the .input's 14px —
-     the pair sits side by side in sign-up rows */
+  /* Die Schaltflaechenschrift bleibt bewusst unter --feld-schriftgroesse:
+     den iOS-Fokuszoom loesen nur Textfelder aus, ein Knopf nie. Was der Knopf
+     braucht, ist die Hoehe — deshalb --tippziel statt 16px. So steht ein Knopf
+     neben einem Eingabefeld weiterhin auf gleicher Kante. */
+  font-size: 14px; line-height: 1.2; color: var(--color-text);
+  min-height: var(--tippziel);
   background: transparent; border: 1px solid transparent;
   padding: var(--space-2) calc(var(--space-3) * 1.2);
   border-radius: var(--radius-md);
+  /* Nimmt dem Doppeltipp seine Zoomwirkung und damit auch die 300ms, die der
+     Browser sonst wartet, ob noch ein zweiter Tipp folgt. Der Kneifzoom mit
+     zwei Fingern bleibt erlaubt — siehe Kommentar bei html in app.css. */
+  touch-action: manipulation;
 }
 .btn svg { display: block; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -240,17 +278,34 @@ figcaption {
 .btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); }
 .btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
 .btn-ghost:active { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
-.btn-icon { width: 36px; height: 36px; padding: 0; }
+/* Vorher 36x36px und damit unter dem Fingerziel. Der Schnellverbergen-Knopf
+   in der Kopfzeile ist genau so einer — ausgerechnet der Knopf, den man im
+   Zweifel in Eile und ohne hinzusehen trifft. */
+.btn-icon { width: var(--tippziel); height: var(--tippziel); padding: 0; }
 .btn-block { width: 100%; margin-top: var(--space-2); }
 
 /* — forms — */
+/* Der Bodensatz fuer ALLE Formularelemente, mit und ohne Klasse. Nocturne hat
+   bewusst keine .select-Klasse — ein <select> wird mit class="input" gebaut.
+   Wer die Klasse vergisst, bekaeme sonst die 13.33px des Browsers und damit
+   den iOS-Fokuszoom zurueck. Die Elementregel faengt das ab. */
+input, select, textarea {
+  font-family: inherit;
+  font-size: var(--feld-schriftgroesse);
+  touch-action: manipulation;
+}
 .field > label {
   display: block; font-size: 12px; margin-bottom: 5px;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
+/* Die Hoehe folgt der Schrift: 16px mal Zeilenhoehe 1.6 sind schon 25.6px,
+   dazu Innenabstand und Rahmen. Die alten 36px waeren jetzt eine Klemme —
+   --tippziel (44px) ist ohnehin die Untergrenze fuers Fingerziel. */
 .input {
-  width: 100%; min-height: 36px; padding: 6px 10px; font: inherit;
-  font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
+  width: 100%; min-height: var(--tippziel);
+  padding: var(--space-2) calc(var(--space-3) * 1.2); font: inherit;
+  font-size: var(--feld-schriftgroesse); color: var(--color-text);
+  caret-color: var(--color-accent);
   background: var(--color-surface);
   /* Korrigiert: --color-divider ergab hier nur 1,58:1. WCAG 1.4.11
      verlangt 3:1 fuer Bedienelemente. 40 % Textfarbe ergibt 3,23:1. */
@@ -258,8 +313,16 @@ figcaption {
 }
 .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
 .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
-textarea.input { min-height: 90px; resize: vertical; }
-.radio { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
+textarea.input { min-height: calc(var(--tippziel) * 2); resize: vertical; }
+/* Das <label> traegt hier die sichtbare Schrift; das echte <input> darunter
+   ist versteckt. Deshalb steht --feld-schriftgroesse am Label und die
+   Mindesthoehe macht aus der Zeile ein Fingerziel. */
+.radio {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  min-height: var(--tippziel);
+  font-size: var(--feld-schriftgroesse);
+  touch-action: manipulation;
+}
 .radio input, .seg-opt input {
   position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
 }
@@ -278,8 +341,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
 .seg-opt {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px; font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--tippziel);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--feld-schriftgroesse); cursor: pointer;
+  touch-action: manipulation;
 }
 .seg-opt + .seg-opt { border-left: 1px solid var(--color-divider); }
 .seg-opt:has(input:checked) { color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }

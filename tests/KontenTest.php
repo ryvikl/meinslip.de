@@ -77,6 +77,169 @@ final class KontenTest extends Testfall
         self::assertCount(1, $this->konten->faehigkeiten($id));
     }
 
+    /**
+     * Ein Tippfehler darf nicht still eine wirkungslose Zeile anlegen.
+     * Ohne diese Pruefung nimmt faehigkeitFreischalten() jede Zeichenkette an,
+     * und niemand bemerkt, dass die gemeinte Berechtigung nie ankam.
+     */
+    public function testUnbekannteFaehigkeitWirdAbgelehnt(): void
+    {
+        $id = $this->konten->registrieren('Quinta', 'quinta@beispiel.test', 'ein-langes-passwort');
+
+        try {
+            $this->konten->faehigkeitFreischalten($id, 'verwaltn', 'kommandozeile');
+            self::fail('Es haette ein KontoFehler geworfen werden muessen.');
+        } catch (KontoFehler $fehler) {
+            self::assertSame('faehigkeit_unbekannt', $fehler->schluessel());
+        }
+
+        // Und es darf auch keine Zeile zurueckgeblieben sein.
+        self::assertSame([], $this->konten->faehigkeiten($id));
+        self::assertSame(
+            0,
+            (int) $this->db->wert('SELECT COUNT(*) FROM benutzer_faehigkeiten WHERE benutzer_id = :b', ['b' => $id])
+        );
+    }
+
+    public function testUnbekannteFaehigkeitKannAuchNichtEntzogenWerden(): void
+    {
+        $id = $this->konten->registrieren('Rosa', 'rosa@beispiel.test', 'ein-langes-passwort');
+
+        $this->expectException(KontoFehler::class);
+        $this->expectExceptionMessage('faehigkeit_unbekannt');
+
+        $this->konten->faehigkeitEntziehen($id, 'verwaltn');
+    }
+
+    public function testBekannteFaehigkeitenSindVollstaendig(): void
+    {
+        self::assertSame(
+            [Konten::FAEHIGKEIT_KAUFEN, Konten::FAEHIGKEIT_VERKAUFEN, Konten::FAEHIGKEIT_VERWALTEN],
+            Konten::bekannteFaehigkeiten()
+        );
+        self::assertTrue(Konten::faehigkeitBekannt(Konten::FAEHIGKEIT_VERWALTEN));
+        self::assertFalse(Konten::faehigkeitBekannt('verwaltn'));
+    }
+
+    /**
+     * Der Verwaltungsbereich haengt allein an dieser Faehigkeit. Sie darf auf
+     * keinem Weg beilaeufig entstehen — weder bei der Registrierung noch als
+     * Nebenwirkung anderer Freischaltungen. Vergeben wird sie ausschliesslich
+     * ueber bin/verwalter, also von jemandem mit Serverzugriff.
+     */
+    public function testVerwaltenWirdNiemalsAutomatischVergeben(): void
+    {
+        $id = $this->konten->registrieren('Selma', 'selma@beispiel.test', 'ein-langes-passwort');
+
+        self::assertFalse($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
+
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_KAUFEN, 'altersnachweis');
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_VERKAUFEN, 'identitaetsnachweis');
+
+        self::assertFalse($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
+        self::assertNotContains(Konten::FAEHIGKEIT_VERWALTEN, $this->konten->faehigkeiten($id));
+        self::assertSame([], $this->konten->mitFaehigkeit(Konten::FAEHIGKEIT_VERWALTEN));
+    }
+
+    public function testEntziehenWirktUndIstIdempotent(): void
+    {
+        $id = $this->konten->registrieren('Thea', 'thea@beispiel.test', 'ein-langes-passwort');
+
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_VERWALTEN, 'kommandozeile');
+        self::assertTrue($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
+
+        $this->konten->faehigkeitEntziehen($id, Konten::FAEHIGKEIT_VERWALTEN);
+        $this->konten->faehigkeitEntziehen($id, Konten::FAEHIGKEIT_VERWALTEN);
+
+        self::assertFalse($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
+        self::assertSame([], $this->konten->faehigkeiten($id));
+        self::assertSame([], $this->konten->mitFaehigkeit(Konten::FAEHIGKEIT_VERWALTEN));
+    }
+
+    /** Entzug loescht nicht, sondern stempelt — sonst fehlt die Spur. */
+    public function testEntziehenLoeschtDieZeileNicht(): void
+    {
+        $id = $this->konten->registrieren('Ulla', 'ulla@beispiel.test', 'ein-langes-passwort');
+
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_KAUFEN, 'altersnachweis');
+        $this->konten->faehigkeitEntziehen($id, Konten::FAEHIGKEIT_KAUFEN);
+
+        $zeile = $this->db->eine(
+            'SELECT * FROM benutzer_faehigkeiten WHERE benutzer_id = :b AND faehigkeit = :f',
+            ['b' => $id, 'f' => Konten::FAEHIGKEIT_KAUFEN]
+        );
+
+        self::assertNotNull($zeile, 'Die Zeile muss als Nachweis stehen bleiben.');
+        self::assertNotNull($zeile['entzogen_am']);
+    }
+
+    public function testEntziehenBeruehrtAndereFaehigkeitenNicht(): void
+    {
+        $id = $this->konten->registrieren('Vroni', 'vroni@beispiel.test', 'ein-langes-passwort');
+
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_KAUFEN, 'altersnachweis');
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_VERKAUFEN, 'identitaetsnachweis');
+
+        $this->konten->faehigkeitEntziehen($id, Konten::FAEHIGKEIT_VERKAUFEN);
+
+        self::assertSame([Konten::FAEHIGKEIT_KAUFEN], $this->konten->faehigkeiten($id));
+    }
+
+    /**
+     * Der eindeutige Index ueber (benutzer_id, faehigkeit) verbietet eine
+     * zweite Zeile. Wiederfreischalten muss die entzogene Zeile wiederbeleben,
+     * sonst scheitert jede zweite Ernennung am Index.
+     */
+    public function testNachEntzugKannWiederFreigeschaltetWerden(): void
+    {
+        $id = $this->konten->registrieren('Wanda', 'wanda@beispiel.test', 'ein-langes-passwort');
+
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_VERWALTEN, 'erste-ernennung');
+        $this->konten->faehigkeitEntziehen($id, Konten::FAEHIGKEIT_VERWALTEN);
+        $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_VERWALTEN, 'zweite-ernennung');
+
+        self::assertTrue($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
+        self::assertSame([Konten::FAEHIGKEIT_VERWALTEN], $this->konten->faehigkeiten($id));
+        self::assertCount(1, $this->konten->mitFaehigkeit(Konten::FAEHIGKEIT_VERWALTEN));
+
+        // Weiterhin genau eine Zeile, jetzt mit der neuen Grundlage.
+        $zeilen = $this->db->alle(
+            'SELECT * FROM benutzer_faehigkeiten WHERE benutzer_id = :b AND faehigkeit = :f',
+            ['b' => $id, 'f' => Konten::FAEHIGKEIT_VERWALTEN]
+        );
+
+        self::assertCount(1, $zeilen);
+        self::assertSame('zweite-ernennung', $zeilen[0]['grundlage']);
+        self::assertNull($zeilen[0]['entzogen_am']);
+    }
+
+    public function testMitFaehigkeitFindetDieVerwaltung(): void
+    {
+        $eine = $this->konten->registrieren('Xandra', 'xandra@beispiel.test', 'ein-langes-passwort');
+        $andere = $this->konten->registrieren('Yvonne', 'yvonne@beispiel.test', 'ein-langes-passwort');
+
+        $this->konten->faehigkeitFreischalten($eine, Konten::FAEHIGKEIT_VERWALTEN, 'kommandozeile');
+        $this->konten->faehigkeitFreischalten($andere, Konten::FAEHIGKEIT_KAUFEN, 'altersnachweis');
+
+        $verwaltung = $this->konten->mitFaehigkeit(Konten::FAEHIGKEIT_VERWALTEN);
+
+        self::assertCount(1, $verwaltung);
+        self::assertSame('Xandra', $verwaltung[0]['pseudonym']);
+        self::assertSame('xandra@beispiel.test', $verwaltung[0]['email']);
+    }
+
+    /** bin/verwalter kennt nur die Adresse, nicht die Kontonummer. */
+    public function testKontoWirdUeberDieAdresseGefunden(): void
+    {
+        $id = $this->konten->registrieren('Zelda', 'zelda@beispiel.test', 'ein-langes-passwort');
+
+        $konto = $this->konten->nachEmail('  ZELDA@beispiel.test ');
+
+        self::assertNotNull($konto);
+        self::assertSame($id, (int) $konto['id']);
+        self::assertNull($this->konten->nachEmail('gibtesnicht@beispiel.test'));
+    }
+
     /** @return iterable<string, array{string,string,string,string}> */
     public static function ungueltigeEingaben(): iterable
     {

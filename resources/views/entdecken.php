@@ -30,11 +30,13 @@ declare(strict_types=1);
         </article>
     <?php else: ?>
         <div class="ms-raster">
+            <?php // Die ganze Karte ist der Verweis, nicht nur die Überschrift:
+                  // auf dem Telefon ist die Fläche das Bedienelement. ?>
             <?php foreach ($kategorien as $kategorie): ?>
-                <article class="card elev-sm">
+                <a class="card elev-sm ms-kategoriekarte" href="/kategorie/<?= e((string) $kategorie['pfad']) ?>">
                     <h3 class="card-title"><?= te('kategorie.' . $kategorie['schluessel']) ?></h3>
                     <p class="card-meta"><?= e((string) $kategorie['pfad']) ?></p>
-                </article>
+                </a>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>

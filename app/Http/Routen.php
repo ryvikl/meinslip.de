@@ -285,12 +285,39 @@ final class Routen
     /** @param array<string,mixed> $daten */
     private function rendern(Request $anfrage, string $vorlage, string $titel, array $daten = []): Response
     {
+        $sitzung = $this->sitzung($anfrage);
+
         return Response::html($this->ansicht->rendern($vorlage, $daten + [
             '__layout' => 'layout',
             'titel' => $titel,
             'sprache' => Lang::sprache(),
-            'sitzung' => $this->sitzung($anfrage),
+            'sitzung' => $sitzung,
+            'verwalter' => $this->istVerwalter($sitzung),
         ]));
+    }
+
+    /**
+     * Ob dieser Sitzung der Verweis auf die Verwaltung gezeigt werden darf.
+     *
+     * Das ist reine Anzeige und ersetzt keine Pruefung: VerwaltungsRouten
+     * fragt dieselbe Faehigkeit in jeder einzelnen Route erneut ab und
+     * antwortet sonst mit 404. Wer die Adresse errät, kommt trotzdem nicht
+     * hinein — hier geht es nur darum, ob der Weg sichtbar ist.
+     *
+     * @param array<string,mixed>|null $sitzung
+     */
+    private function istVerwalter(?array $sitzung): bool
+    {
+        if ($sitzung === null) {
+            return false;
+        }
+
+        try {
+            return (new Konten(Database::ausEnv()))
+                ->hatFaehigkeit((int) $sitzung['benutzer_id'], Konten::FAEHIGKEIT_VERWALTEN);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /** @return array<string,mixed>|null */

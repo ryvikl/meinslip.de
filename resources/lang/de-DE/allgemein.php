@@ -33,6 +33,8 @@ return [
     'nav_profil' => 'Profil',
     'nav_haupt' => 'Hauptnavigation',
     'nav_bereiche' => 'Hauptbereiche',
+    'nav_verkaufen' => 'Verkaufen',
+    'nav_verwaltung' => 'Verwaltung',
 
     // Merkmale
     'merkmal_geprueft' => 'Geprüfte Identitäten',
