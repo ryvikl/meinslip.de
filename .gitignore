@@ -1,0 +1,51 @@
+# === Zugangsdaten und Geheimnisse — NIEMALS committen ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+auth.json
+credentials*
+secrets*
+deploy.config*
+.netrc
+.ftpconfig
+sftp-config.json
+
+# === Abhängigkeiten ===
+/vendor/
+/node_modules/
+
+# === Build und Cache ===
+/dist/
+/build/
+/.cache/
+/var/cache/
+/storage/cache/
+*.log
+
+# === Hochgeladene Dateien und Nutzerinhalte ===
+/storage/uploads/
+/storage/media/
+/public/uploads/
+
+# === Datenbank-Abzüge ===
+*.sql
+*.sql.gz
+*.dump
+!/database/migrations/*.sql
+!/database/schema.sql
+
+# === Editor und System ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# === Test und Werkzeuge ===
+/coverage/
+.phpunit.result.cache
