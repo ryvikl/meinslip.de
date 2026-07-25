@@ -1,0 +1,38 @@
+{
+    "name": "meinslip/plattform",
+    "description": "MeinSlip.de — werbefreie PWA für Content, Warenmarktplatz und treuhandgesicherte Übergabe",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2",
+        "ext-pdo": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "MeinSlip\\": "app/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MeinSlip\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "migrate": "php bin/migrate",
+        "test": "phpunit --colors=always",
+        "kontrast": "python3 docs/kontrast-pruefung.py",
+        "pruefen": [
+            "@test",
+            "@kontrast"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}

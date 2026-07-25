@@ -1,0 +1,42 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MeinSlip\Core\Database;
+use MeinSlip\Core\Env;
+use MeinSlip\Core\Migrator;
+
+$wurzel = dirname(__DIR__);
+
+require $wurzel . '/vendor/autoload.php';
+
+Env::laden($wurzel . '/.env');
+
+try {
+    $db = Database::ausEnv();
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Datenbankverbindung fehlgeschlagen: {$fehler->getMessage()}\n");
+    fwrite(STDERR, "Pruefe die Werte in .env (Vorlage: .env.example).\n");
+    exit(1);
+}
+
+$migrator = new Migrator($db, $wurzel . '/database/migrations');
+
+try {
+    $ausgefuehrt = $migrator->hoch();
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Migration abgebrochen: {$fehler->getMessage()}\n");
+    exit(1);
+}
+
+if ($ausgefuehrt === []) {
+    echo "Keine offenen Migrationen. Datenbank ist aktuell.\n";
+    exit(0);
+}
+
+foreach ($ausgefuehrt as $name) {
+    echo "ausgefuehrt: {$name}\n";
+}
+
+echo count($ausgefuehrt) . " Migration(en) ausgefuehrt.\n";

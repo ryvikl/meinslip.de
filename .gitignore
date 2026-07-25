@@ -49,3 +49,6 @@ Thumbs.db
 # === Test und Werkzeuge ===
 /coverage/
 .phpunit.result.cache
+
+# Composer-Sperrdatei bleibt im Repo (reproduzierbare Installation),
+# das Verzeichnis vendor/ nicht.
