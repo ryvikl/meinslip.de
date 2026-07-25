@@ -31,7 +31,7 @@ $aktiv ??= null;
     <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
-<a class="ms-sprungmarke" href="#hauptinhalt"><?= te('allgemein.weiter') ?> zum Inhalt</a>
+<a class="ms-sprungmarke" href="#hauptinhalt"><?= te('allgemein.zum_inhalt') ?></a>
 
 <header class="ms-kopf">
     <div class="ms-huelle ms-kopf__reihe">
@@ -40,7 +40,7 @@ $aktiv ??= null;
             <span><?= te('allgemein.marke_lang') ?></span>
         </a>
 
-        <nav class="ms-kopf__nav" aria-label="Hauptnavigation">
+        <nav class="ms-kopf__nav" aria-label="<?= te('allgemein.nav_haupt') ?>">
             <a href="/entdecken"><?= te('allgemein.nav_entdecken') ?></a>
             <a href="/sicherheit"><?= te('allgemein.nav_sicherheit') ?></a>
             <a href="/fuer-creator"><?= te('allgemein.nav_fuer_creator') ?></a>
@@ -78,7 +78,7 @@ $aktiv ??= null;
     </div>
 </footer>
 
-<nav class="ms-untennav" aria-label="Hauptbereiche">
+<nav class="ms-untennav" aria-label="<?= te('allgemein.nav_bereiche') ?>">
     <?php
     $bereiche = [
         ['/', 'allgemein.nav_start', '⌂'],
@@ -98,10 +98,10 @@ $aktiv ??= null;
 </nav>
 
 <?php // Schnellverbergen: Esc oder Doppeltipp legt diesen Vorhang darüber. ?>
-<div class="ms-vorhang" data-vorhang role="dialog" aria-modal="true" aria-label="Verborgen" hidden>
+<div class="ms-vorhang" data-vorhang role="dialog" aria-modal="true" aria-label="<?= te('allgemein.vorhang_titel') ?>" hidden>
     <div>
-        <p style="font-size:1.25rem;margin-bottom:8px">Bildschirm gesperrt</p>
-        <p style="color:#64748b;margin:0">Zum Fortfahren tippen.</p>
+        <p style="font-size:1.25rem;margin-bottom:8px"><?= te('allgemein.vorhang_titel') ?></p>
+        <p style="color:#94a3b8;margin:0"><?= te('allgemein.vorhang_text') ?></p>
     </div>
 </div>
 

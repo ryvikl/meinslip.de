@@ -6,8 +6,12 @@ declare(strict_types=1);
  * Startseite.
  *
  * Bewusst ohne explizite Inhalte: Für nicht verifizierte Gäste ist der
- * gesamte pornografische Bereich gesperrt (§ 4 Abs. 2 JMStV). Was hier zu
- * sehen ist, erklärt das Versprechen — nicht das Produkt.
+ * pornografische Bereich gesperrt (§ 4 Abs. 2 JMStV). Was hier zu sehen ist,
+ * erklärt das Versprechen — nicht das Produkt.
+ *
+ * Diese Seite gehört zur öffentlichen Zone und muss indexierbar bleiben.
+ * Suchmaschinen sind der einzige Wachstumskanal, der offensteht, weil Meta,
+ * Google und TikTok keine Werbung für Erwachsenenangebote zulassen.
  */
 ?>
 <section class="ms-hero">
@@ -20,34 +24,27 @@ declare(strict_types=1);
     </div>
 
     <ul class="ms-merkmale">
-        <li class="ms-abzeichen ms-abzeichen--geprueft">Geprüfte Identitäten</li>
-        <li class="ms-abzeichen ms-abzeichen--treuhand">Geld erst nach Erhalt</li>
-        <li class="ms-abzeichen">Anonymer Versand</li>
-        <li class="ms-abzeichen">Werbefrei</li>
+        <li class="ms-abzeichen ms-abzeichen--geprueft"><?= te('allgemein.merkmal_geprueft') ?></li>
+        <li class="ms-abzeichen ms-abzeichen--treuhand"><?= te('allgemein.merkmal_treuhand') ?></li>
+        <li class="ms-abzeichen"><?= te('allgemein.merkmal_versand') ?></li>
+        <li class="ms-abzeichen"><?= te('allgemein.merkmal_werbefrei') ?></li>
     </ul>
 </section>
 
 <section aria-labelledby="vertrauen">
-    <h2 id="vertrauen" class="ms-nur-vorlesen">Unsere Versprechen</h2>
+    <h2 id="vertrauen" class="ms-nur-vorlesen"><?= te('allgemein.abschnitt_versprechen') ?></h2>
     <div class="ms-raster">
-        <?php
-        $versprechen = [
-            ['diskret', 'ms-abzeichen'],
-            ['sicher', 'ms-abzeichen--geprueft'],
-            ['direkt', 'ms-abzeichen--treuhand'],
-        ];
-        foreach ($versprechen as [$schluessel, $klasse]):
-            ?>
+        <?php foreach (['diskret', 'sicher', 'direkt'] as $versprechen): ?>
             <article class="ms-karte">
-                <h3 class="ms-karte__titel"><?= te('allgemein.vertrauen_' . $schluessel . '_titel') ?></h3>
-                <p class="ms-karte__text"><?= te('allgemein.vertrauen_' . $schluessel . '_text') ?></p>
+                <h3 class="ms-karte__titel"><?= te('allgemein.vertrauen_' . $versprechen . '_titel') ?></h3>
+                <p class="ms-karte__text"><?= te('allgemein.vertrauen_' . $versprechen . '_text') ?></p>
             </article>
         <?php endforeach; ?>
     </div>
 </section>
 
 <section aria-labelledby="bereiche" style="margin-top:var(--ms-raum-8)">
-    <h2 id="bereiche">Drei Wege, eine Plattform</h2>
+    <h2 id="bereiche"><?= te('allgemein.abschnitt_wege') ?></h2>
     <div class="ms-raster">
         <?php foreach (['content', 'markt', 'uebergabe'] as $bereich): ?>
             <article class="ms-karte ms-karte--hebend">
@@ -59,35 +56,13 @@ declare(strict_types=1);
 </section>
 
 <section aria-labelledby="sicherheit" style="margin-top:var(--ms-raum-8)">
-    <h2 id="sicherheit">Sicherheit ist kein Zusatz. Sie ist das System.</h2>
+    <h2 id="sicherheit"><?= te('allgemein.abschnitt_sicherheit') ?></h2>
     <div class="ms-raster">
-        <article class="ms-karte">
-            <h3 class="ms-karte__titel">Geprüfte Identität</h3>
-            <p class="ms-karte__text">
-                Hinter jedem Verkaufsprofil steht eine geprüfte reale Person. Ohne bestandene
-                Prüfung gibt es keine Auszahlung.
-            </p>
-        </article>
-        <article class="ms-karte">
-            <h3 class="ms-karte__titel">Geld erst nach Erhalt</h3>
-            <p class="ms-karte__text">
-                Dein Betrag wird hinterlegt und erst freigegeben, wenn du die Ware hast und
-                deine Prüfzeit abgelaufen ist.
-            </p>
-        </article>
-        <article class="ms-karte">
-            <h3 class="ms-karte__titel">Anonymer Versand</h3>
-            <p class="ms-karte__text">
-                Weder Käufer noch Verkäuferin sehen die Adresse der anderen Seite. Das Etikett
-                entsteht bei uns.
-            </p>
-        </article>
-        <article class="ms-karte">
-            <h3 class="ms-karte__titel">Rückverfolgbare Inhalte</h3>
-            <p class="ms-karte__text">
-                Jedes ausgelieferte Bild trägt ein unsichtbares Merkmal. Taucht es woanders auf,
-                lässt sich die Quelle bestimmen.
-            </p>
-        </article>
+        <?php foreach (['identitaet', 'treuhand', 'versand', 'leak'] as $modul): ?>
+            <article class="ms-karte">
+                <h3 class="ms-karte__titel"><?= te('allgemein.sicher_' . $modul . '_titel') ?></h3>
+                <p class="ms-karte__text"><?= te('allgemein.sicher_' . $modul . '_text') ?></p>
+            </article>
+        <?php endforeach; ?>
     </div>
 </section>

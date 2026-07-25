@@ -53,9 +53,10 @@ $router->get('/', static fn (): Response => $seite(
 $router->get('/offline', static fn (): Response => Response::html(
     '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
     . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    . '<title>Offline</title><link rel="stylesheet" href="/assets/css/app.css"></head>'
-    . '<body><main class="ms-huelle ms-inhalt"><h1>Keine Verbindung</h1>'
-    . '<p>Sobald du wieder online bist, geht es hier weiter.</p></main></body></html>'
+    . '<title>' . te('allgemein.offline_titel') . '</title>'
+    . '<link rel="stylesheet" href="/assets/css/app.css"></head>'
+    . '<body><main class="ms-huelle ms-inhalt"><h1>' . te('allgemein.offline_titel') . '</h1>'
+    . '<p>' . te('allgemein.offline_text') . '</p></main></body></html>'
 ));
 
 /**

@@ -67,6 +67,37 @@ return [
     // Diskretion
     'schnellverbergen' => 'Schnell verbergen',
     'schnellverbergen_hinweis' => 'Taste Esc drücken oder zweimal tippen.',
+    'vorhang_titel' => 'Bildschirm gesperrt',
+    'vorhang_text' => 'Zum Fortfahren tippen.',
+    'vorhang_ersatztitel' => 'Neuer Tab',
+    'zum_inhalt' => 'Zum Inhalt springen',
+    'nav_haupt' => 'Hauptnavigation',
+    'nav_bereiche' => 'Hauptbereiche',
+
+    // Merkmale auf der Startseite
+    'merkmal_geprueft' => 'Geprüfte Identitäten',
+    'merkmal_treuhand' => 'Geld erst nach Erhalt',
+    'merkmal_versand' => 'Anonymer Versand',
+    'merkmal_werbefrei' => 'Werbefrei',
+
+    // Abschnittsüberschriften
+    'abschnitt_versprechen' => 'Unsere Versprechen',
+    'abschnitt_wege' => 'Drei Wege, eine Plattform',
+    'abschnitt_sicherheit' => 'Sicherheit ist kein Zusatz. Sie ist das System.',
+
+    // Sicherheitsmodule
+    'sicher_identitaet_titel' => 'Geprüfte Identität',
+    'sicher_identitaet_text' => 'Hinter jedem Verkaufsprofil steht eine geprüfte reale Person. Ohne bestandene Prüfung gibt es keine Auszahlung.',
+    'sicher_treuhand_titel' => 'Geld erst nach Erhalt',
+    'sicher_treuhand_text' => 'Dein Betrag wird hinterlegt und erst freigegeben, wenn du die Ware hast und deine Prüfzeit abgelaufen ist.',
+    'sicher_versand_titel' => 'Anonymer Versand',
+    'sicher_versand_text' => 'Weder Käufer noch Verkäuferin sehen die Adresse der anderen Seite. Das Etikett entsteht bei uns.',
+    'sicher_leak_titel' => 'Rückverfolgbare Inhalte',
+    'sicher_leak_text' => 'Jedes ausgelieferte Bild trägt ein unsichtbares Merkmal. Taucht es woanders auf, lässt sich die Quelle bestimmen.',
+
+    // Offline
+    'offline_titel' => 'Keine Verbindung',
+    'offline_text' => 'Sobald du wieder online bist, geht es hier weiter.',
 
     // Fehler
     'fehler_nicht_gefunden' => 'Diese Seite gibt es nicht.',
