@@ -202,6 +202,31 @@ $router->get('/einrichten', static function (Request $anfrage) use ($wurzel): Re
     );
 });
 
+/**
+ * Migrationen fuer die Deployment-Automatik.
+ *
+ * Nur POST, Token im Kopfzeilenfeld X-Deploy-Token. Ist DEPLOY_TOKEN nicht
+ * gesetzt oder zu kurz, ist der Endpunkt gesperrt. Die Logik liegt in einer
+ * eigenen Klasse, damit die Zugangspruefung testbar ist.
+ */
+$router->post('/deploy/migrieren', static function (Request $anfrage) use ($wurzel): Response {
+    try {
+        $db = Database::ausEnv();
+    } catch (Throwable $fehler) {
+        error_log('[MeinSlip/Deploy] Datenbankverbindung fehlgeschlagen: ' . $fehler->getMessage());
+
+        return Response::json(['erfolg' => false, 'fehler' => 'datenbank'], 500);
+    }
+
+    $endpunkt = new MeinSlip\Http\DeployEndpunkt(
+        Env::get('DEPLOY_TOKEN', '') ?? '',
+        $db,
+        $wurzel . '/database/migrations'
+    );
+
+    return $endpunkt->behandeln($anfrage);
+});
+
 /** Betriebspruefung — auch fuer die Ueberwachung nach dem Deployment. */
 $router->get('/zustand', static function () use ($wurzel): Response {
     $zustand = ['anwendung' => 'ok', 'zeit' => gmdate('c')];

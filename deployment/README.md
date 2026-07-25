@@ -1,6 +1,66 @@
 # Deployment
 
-## Der schnelle Weg — ohne SSH, ohne Composer
+## Der bequemste Weg: aus Git heraus
+
+Ein Push auf `main` deployt automatisch — aber erst, wenn alle Tests grün sind. Zusätzlich lässt sich das Deployment jederzeit von Hand auslösen unter *Actions → Deployen → Run workflow*.
+
+Zwei Workflows:
+
+| Datei | Läuft wann | Was |
+| :--- | :--- | :--- |
+| `.github/workflows/pruefen.yml` | jeder Push, jeder Pull Request | Tests auf PHP 8.2 **und** 8.4, Kontrastprüfung, Syntaxprüfung, Verweisprüfung, Suche nach versehentlich versionierten Zugangsdaten |
+| `.github/workflows/deployen.yml` | Push auf `main`, oder auf Knopfdruck | Paket bauen → FTPS-Upload → Migrationen → Betriebsprüfung |
+
+**Rote Tests blockieren das Deployment.** Der Deploy-Job wartet über `needs` auf die Prüfungen. Ohne diese Kopplung wäre die Automatik gefährlicher als Handarbeit.
+
+### Geheimnisse anlegen
+
+Unter *Settings → Secrets and variables → Actions → New repository secret*:
+
+| Name | Inhalt |
+| :--- | :--- |
+| `FTP_SERVER` | z. B. `w0xxxxxx.kasserver.com` |
+| `FTP_BENUTZER` | FTP-Benutzername aus dem KAS-Adminbereich |
+| `FTP_PASSWORT` | FTP-Passwort |
+| `FTP_ZIEL` | Zielverzeichnis auf dem Server, z. B. `/meinslip/` |
+| `SEITE_URL` | `https://meinslip.de` (ohne Schrägstrich am Ende) |
+| `DEPLOY_TOKEN` | langer Zufallswert, **identisch** mit `DEPLOY_TOKEN` in der `.env` auf dem Server |
+| `SCHUTZ_BENUTZER` | Benutzername des Verzeichnisschutzes |
+| `SCHUTZ_PASSWORT` | Passwort des Verzeichnisschutzes |
+
+Token erzeugen:
+
+```
+php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+```
+
+> **Die beiden letzten Geheimnisse sind der häufigste Stolperstein.** Solange die Seite passwortgeschützt ist, antwortet sie **jeder** Anfrage mit HTTP 401 — auch der Action. Ohne `SCHUTZ_BENUTZER` und `SCHUTZ_PASSWORT` schlägt jedes Deployment fehl, und im Protokoll steht nur ein nichtssagender Fehler. Ist kein Verzeichnisschutz eingerichtet, bleiben beide einfach leer; die Action kommt damit zurecht.
+
+### Was der Upload niemals anfasst
+
+`.env` und `storage/` stehen in der Ausschlussliste. Die `.env` lebt auf dem Server und enthält die Datenbankzugänge — würde sie überschrieben, wäre die Seite sofort tot.
+
+### Erstes Deployment
+
+**Zuerst von Hand auslösen, nicht durch einen Push.** Unter *Actions → Deployen → Run workflow*. So siehst du im Protokoll, ob alle Geheimnisse stimmen, bevor die Automatik greift.
+
+### Prüfen, dass die Absicherung wirklich hält
+
+Einen Test absichtlich brechen, pushen, und nachsehen: Das Deployment darf **nicht** starten. Danach zurücknehmen. Ohne diese Gegenprobe weiß niemand, ob die Kopplung zwischen Tests und Deployment tatsächlich greift.
+
+### Wenn SSH verfügbar ist
+
+Der SSH-Weg ist schneller, weil rsync nur Geändertes überträgt, und er kommt ohne einen Migrationsendpunkt im Netz aus. Voraussetzung: SSH im KAS-Adminbereich freischalten. Dann in `deployen.yml`:
+
+- Den Schritt *Per FTPS hochladen* ersetzen durch `rsync -avz --delete -e ssh …` mit denselben Ausschlüssen
+- Den Schritt *Migrationen ausführen* ersetzen durch `ssh … "cd ZIEL && php bin/migrate"`
+- `DEPLOY_TOKEN` in der `.env` leeren — dann ist die Route `/deploy/migrieren` vollständig gesperrt
+
+Der SSH-Schlüssel gehört als Geheimnis `SSH_SCHLUESSEL` ins Repository und wird mit `webfactory/ssh-agent` geladen.
+
+---
+
+## Der manuelle Weg — ohne SSH, ohne Composer
 
 Die Anwendung hat **produktiv keine externen Abhängigkeiten**. Der eigene Klassenlader in `app/Core/Autoloader.php` ersetzt Composer, deshalb muss kein `vendor/`-Verzeichnis auf den Server. Damit reduziert sich das Deployment auf fünf Schritte:
 

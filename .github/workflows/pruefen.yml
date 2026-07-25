@@ -1,0 +1,112 @@
+# Prüfung — läuft bei jedem Push und bei jedem Pull Request.
+#
+# Dieser Workflow ist die Voraussetzung für das Deployment: deployen.yml
+# wartet über "needs" auf ihn. Ist hier etwas rot, geht nichts auf den Server.
+
+name: Prüfen
+
+on:
+  push:
+  pull_request:
+  # Erlaubt es deployen.yml, diesen Workflow als Vorbedingung aufzurufen.
+  workflow_call:
+
+# Mehrere Pushes auf denselben Branch: nur der neueste zählt.
+concurrency:
+  group: pruefen-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 8.2 ist das dokumentierte Minimum, 8.4 die Entwicklungsversion.
+        # Beide müssen grün sein, sonst fällt ein Unterschied erst auf dem
+        # Server auf — und dort ist die PHP-Version im KAS-Adminbereich
+        # jederzeit umstellbar.
+        php: ['8.2', '8.4']
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: PHP einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_sqlite, pdo_mysql, mbstring, json
+          coverage: none
+          tools: composer:v2
+
+      - name: Composer-Cache
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-${{ matrix.php }}-
+
+      - name: Abhängigkeiten installieren
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: PHP-Syntax aller Dateien
+        run: |
+          fehler=0
+          while IFS= read -r datei; do
+            php -l "$datei" > /dev/null || { echo "Syntaxfehler: $datei"; fehler=1; }
+          done < <(find app bin database public tests -name '*.php')
+          exit $fehler
+
+      - name: Tests
+        run: vendor/bin/phpunit --no-coverage --colors=never
+
+  qualitaet:
+    name: Barrierefreiheit und Dokumentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: Kontrastwerte gegen WCAG 2.1 AA
+        # Das Barrierefreiheitsstärkungsgesetz gilt seit dem 28.06.2025 für
+        # den elektronischen Geschäftsverkehr. Die Prüfung hat beim Einführen
+        # sofort sechs Fehler gefunden — sie ist nicht dekorativ.
+        run: python3 docs/kontrast-pruefung.py
+
+      - name: Interne Verweise in der Dokumentation
+        run: python3 deployment/verweise-pruefen.py
+
+  geheimnisse:
+    name: Keine Zugangsdaten im Repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: Keine .env versioniert
+        # .env enthält Datenbankzugänge und Schlüssel. Wäre sie je versioniert,
+        # müsste sie nicht nur entfernt, sondern jeder Wert darin neu gesetzt
+        # werden — deshalb lieber hier abfangen.
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$|\.deploy\.env$|\.htpasswd$'; then
+            echo "FEHLER: Eine Datei mit Zugangsdaten ist versioniert."
+            exit 1
+          fi
+          echo "Keine Zugangsdaten-Dateien im Repository."
+
+      - name: Keine Schlüssel im Quellcode
+        run: |
+          muster='PRIVATE KEY-----|AKIA[0-9A-Z]{16}|xox[baprs]-[0-9a-zA-Z-]{10,}'
+          if git grep -nIE "$muster" -- . ':!*.md' ':!.github/workflows/*'; then
+            echo "FEHLER: Möglicher Schlüssel im Quellcode."
+            exit 1
+          fi
+          echo "Keine Schlüssel gefunden."

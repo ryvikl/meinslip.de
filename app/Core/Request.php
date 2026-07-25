@@ -43,10 +43,25 @@ final class Request
         );
     }
 
-    /** @param array<string,mixed> $formular */
-    public static function erzeugen(string $methode, string $pfad, array $formular = []): self
-    {
-        return new self(strtoupper($methode), '/' . trim($pfad, '/'), [], $formular, []);
+    /**
+     * Baut eine Anfrage von Hand — fuer Tests und interne Aufrufe.
+     *
+     * @param array<string,mixed> $formular
+     * @param array<string,string> $kopfzeilen Namen werden kleingeschrieben,
+     *        damit sie wie bei ausGlobalen() nachgeschlagen werden koennen.
+     */
+    public static function erzeugen(
+        string $methode,
+        string $pfad,
+        array $formular = [],
+        array $kopfzeilen = []
+    ): self {
+        $normalisiert = [];
+        foreach ($kopfzeilen as $name => $wert) {
+            $normalisiert[strtolower((string) $name)] = (string) $wert;
+        }
+
+        return new self(strtoupper($methode), '/' . trim($pfad, '/'), [], $formular, $normalisiert);
     }
 
     public function eingabe(string $name, ?string $standard = null): ?string
