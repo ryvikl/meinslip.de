@@ -1,0 +1,35 @@
+# Schutz für den Projektstamm.
+#
+# Normalfall: Das Dokumentenstammverzeichnis der Domain zeigt auf public/ und
+# diese Datei wird nie gelesen. Sie ist die Absicherung für den Fall, dass die
+# Zuordnung im KAS-Adminbereich einmal nicht greift oder das Projekt
+# versehentlich in ein web-erreichbares Verzeichnis gelegt wird.
+#
+# Ohne sie lägen .env, app/ und storage/ offen im Netz.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Alles, was nicht in public/ liegt, wird nach public/ umgeleitet.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Falls mod_rewrite fehlt: wenigstens die sensiblen Pfade dichtmachen.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<Files ".env">
+    Require all denied
+</Files>
+
+<Files "composer.json">
+    Require all denied
+</Files>
+
+<Files "composer.lock">
+    Require all denied
+</Files>
+
+Options -Indexes

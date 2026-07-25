@@ -18,9 +18,34 @@ final class Env
 
     private static bool $geladen = false;
 
+    private static string $wurzel = '';
+
+    /**
+     * Projektstamm.
+     *
+     * Wichtig, weil relative Pfade sonst gegen das Arbeitsverzeichnis
+     * aufloesen — und das ist beim eingebauten PHP-Server das oeffentliche
+     * Verzeichnis, beim Cronjob aber das Heimatverzeichnis. Beides falsch.
+     */
+    public static function wurzel(): string
+    {
+        return self::$wurzel !== '' ? self::$wurzel : dirname(__DIR__, 2);
+    }
+
+    /** Loest einen moeglicherweise relativen Pfad gegen den Projektstamm auf. */
+    public static function pfad(string $pfad): string
+    {
+        if ($pfad === '' || $pfad === ':memory:' || str_starts_with($pfad, '/')) {
+            return $pfad;
+        }
+
+        return self::wurzel() . '/' . ltrim($pfad, './');
+    }
+
     public static function laden(string $pfad): void
     {
         self::$geladen = true;
+        self::$wurzel = dirname($pfad);
 
         if (!is_readable($pfad)) {
             return;

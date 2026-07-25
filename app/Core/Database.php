@@ -44,7 +44,10 @@ final class Database
         $treiber = Env::get('DB_TREIBER', 'mysql');
 
         if ($treiber === 'sqlite') {
-            $pfad = Env::get('DB_PFAD', ':memory:');
+            // Gegen den Projektstamm aufloesen, nicht gegen das
+            // Arbeitsverzeichnis — das unterscheidet sich zwischen Webserver,
+            // Kommandozeile und Cronjob.
+            $pfad = Env::pfad(Env::get('DB_PFAD', ':memory:') ?? ':memory:');
 
             return new self(new PDO('sqlite:' . $pfad));
         }

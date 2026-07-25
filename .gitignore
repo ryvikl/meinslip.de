@@ -52,3 +52,12 @@ Thumbs.db
 
 # Composer-Sperrdatei bleibt im Repo (reproduzierbare Installation),
 # das Verzeichnis vendor/ nicht.
+
+# === Deployment-Zugangsdaten ===
+deployment/.deploy.env
+.htpasswd
+
+# Lokale Entwicklungsdatenbank
+*.sqlite
+*.sqlite3
+/storage/*.sqlite

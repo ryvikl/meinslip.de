@@ -1,0 +1,55 @@
+# MeinSlip — Apache-Konfiguration für das öffentliche Verzeichnis.
+#
+# Auf dem All-Inkl-Webhosting zeigt das Dokumentenstammverzeichnis der Domain
+# auf dieses Verzeichnis. Falls das einmal nicht greift, schützt zusätzlich
+# die .htaccess im Projektstamm.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Immer verschlüsselt. Der Header X-Forwarded-Proto deckt den Fall ab,
+    # dass ein vorgelagerter Proxy die Verschlüsselung übernimmt.
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Vorhandene Dateien direkt ausliefern, alles andere an die Anwendung.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Diskretion: Die Seite soll nicht in Suchmaschinen und nicht in
+    # Linkvorschauen fremder Dienste auftauchen.
+    Header always set X-Robots-Tag "noindex, nofollow"
+
+    # Der Service Worker muss aus dem Stammverzeichnis gültig sein und darf
+    # nicht zwischengespeichert werden, sonst bleiben Nutzer auf einer alten
+    # Fassung hängen.
+    <FilesMatch "sw\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Service-Worker-Allowed "/"
+    </FilesMatch>
+</IfModule>
+
+# Punktdateien niemals ausliefern.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<Files ".env">
+    Require all denied
+</Files>
+
+# Verzeichnisinhalte nicht auflisten.
+Options -Indexes
+
+DirectoryIndex index.php

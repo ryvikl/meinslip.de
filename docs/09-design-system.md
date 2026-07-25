@@ -60,10 +60,11 @@ Das als Sicherheitsversprechen zu kommunizieren wäre ein Vertrauensbruch, sobal
 
 **Was stattdessen gebaut wird und tatsächlich wirkt:**
 
-- **Forensisches Wasserzeichen pro Käufer** in jedem ausgelieferten Bild und Video. Bei einem Leak ist die Quelle identifizierbar und sperrbar.
-- **Sichtbares Wasserzeichen** mit dem Namen des Käufers als Abschreckung.
+- **Forensisches Wasserzeichen pro Käufer** in jedem ausgelieferten Bild und Video — unsichtbar. Bei einem Leak ist die Quelle identifizierbar und sperrbar.
 - **Kurzlebige, signierte Medienadressen** gegen Weiterverlinkung.
 - **Leak-Suche und Takedown als Plattformleistung**, enthalten in der Provision — Creator zahlen dafür heute separat bei Drittanbietern.
+
+> **Kein sichtbares Wasserzeichen im gekauften Inhalt.** Ein früherer Entwurf sah das als Abschreckung vor. Die kritische Prüfung hat es verworfen, und zu Recht: Es beschädigt genau das Produkt, für das bezahlt wurde, und ist damit der kürzeste Weg zu Rückbuchungen — die auf einer Adult-Plattform ohnehin das teuerste Einzelrisiko sind. Sichtbare Kennzeichnung bleibt auf **Vorschauen** beschränkt, wo sie nichts zerstört.
 
 **Formulierung im Produkt:** nicht „Screenshots gesperrt", sondern **„jeder Screenshot ist rückverfolgbar"**. Das ist wahr, wirkt abschreckender und hält.
 
