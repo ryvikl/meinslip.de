@@ -1,11 +1,12 @@
-# Deployment auf das All-Inkl-Webhosting.
+# Deployment auf das All-Inkl-Webhosting über SSH.
 #
 # Läuft bei jedem Push auf main — aber erst, wenn alle Prüfungen grün sind.
 # Zusätzlich jederzeit von Hand auslösbar unter Actions → Deployen → Run workflow.
 #
-# Übertragen wird per FTPS (verschlüsseltes FTP). Das funktioniert auf jedem
-# All-Inkl-Paket, ohne dass SSH freigeschaltet sein muss. Wer SSH hat, findet
-# die schnellere rsync-Variante in deployment/README.md.
+# Übertragen wird per rsync über SSH: schneller als FTP, weil nur Geändertes
+# geht, und die Migrationen laufen direkt auf dem Server. Dadurch braucht es
+# keinen Migrationsendpunkt im Netz — DEPLOY_TOKEN kann in der .env leer
+# bleiben, dann ist /deploy/migrieren vollständig gesperrt.
 
 name: Deployen
 
@@ -59,38 +60,89 @@ jobs:
         run: |
           composer install --no-dev --optimize-autoloader --no-interaction --quiet
           ./deployment/paket-bauen.sh
-
-      - name: Paketinhalt anzeigen
-        run: |
           echo "Dateien: $(find deployment/upload -type f | wc -l)"
           echo "Größe:   $(du -sh deployment/upload | cut -f1)"
 
-      - name: Per FTPS hochladen
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: SSH-Schlüssel laden
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_BENUTZER }}
-          password: ${{ secrets.FTP_PASSWORT }}
-          protocol: ftps
-          port: 21
-          local-dir: ./deployment/upload/
-          server-dir: ${{ secrets.FTP_ZIEL }}
-          # Diese Dateien leben auf dem SERVER und dürfen nie überschrieben
-          # oder gelöscht werden. Die .env enthält die Datenbankzugänge —
-          # würde sie überschrieben, wäre die Seite sofort tot.
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.env
-            **/storage/**
-            **/node_modules/**
-            **/vendor/**
+          ssh-private-key: ${{ secrets.SSH_SCHLUESSEL }}
+
+      - name: Serverschlüssel prüfen und festschreiben
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          # SHA256-Fingerprint aus dem KAS-Adminbereich unter SSH-Zugriff.
+          # Damit wird der Server überprüft, statt seinen Schlüssel blind
+          # anzunehmen — sonst wäre die Verbindung gegen einen
+          # zwischengeschalteten Angreifer ungeschützt.
+          ERWARTETER_FINGERPRINT: ${{ secrets.SSH_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+
+          ssh-keyscan -t ed25519 -p 22 "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+          gefunden=$(ssh-keygen -lf ~/.ssh/known_hosts | awk '{print $2}')
+          echo "Fingerprint des Servers: $gefunden"
+
+          if [ -z "${ERWARTETER_FINGERPRINT}" ]; then
+            echo "WARNUNG: SSH_FINGERPRINT ist nicht gesetzt — der Server wird nicht überprüft."
+            echo "Den Wert findest du im KAS-Adminbereich unter SSH-Zugriff (ED25519, SHA256)."
+            exit 0
+          fi
+
+          if [ "$gefunden" != "$ERWARTETER_FINGERPRINT" ]; then
+            echo "FEHLER: Der Server meldet einen anderen Schlüssel als erwartet."
+            echo "  erwartet: $ERWARTETER_FINGERPRINT"
+            echo "  gefunden: $gefunden"
+            exit 1
+          fi
+          echo "Server überprüft."
+
+      - name: Übertragen
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_BENUTZER: ${{ secrets.SSH_BENUTZER }}
+          SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
+        run: |
+          set -euo pipefail
+
+          # --delete räumt entfernte Dateien auf dem Server auf.
+          # Die Ausschlüsse sind lebenswichtig: .env enthält die
+          # Datenbankzugänge und lebt auf dem Server, storage/ die Protokolle
+          # und hochgeladenen Dateien. Würde eines davon gelöscht, wäre die
+          # Seite sofort tot beziehungsweise Daten verloren.
+          rsync -rlvz --delete \
+            --exclude='.env' \
+            --exclude='storage/' \
+            --exclude='.git*' \
+            --exclude='vendor/' \
+            ./deployment/upload/ \
+            "${SSH_BENUTZER}@${SSH_HOST}:${SSH_ZIEL}/"
+
+      - name: Verzeichnisse anlegen und Rechte setzen
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_BENUTZER: ${{ secrets.SSH_BENUTZER }}
+          SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
+        run: |
+          ssh "${SSH_BENUTZER}@${SSH_HOST}" \
+            "mkdir -p '${SSH_ZIEL}/storage/logs' '${SSH_ZIEL}/storage/uploads' && chmod -R 775 '${SSH_ZIEL}/storage'"
 
       - name: Migrationen ausführen
         if: ${{ github.event_name == 'push' || inputs.migrationen }}
         env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_BENUTZER: ${{ secrets.SSH_BENUTZER }}
+          SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
+        run: |
+          set -euo pipefail
+          ssh "${SSH_BENUTZER}@${SSH_HOST}" "cd '${SSH_ZIEL}' && php bin/migrate"
+
+      - name: Betriebsprüfung
+        env:
           SEITE: ${{ secrets.SEITE_URL }}
-          TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           SCHUTZ_BENUTZER: ${{ secrets.SCHUTZ_BENUTZER }}
           SCHUTZ_PASSWORT: ${{ secrets.SCHUTZ_PASSWORT }}
         run: |
@@ -102,33 +154,7 @@ jobs:
             auth=(--user "${SCHUTZ_BENUTZER}:${SCHUTZ_PASSWORT}")
           fi
 
-          antwort=$(curl -sS --fail-with-body --max-time 60 \
-            "${auth[@]}" \
-            -X POST \
-            -H "X-Deploy-Token: ${TOKEN}" \
-            "${SEITE}/deploy/migrieren")
-
-          echo "$antwort"
-
-          if ! echo "$antwort" | grep -q '"erfolg":true'; then
-            echo "FEHLER: Migrationen nicht erfolgreich."
-            exit 1
-          fi
-
-      - name: Betriebsprüfung
-        env:
-          SEITE: ${{ secrets.SEITE_URL }}
-          SCHUTZ_BENUTZER: ${{ secrets.SCHUTZ_BENUTZER }}
-          SCHUTZ_PASSWORT: ${{ secrets.SCHUTZ_PASSWORT }}
-        run: |
-          set -euo pipefail
-
-          auth=()
-          if [ -n "${SCHUTZ_BENUTZER}" ]; then
-            auth=(--user "${SCHUTZ_BENUTZER}:${SCHUTZ_PASSWORT}")
-          fi
-
-          # Nach dem Upload braucht der Server manchmal einen Moment.
+          # Nach dem Übertragen braucht der Server manchmal einen Moment.
           for versuch in 1 2 3 4 5; do
             if antwort=$(curl -sS --fail-with-body --max-time 20 "${auth[@]}" "${SEITE}/zustand"); then
               echo "$antwort"

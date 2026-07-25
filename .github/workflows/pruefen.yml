@@ -12,8 +12,14 @@ on:
   workflow_call:
 
 # Mehrere Pushes auf denselben Branch: nur der neueste zählt.
+#
+# github.workflow MUSS im Gruppennamen stehen. Sonst teilen sich der direkte
+# Prüflauf und der von deployen.yml aufgerufene dieselbe Gruppe — und der eine
+# bricht den anderen ab. Genau das ist beim ersten Lauf passiert: Das
+# Deployment wurde nach zwei Sekunden abgeschossen, weil der parallele
+# Prüflauf desselben Pushes die Gruppe belegte.
 concurrency:
-  group: pruefen-${{ github.ref }}
+  group: pruefen-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -27,11 +33,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 8.2 ist das dokumentierte Minimum, 8.4 die Entwicklungsversion.
-        # Beide müssen grün sein, sonst fällt ein Unterschied erst auf dem
-        # Server auf — und dort ist die PHP-Version im KAS-Adminbereich
-        # jederzeit umstellbar.
-        php: ['8.2', '8.4']
+        # 8.2 ist das dokumentierte Minimum, 8.5 läuft tatsächlich auf dem
+        # Server (KAS-Adminbereich → SSH-Zugriff → PHP-Version). Alle drei
+        # müssen grün sein, sonst fällt ein Versionsunterschied erst im
+        # Betrieb auf — und die Version ist dort jederzeit umstellbar.
+        php: ['8.2', '8.4', '8.5']
 
     steps:
       - name: Quellcode holen

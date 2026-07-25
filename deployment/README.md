@@ -13,50 +13,68 @@ Zwei Workflows:
 
 **Rote Tests blockieren das Deployment.** Der Deploy-Job wartet über `needs` auf die Prüfungen. Ohne diese Kopplung wäre die Automatik gefährlicher als Handarbeit.
 
-### Geheimnisse anlegen
+### Schritt 1: SSH-Schlüssel erzeugen
+
+Auf dem eigenen Rechner. Unter Windows in PowerShell:
+
+```powershell
+mkdir -Force "$env:USERPROFILE\.ssh" | Out-Null
+ssh-keygen -t ed25519 -C "github-actions meinslip" -f "$env:USERPROFILE\.ssh\meinslip_deploy"
+```
+
+Unter macOS und Linux:
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions meinslip" -f ~/.ssh/meinslip_deploy -N ""
+```
+
+> **Bei der Passwortabfrage zweimal Enter drücken — das Passwort muss leer bleiben.** Ein passwortgeschützter Schlüssel lässt sich in einer Action nicht ohne Weiteres verwenden.
+>
+> Unter Windows funktioniert `-N ""` nicht, weil PowerShell die leere Zeichenkette verwirft. Deshalb steht der Parameter dort nicht in der Zeile.
+
+Es entstehen zwei Dateien:
+
+| Datei | Wohin |
+| :--- | :--- |
+| `meinslip_deploy.pub` (**öffentlich**) | KAS-Adminbereich → *SSH-Zugriff* → Feld *SSH-Schlüssel* |
+| `meinslip_deploy` (**privat**) | GitHub-Geheimnis `SSH_SCHLUESSEL`, vollständig inklusive `BEGIN`- und `END`-Zeile |
+
+Der private Schlüssel gehört ausschließlich in das GitHub-Geheimnis — nicht in eine E-Mail, nicht in einen Chat, nicht ins Repository.
+
+### Schritt 2: Geheimnisse anlegen
 
 Unter *Settings → Secrets and variables → Actions → New repository secret*:
 
-| Name | Inhalt |
-| :--- | :--- |
-| `FTP_SERVER` | z. B. `w0xxxxxx.kasserver.com` |
-| `FTP_BENUTZER` | FTP-Benutzername aus dem KAS-Adminbereich |
-| `FTP_PASSWORT` | FTP-Passwort |
-| `FTP_ZIEL` | Zielverzeichnis auf dem Server, z. B. `/meinslip/` |
-| `SEITE_URL` | `https://meinslip.de` (ohne Schrägstrich am Ende) |
-| `DEPLOY_TOKEN` | langer Zufallswert, **identisch** mit `DEPLOY_TOKEN` in der `.env` auf dem Server |
-| `SCHUTZ_BENUTZER` | Benutzername des Verzeichnisschutzes |
-| `SCHUTZ_PASSWORT` | Passwort des Verzeichnisschutzes |
+| Name | Inhalt | Wo zu finden |
+| :--- | :--- | :--- |
+| `SSH_HOST` | z. B. `w0xxxxxx.kasserver.com` | KAS → SSH-Zugriff → *Host Name* |
+| `SSH_BENUTZER` | z. B. `ssh-w0xxxxxx` | KAS → SSH-Zugriff → *SSH-Login*. **Nicht** derselbe Name wie der FTP-Benutzer |
+| `SSH_SCHLUESSEL` | privater Schlüssel aus Schritt 1 | |
+| `SSH_FINGERPRINT` | `SHA256:…` | KAS → SSH-Zugriff → *Fingerprints* → **ED25519**, die SHA256-Zeile, mit `SHA256:` davor |
+| `SSH_ZIEL` | Zielverzeichnis, z. B. `/www/htdocs/wXXXXXXX/meinslip` | |
+| `SEITE_URL` | `https://meinslip.de` (ohne Schrägstrich am Ende) | |
+| `SCHUTZ_BENUTZER` | Benutzername des Verzeichnisschutzes | leer lassen, wenn keiner eingerichtet ist |
+| `SCHUTZ_PASSWORT` | Passwort des Verzeichnisschutzes | dito |
 
-Token erzeugen:
+> **Die beiden letzten sind der häufigste Stolperstein.** Solange die Seite passwortgeschützt ist, antwortet sie **jeder** Anfrage mit HTTP 401 — auch der Action. Ohne diese Geheimnisse schlägt die Betriebsprüfung fehl, und im Protokoll steht nur ein nichtssagender Fehler.
 
-```
-php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
-```
+`SSH_FINGERPRINT` ist keine Formalität: Ohne ihn nimmt die Action den Serverschlüssel blind an und wäre gegen einen zwischengeschalteten Angreifer ungeschützt. Fehlt das Geheimnis, warnt der Workflow und läuft weiter — er bricht nur ab, wenn der Fingerprint gesetzt ist und **nicht passt**.
 
-> **Die beiden letzten Geheimnisse sind der häufigste Stolperstein.** Solange die Seite passwortgeschützt ist, antwortet sie **jeder** Anfrage mit HTTP 401 — auch der Action. Ohne `SCHUTZ_BENUTZER` und `SCHUTZ_PASSWORT` schlägt jedes Deployment fehl, und im Protokoll steht nur ein nichtssagender Fehler. Ist kein Verzeichnisschutz eingerichtet, bleiben beide einfach leer; die Action kommt damit zurecht.
+### Was das Deployment niemals anfasst
 
-### Was der Upload niemals anfasst
+`.env` und `storage/` stehen in der Ausschlussliste von rsync. Die `.env` lebt auf dem Server und enthält die Datenbankzugänge — würde sie überschrieben oder durch `--delete` entfernt, wäre die Seite sofort tot.
 
-`.env` und `storage/` stehen in der Ausschlussliste. Die `.env` lebt auf dem Server und enthält die Datenbankzugänge — würde sie überschrieben, wäre die Seite sofort tot.
+### `DEPLOY_TOKEN` bleibt leer
 
-### Erstes Deployment
+Weil die Migrationen über SSH laufen, wird die Route `/deploy/migrieren` nicht gebraucht. Bleibt `DEPLOY_TOKEN` in der `.env` leer, ist sie vollständig gesperrt — ein Endpunkt weniger im Netz. Sie existiert weiterhin als Rückfallebene für den Fall, dass SSH einmal nicht verfügbar ist.
+
+### Schritt 3: Erstes Deployment
 
 **Zuerst von Hand auslösen, nicht durch einen Push.** Unter *Actions → Deployen → Run workflow*. So siehst du im Protokoll, ob alle Geheimnisse stimmen, bevor die Automatik greift.
 
-### Prüfen, dass die Absicherung wirklich hält
+### Schritt 4: Prüfen, dass die Absicherung wirklich hält
 
 Einen Test absichtlich brechen, pushen, und nachsehen: Das Deployment darf **nicht** starten. Danach zurücknehmen. Ohne diese Gegenprobe weiß niemand, ob die Kopplung zwischen Tests und Deployment tatsächlich greift.
-
-### Wenn SSH verfügbar ist
-
-Der SSH-Weg ist schneller, weil rsync nur Geändertes überträgt, und er kommt ohne einen Migrationsendpunkt im Netz aus. Voraussetzung: SSH im KAS-Adminbereich freischalten. Dann in `deployen.yml`:
-
-- Den Schritt *Per FTPS hochladen* ersetzen durch `rsync -avz --delete -e ssh …` mit denselben Ausschlüssen
-- Den Schritt *Migrationen ausführen* ersetzen durch `ssh … "cd ZIEL && php bin/migrate"`
-- `DEPLOY_TOKEN` in der `.env` leeren — dann ist die Route `/deploy/migrieren` vollständig gesperrt
-
-Der SSH-Schlüssel gehört als Geheimnis `SSH_SCHLUESSEL` ins Repository und wird mit `webfactory/ssh-agent` geladen.
 
 ---
 
