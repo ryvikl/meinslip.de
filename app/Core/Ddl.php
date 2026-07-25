@@ -126,14 +126,50 @@ final class Ddl
     }
 
     /** @param list<string> $spalten */
+    public function indexName(string $tabelle, array $spalten): string
+    {
+        return 'idx_' . $tabelle . '_' . implode('_', $spalten);
+    }
+
+    /**
+     * Ob ein Index bereits besteht.
+     *
+     * Gebraucht an den wenigen Stellen, die bei JEDEM Start laufen statt genau
+     * einmal als Migration — dort traegt die Migrationstabelle nicht, weil sie
+     * selbst erst angelegt wird. MySQL kennt kein CREATE INDEX IF NOT EXISTS,
+     * also wird vorher gefragt.
+     */
+    public function indexVorhanden(string $tabelle, string $name): bool
+    {
+        if ($this->db->istSqlite()) {
+            return $this->db->wert(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?",
+                [$name]
+            ) > 0;
+        }
+
+        return $this->db->wert(
+            'SELECT COUNT(*) FROM information_schema.statistics '
+            . 'WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?',
+            [$tabelle, $name]
+        ) > 0;
+    }
+
+    /** @param list<string> $spalten */
     public function index(string $tabelle, array $spalten, bool $eindeutig = false): string
     {
-        $name = 'idx_' . $tabelle . '_' . implode('_', $spalten);
+        $name = $this->indexName($tabelle, $spalten);
 
         // Eigenstaendiger Befehl statt Inline-Definition: SQLite kennt kein
         // INDEX innerhalb von CREATE TABLE, MySQL akzeptiert beide Formen.
+        //
         // IF NOT EXISTS gibt es bei CREATE INDEX nur in SQLite und MariaDB,
-        // nicht in MySQL — dort schuetzt die Migrationstabelle vor Doppellaeufen.
+        // nicht in MySQL. Fuer Migrationen genuegt das, weil jede genau einmal
+        // laeuft. Fuer alles, was bei JEDEM Start laeuft, genuegt es nicht —
+        // dort vorher indexVorhanden() fragen. Der frueher hier stehende Satz,
+        // die Migrationstabelle schuetze vor Doppellaeufen, galt fuer ihre
+        // eigene Anlage gerade nicht und hat ab dem zweiten Deployment jedes
+        // scheitern lassen.
         return sprintf(
             'CREATE %s %s%s ON %s (%s)',
             $eindeutig ? 'UNIQUE INDEX' : 'INDEX',

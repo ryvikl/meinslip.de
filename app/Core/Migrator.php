@@ -83,6 +83,13 @@ final class Migrator
             $ddl->zeitpunkt('ausgefuehrt_am', false),
         ]));
 
-        $this->db->ddl($ddl->index('migrationen', ['bezeichnung'], true));
+        // Diese Methode laeuft bei JEDEM Aufruf, nicht einmalig als Migration.
+        // CREATE TABLE IF NOT EXISTS ist damit unkritisch, CREATE INDEX auf
+        // MySQL nicht: Dort gibt es kein IF NOT EXISTS, und der zweite Lauf
+        // scheiterte mit "1061 Duplicate key name". Das erste Deployment lief
+        // deshalb durch und jedes weitere nicht.
+        if (!$ddl->indexVorhanden('migrationen', $ddl->indexName('migrationen', ['bezeichnung']))) {
+            $this->db->ddl($ddl->index('migrationen', ['bezeichnung'], true));
+        }
     }
 }

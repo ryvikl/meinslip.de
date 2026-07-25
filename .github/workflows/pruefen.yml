@@ -72,6 +72,75 @@ jobs:
       - name: Tests
         run: vendor/bin/phpunit --no-coverage --colors=never
 
+  mysql:
+    name: Migrationen gegen echtes MySQL
+    runs-on: ubuntu-latest
+
+    # Die Tests laufen gegen SQLite, produktiv läuft MySQL. Genau in dieser
+    # Lücke ist ein Fehler durchgerutscht: CREATE INDEX ohne IF NOT EXISTS
+    # ist auf SQLite harmlos und auf MySQL beim zweiten Lauf ein Abbruch
+    # ("1061 Duplicate key name"). Das erste Deployment lief deshalb durch,
+    # jedes weitere nicht. Dieser Job führt die Migrationen zweimal gegen
+    # eine echte MySQL-Instanz aus — beim zweiten Mal darf nichts passieren.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: pruefung
+          MYSQL_DATABASE: meinslip_pruefung
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppruefung"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: PHP einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          # Die Version, die auf dem Server läuft.
+          php-version: '8.5'
+          extensions: pdo, pdo_mysql, mbstring, json
+          coverage: none
+
+      - name: Zugangsdaten für die Prüfdatenbank
+        run: |
+          cat > .env <<'ENV'
+          APP_UMGEBUNG=test
+          APP_DEBUG=true
+          APP_SPRACHE=de-DE
+          DB_TREIBER=mysql
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_NAME=meinslip_pruefung
+          DB_BENUTZER=root
+          DB_PASSWORT=pruefung
+          ENV
+
+      - name: Migrationen ausführen
+        run: php bin/migrate
+
+      - name: Migrationen erneut ausführen — muss folgenlos sein
+        run: |
+          ausgabe=$(php bin/migrate)
+          echo "$ausgabe"
+
+          if echo "$ausgabe" | grep -qi 'abgebrochen\|error\|Duplicate'; then
+            echo
+            echo "FEHLER: Der zweite Lauf ist nicht folgenlos geblieben."
+            echo "Migrationen und die Anlage der Migrationstabelle müssen"
+            echo "beliebig oft ausführbar sein — jedes Deployment ruft sie auf."
+            exit 1
+          fi
+
+      - name: Ein drittes Mal, zur Sicherheit
+        run: php bin/migrate
+
   qualitaet:
     name: Barrierefreiheit und Dokumentation
     runs-on: ubuntu-latest
