@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-"""Prueft die Farbtokens von MeinSlip gegen WCAG 2.1 AA.
+"""Prueft die Farbtokens des Nocturne-Designsystems gegen WCAG 2.1 AA.
 
 Aufruf:  python3 docs/kontrast-pruefung.py
 Rueckgabe: 0 wenn alle Werte bestehen, 1 wenn mindestens einer durchfaellt.
 
-Hintergrund: Das Barrierefreiheitsstaerkungsgesetz gilt seit dem 28.06.2025 fuer den
-elektronischen Geschaeftsverkehr und verlangt WCAG 2.1 AA. Text braucht 4.5:1,
-Bedienelemente und ihre Rahmen brauchen nach 1.4.11 mindestens 3:1.
+Das Barrierefreiheitsstaerkungsgesetz gilt seit dem 28.06.2025 fuer den
+elektronischen Geschaeftsverkehr und verlangt WCAG 2.1 AA: Text braucht 4.5:1,
+Bedienelemente und ihre Rahmen nach 1.4.11 mindestens 3:1.
 
-Die Werte muessen mit den Tokens in public/assets/css/tokens.css uebereinstimmen.
+Die Werte muessen mit public/assets/css/nocturne.css uebereinstimmen.
+
+Beim Uebernehmen des Designsystems fand diese Pruefung einen echten Mangel:
+Der Rahmen von Eingabefeldern erreichte im Ruhezustand nur 1.58:1. Deshalb
+gibt es dort jetzt --color-feld-rahmen mit 40 % Textfarbe statt der 16 % des
+allgemeinen Trenners.
 """
 
 
@@ -29,93 +34,91 @@ def kontrast(vordergrund, hintergrund):
     return (hell + 0.05) / (dunkel + 0.05)
 
 
-HINTERGRUENDE = {
-    'bg': '#080B14',
-    'surface': '#111827',
-    'surface-raised': '#182236',
+def mischen(vordergrund, hintergrund, anteil):
+    """Bildet color-mix(in srgb, VG anteil%, HG) nach."""
+    v = [int(vordergrund.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4)]
+    h = [int(hintergrund.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4)]
+    return '#%02x%02x%02x' % tuple(round(anteil * v[i] + (1 - anteil) * h[i]) for i in range(3))
+
+
+BG = '#161826'        # --color-bg
+SURFACE = '#232532'   # --color-surface
+TEXT = '#e9e9ed'      # --color-text
+
+HINTERGRUENDE = {'bg': BG, 'surface': SURFACE}
+
+# Schrift auf den Flaechen — Schwelle 4.5:1
+SCHRIFT = {
+    'text': TEXT,
+    'accent': '#9184d9',
+    'accent-300': '#d2cefd',
+    'accent-400': '#b5abfc',
+    'accent-500': '#968ae0',
+    'neutral-300': '#cfd3e5',
+    'neutral-400': '#b2b6ca',
+    'neutral-500': '#9397ab',
 }
 
-# Geprueft werden nur Tokens, die als SCHRIFT oder als Rahmen auf den Flaechen liegen.
-# Die reinen Fuellfarben (--ms-accent, --ms-danger, --ms-accent-2) stehen weiter unten und
-# werden nicht gegen den Hintergrund geprueft, weil auf ihnen Text liegt, nicht neben ihnen.
-VORDERGRUENDE = {
-    'text': '#F8FAFC',
-    'text-muted': '#CBD5E1',
-    'text-subtle': '#94A3B8',          # korrigiert von #64748B
-    'accent-text': '#4C8DF7',          # korrigiert von #3B82F6
-    'accent-2-text': '#A78BFA',        # korrigiert von #8B5CF6
-    'accent-3-text': '#EC4899',
-    'success-text': '#22C55E',
-    'warning-text': '#F59E0B',
-    'danger-text': '#F35B5B',          # korrigiert von #EF4444
-    'border-interactive': '#687A96',   # korrigiert von #1E293B
+# Diese Ramp-Stufen sind fuer Flaechen und Tints gedacht, nicht fuer Schrift.
+# Sie werden bewusst NICHT als Schrift geprueft — wer sie doch als Schrift
+# einsetzt, verletzt die Vorgabe des Designsystems.
+NUR_FLAECHE = {
+    'neutral-600': '#75798c',
+    'neutral-700': '#595d6c',
+    'neutral-800': '#3f424d',
+    'neutral-900': '#292b31',
 }
 
-# Diese Tokens sind Bedienelemente, kein Text: Schwelle 3:1 statt 4.5:1
-NUR_UI = {'border-interactive'}
-
-# Fuellfarben fuer Schaltflaechen: geprueft wird, ob die Schrift AUF der Flaeche lesbar ist
-# (>= 4.5:1) UND ob sich die Flaeche selbst vom Seitenhintergrund abhebt (>= 3:1 nach 1.4.11).
-# Die helleren Marken-Blau- und -Rottoene tragen keine weisse Schrift und sind deshalb hier
-# durch dunklere Fuellvarianten ersetzt.
-FUELLUNGEN = {
-    '--ms-accent-fill': ('#2563EB', '#FFFFFF'),    # korrigiert von #3B82F6
-    '--ms-accent-2-fill': ('#7C3AED', '#FFFFFF'),  # korrigiert von #8B5CF6
-    '--ms-danger-fill': ('#DC2626', '#FFFFFF'),    # korrigiert von #EF4444
-    '--ms-success-fill': ('#22C55E', '#08130B'),
-    '--ms-warning-fill': ('#F59E0B', '#1A1103'),
+# Bedienelemente — Schwelle 3:1 nach WCAG 1.4.11
+BEDIENELEMENTE = {
+    'Rahmen Eingabefeld (--color-feld-rahmen, 40 % Text)': mischen(TEXT, SURFACE, 0.40),
+    'Rahmen Eingabefeld bei Hover (45 % Text)': mischen(TEXT, SURFACE, 0.45),
+    'Rahmen Eingabefeld bei Fokus (Akzent)': '#9184d9',
+    'Rahmen .btn-primary (Akzent)': '#9184d9',
 }
 
-# Diese Tokens werden nur als Symbol-, Fokus- oder Aktivfarbe verwendet, nie mit Schrift darauf.
-# Sie muessen sich lediglich vom Hintergrund abheben (>= 3:1).
-DEKORATIV = {
-    '--ms-accent': '#3B82F6',
-    '--ms-accent-2': '#8B5CF6',
-    '--ms-danger': '#EF4444',
+# Tints mit Text darauf — Schwelle 4.5:1
+TINTS = {
+    '.tag-neutral: neutral-100 auf neutral-800': ('#f3f5fe', '#3f424d'),
+    '.tag-accent: accent-100 auf accent-800': ('#f5f4ff', '#423a6a'),
 }
-
-# Diese Kombinationen sind bewusst nicht vorgesehen und werden nicht geprueft
-AUSGENOMMEN = set()
 
 
 def main():
     fehler = []
+
     for hname, hwert in HINTERGRUENDE.items():
-        print(f'=== auf {hname} ({hwert}) ===')
-        for vname, vwert in VORDERGRUENDE.items():
-            if (vname, hname) in AUSGENOMMEN:
-                continue
-            wert = kontrast(vwert, hwert)
-            soll = 3.0 if vname in NUR_UI else 4.5
-            ok = wert >= soll
+        print(f'=== Schrift auf {hname} ({hwert}) ===')
+        for name, farbe in SCHRIFT.items():
+            wert = kontrast(farbe, hwert)
+            ok = wert >= 4.5
             if not ok:
-                fehler.append(f'{vname} auf {hname}: {wert:.2f}:1, noetig {soll}:1')
-            marke = 'ok    ' if ok else 'FEHLER'
-            print(f'  {marke}  {vname:20s} {wert:5.2f}:1  (soll >= {soll})')
+                fehler.append(f'{name} auf {hname}: {wert:.2f}:1, noetig 4.5:1')
+            print(f'  {"ok    " if ok else "FEHLER"}  {name:14s} {wert:5.2f}:1')
         print()
 
-    print('=== Schaltflaechen: Schrift auf der Fuellung, Fuellung gegen den Hintergrund ===')
-    for name, (fuellung, schrift) in FUELLUNGEN.items():
-        auf_fuellung = kontrast(schrift, fuellung)
-        gegen_bg = kontrast(fuellung, HINTERGRUENDE['bg'])
-        ok_s = auf_fuellung >= 4.5
-        ok_f = gegen_bg >= 3.0
-        if not ok_s:
-            fehler.append(f'Schrift {schrift} auf {name} ({fuellung}): {auf_fuellung:.2f}:1')
-        if not ok_f:
-            fehler.append(f'{name} ({fuellung}) hebt sich nicht vom Hintergrund ab: {gegen_bg:.2f}:1')
-        marke = 'ok    ' if (ok_s and ok_f) else 'FEHLER'
-        print(f'  {marke}  {name:20s} Schrift {auf_fuellung:5.2f}:1  Flaeche {gegen_bg:5.2f}:1')
+    print('=== Bedienelemente gegen die Kartenflaeche (1.4.11, 3:1) ===')
+    for name, farbe in BEDIENELEMENTE.items():
+        wert = kontrast(farbe, SURFACE)
+        ok = wert >= 3.0
+        if not ok:
+            fehler.append(f'{name}: {wert:.2f}:1, noetig 3.0:1')
+        print(f'  {"ok    " if ok else "FEHLER"}  {name:46s} {wert:5.2f}:1')
     print()
 
-    print('=== Dekorative Farben (Symbole, Fokus, Aktivzustand) gegen den Hintergrund ===')
-    for name, wertfarbe in DEKORATIV.items():
-        gegen_bg = kontrast(wertfarbe, HINTERGRUENDE['bg'])
-        ok = gegen_bg >= 3.0
+    print('=== Schrift auf getoenten Flaechen ===')
+    for name, (schrift, flaeche) in TINTS.items():
+        wert = kontrast(schrift, flaeche)
+        ok = wert >= 4.5
         if not ok:
-            fehler.append(f'{name} ({wertfarbe}) gegen Hintergrund: {gegen_bg:.2f}:1')
-        marke = 'ok    ' if ok else 'FEHLER'
-        print(f'  {marke}  {name:20s} {gegen_bg:5.2f}:1  (soll >= 3.0)')
+            fehler.append(f'{name}: {wert:.2f}:1, noetig 4.5:1')
+        print(f'  {"ok    " if ok else "FEHLER"}  {name:46s} {wert:5.2f}:1')
+    print()
+
+    print('=== Nur fuer Flaechen, nicht als Schrift verwenden ===')
+    for name, farbe in NUR_FLAECHE.items():
+        wert = kontrast(farbe, BG)
+        print(f'          {name:14s} {wert:5.2f}:1  (als Schrift unzulaessig)')
     print()
 
     if fehler:
@@ -124,7 +127,7 @@ def main():
             print('  - ' + f)
         return 1
 
-    print('Alle Farbkombinationen erfuellen WCAG 2.1 AA.')
+    print('Alle geprueften Farbkombinationen erfuellen WCAG 2.1 AA.')
     return 0
 
 

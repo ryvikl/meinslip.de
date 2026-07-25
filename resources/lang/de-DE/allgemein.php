@@ -13,7 +13,9 @@ return [
     'marke_lang' => 'MeinSlip.de',
 
     // Startseite
-    'hero_titel' => 'Dein Raum. Deine Regeln.',
+    'hero_marke' => 'Diskretion beginnt beim Design',
+    'hero_titel_1' => 'Dein Raum.',
+    'hero_titel_2' => 'Deine Regeln.',
     'hero_unterzeile' => 'Eine diskrete Plattform für exklusive Inhalte, persönliche Wünsche und sichere Verbindungen.',
     'hero_entdecken' => 'Profile entdecken',
     'hero_creator' => 'Als Creator starten',
@@ -23,67 +25,47 @@ return [
     'nav_sicherheit' => 'Sicherheit',
     'nav_fuer_creator' => 'Für Creator',
     'nav_anmelden' => 'Anmelden',
+    'nav_abmelden' => 'Abmelden',
     'nav_registrieren' => 'Konto erstellen',
     'nav_start' => 'Start',
     'nav_nachrichten' => 'Nachrichten',
     'nav_wallet' => 'Guthaben',
     'nav_profil' => 'Profil',
-
-    // Vertrauensversprechen
-    'vertrauen_diskret_titel' => 'Diskret',
-    'vertrauen_diskret_text' => 'Neutrale Darstellung, geschützte Daten, unauffällige Nutzung.',
-    'vertrauen_sicher_titel' => 'Sicher',
-    'vertrauen_sicher_text' => 'Geprüfte Identitäten, Treuhandzahlung und kontrollierte Übergaben.',
-    'vertrauen_direkt_titel' => 'Direkt',
-    'vertrauen_direkt_text' => 'Ohne Werbung, ohne Agentur dazwischen, ohne Umwege.',
-
-    // Bereiche
-    'bereich_content_titel' => 'Inhalte',
-    'bereich_content_text' => 'Abonnements, Einzelkäufe und private Beiträge.',
-    'bereich_markt_titel' => 'Marktplatz',
-    'bereich_markt_text' => 'Persönlich konfigurierte Produkte mit anonymem Versand.',
-    'bereich_uebergabe_titel' => 'Sichere Übergabe',
-    'bereich_uebergabe_text' => 'Persönliche Warenübergabe mit Treuhand und Sicherheitsbegleitung.',
-
-    // Allgemeine Bedienelemente
-    'weiter' => 'Weiter',
-    'zurueck' => 'Zurück',
-    'abbrechen' => 'Abbrechen',
-    'speichern' => 'Speichern',
-    'schliessen' => 'Schließen',
-    'mehr_erfahren' => 'Mehr erfahren',
-
-    // Fusszeile
-    'fuss_hinweis_alter' => '18+',
-    'fuss_hinweis_diskret' => 'Diskrete Nutzung',
-    'fuss_hinweis_verifiziert' => 'Geprüfte Konten',
-    'fuss_hinweis_werbefrei' => 'Werbefrei',
-    'fuss_impressum' => 'Impressum',
-    'fuss_datenschutz' => 'Datenschutz',
-    'fuss_agb' => 'AGB',
-    'fuss_widerruf' => 'Widerruf',
-    'fuss_kuendigen' => 'Verträge kündigen',
-
-    // Diskretion
-    'schnellverbergen' => 'Schnell verbergen',
-    'schnellverbergen_hinweis' => 'Taste Esc drücken oder zweimal tippen.',
-    'vorhang_titel' => 'Bildschirm gesperrt',
-    'vorhang_text' => 'Zum Fortfahren tippen.',
-    'vorhang_ersatztitel' => 'Neuer Tab',
-    'zum_inhalt' => 'Zum Inhalt springen',
     'nav_haupt' => 'Hauptnavigation',
     'nav_bereiche' => 'Hauptbereiche',
 
-    // Merkmale auf der Startseite
+    // Merkmale
     'merkmal_geprueft' => 'Geprüfte Identitäten',
     'merkmal_treuhand' => 'Geld erst nach Erhalt',
     'merkmal_versand' => 'Anonymer Versand',
     'merkmal_werbefrei' => 'Werbefrei',
 
-    // Abschnittsüberschriften
-    'abschnitt_versprechen' => 'Unsere Versprechen',
+    // Abschnitte
+    'abschnitt_wege_kicker' => 'Drei Bereiche. Ein Konto.',
     'abschnitt_wege' => 'Drei Wege, eine Plattform',
+    'abschnitt_versprechen_kicker' => 'Wofür wir stehen',
+    'abschnitt_versprechen' => 'Unsere Versprechen',
+    'abschnitt_sicherheit_kicker' => 'Sicherheit',
     'abschnitt_sicherheit' => 'Sicherheit ist kein Zusatz. Sie ist das System.',
+
+    // Bereiche
+    'bereich_content_kicker' => 'Inhalte',
+    'bereich_content_titel' => 'Abonnements und Einzelkäufe',
+    'bereich_content_text' => 'Exklusive Beiträge, private Inhalte und bezahlte Nachrichten — mit klarer Angabe, wer schreibt.',
+    'bereich_markt_kicker' => 'Marktplatz',
+    'bereich_markt_titel' => 'Persönlich konfiguriert',
+    'bereich_markt_text' => 'Produkte, die eigens für dich angefertigt werden. Anonym versendet, in beide Richtungen.',
+    'bereich_uebergabe_kicker' => 'Übergabe',
+    'bereich_uebergabe_titel' => 'Sicher von Hand zu Hand',
+    'bereich_uebergabe_text' => 'Persönliche Warenübergabe mit hinterlegtem Betrag und Sicherheitsbegleitung für beide Seiten.',
+
+    // Vertrauensversprechen
+    'vertrauen_diskret_titel' => 'Diskret',
+    'vertrauen_diskret_text' => 'Neutrale Darstellung, geschützte Daten, unauffällige Nutzung — bis hin zum Namen auf dem Homescreen.',
+    'vertrauen_sicher_titel' => 'Sicher',
+    'vertrauen_sicher_text' => 'Geprüfte Identitäten, hinterlegte Zahlungen und kontrollierte Übergaben.',
+    'vertrauen_direkt_titel' => 'Direkt',
+    'vertrauen_direkt_text' => 'Ohne Werbung, ohne Agentur dazwischen, ohne Umwege.',
 
     // Sicherheitsmodule
     'sicher_identitaet_titel' => 'Geprüfte Identität',
@@ -94,6 +76,40 @@ return [
     'sicher_versand_text' => 'Weder Käufer noch Verkäuferin sehen die Adresse der anderen Seite. Das Etikett entsteht bei uns.',
     'sicher_leak_titel' => 'Rückverfolgbare Inhalte',
     'sicher_leak_text' => 'Jedes ausgelieferte Bild trägt ein unsichtbares Merkmal. Taucht es woanders auf, lässt sich die Quelle bestimmen.',
+
+    // Abschluss
+    'abschluss_titel' => 'Bereit für eine Plattform, die zu deinen Regeln passt?',
+    'abschluss_registrieren' => 'Kostenlos registrieren',
+    'abschluss_creator' => 'Creator werden',
+
+    // Bedienelemente
+    'weiter' => 'Weiter',
+    'zurueck' => 'Zurück',
+    'abbrechen' => 'Abbrechen',
+    'speichern' => 'Speichern',
+    'schliessen' => 'Schließen',
+    'zum_inhalt' => 'Zum Inhalt springen',
+
+    // Diskretion
+    'schnellverbergen' => 'Schnell verbergen',
+    'vorhang_titel' => 'Bildschirm gesperrt',
+    'vorhang_text' => 'Zum Fortfahren tippen',
+    'vorhang_ersatztitel' => 'Neuer Tab',
+
+    // Fußzeile
+    'fuss_hinweis_alter' => '18+',
+    'fuss_hinweis_diskret' => 'Diskrete Nutzung',
+    'fuss_hinweis_verifiziert' => 'Geprüfte Konten',
+    'fuss_hinweis_werbefrei' => 'Werbefrei',
+    'fuss_impressum' => 'Impressum',
+    'fuss_datenschutz' => 'Datenschutz',
+    'fuss_agb' => 'AGB',
+    'fuss_widerruf' => 'Widerruf',
+    'fuss_kuendigen' => 'Verträge kündigen',
+
+    // Rechtstexte
+    'rechtstext_entwurf' => 'Dieser Text ist ein Platzhalter und noch nicht anwaltlich geprüft. '
+        . 'Vor einem öffentlichen Betrieb muss er durch eine geprüfte Fassung ersetzt werden.',
 
     // Offline
     'offline_titel' => 'Keine Verbindung',

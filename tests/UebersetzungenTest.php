@@ -19,6 +19,14 @@ final class UebersetzungenTest extends TestCase
 {
     private const SPRACHVERZEICHNIS = __DIR__ . '/../resources/lang';
 
+    /**
+     * Der Produktname wird in keiner Sprache uebersetzt und gehoert deshalb
+     * nicht nach resources/lang — dort wuerde er Uebersetzer zum Uebersetzen
+     * einladen. Er wird vor der Pruefung aus der Zeile entfernt, nicht die
+     * ganze Zeile uebersprungen: So faellt echter Text daneben weiterhin auf.
+     */
+    private const PRODUKTNAME = 'MeinSlip';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,10 +39,12 @@ final class UebersetzungenTest extends TestCase
         $verstoesse = [];
 
         foreach ($this->vorlagen() as $pfad) {
-            foreach (file($pfad) ?: [] as $nummer => $zeile) {
-                if ($this->istUnverdaechtig($zeile)) {
+            foreach (file($pfad) ?: [] as $nummer => $roh) {
+                if ($this->istUnverdaechtig($roh)) {
                     continue;
                 }
+
+                $zeile = str_replace(self::PRODUKTNAME, '', $roh);
 
                 // Sichtbarer Text zwischen Tags oder in einem aria-label,
                 // der nicht aus einem Uebersetzungsaufruf stammt.
@@ -42,7 +52,7 @@ final class UebersetzungenTest extends TestCase
                     || preg_match('/aria-label="[A-ZÄÖÜ][a-zäöüß]{3,}/u', $zeile);
 
                 if ($treffer && !str_contains($zeile, 'te(') && !str_contains($zeile, 't(')) {
-                    $verstoesse[] = basename($pfad) . ':' . ($nummer + 1) . ' ' . trim($zeile);
+                    $verstoesse[] = basename($pfad) . ':' . ($nummer + 1) . ' ' . trim($roh);
                 }
             }
         }

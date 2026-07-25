@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/nocturne-1e5b4287-5e1f-4f8c-8683-71daed6b3bf9/styles.css">
+  <script src="_ds/nocturne-1e5b4287-5e1f-4f8c-8683-71daed6b3bf9/_ds_bundle.js"></script>
+  <script src="./image-slot.js"></script>
+  <style>
+    body { margin: 0; background: #101220; }
+    a { color: #b5abfc; }
+    a:hover { color: #d2cefd; }
+    @keyframes ms-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(1.5); } }
+    @keyframes ms-dot { 0%,60%,100% { opacity: .25; } 30% { opacity: 1; } }
+    @keyframes ms-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;background:#101220;color:#e9e9ed;font-family:Inter,system-ui,sans-serif;padding:52px 60px 100px">
+
+  <div style="max-width:820px;display:flex;flex-direction:column;gap:20px;margin-bottom:56px">
+    <div style="display:flex;align-items:center;gap:16px">
+      <img src="assets/app-icon.png" alt="MeinSlip App-Icon" style="width:56px;height:56px;border-radius:14px">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="font-size:22px;font-weight:500;letter-spacing:-0.015em">MeinSlip.de — PWA, Mobile First</div>
+        <div style="font-size:12px;color:#75798c">Homescreen-Name: <strong style="color:#b5abfc;font-weight:500">{{ appName }}</strong> · 9 Screens, interaktiv</div>
+      </div>
+    </div>
+    <hr class="hr" style="margin:0;width:100%">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;font-size:13px;line-height:1.6;color:#b2b6ca">
+      <div><div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#9184d9;margin-bottom:6px">Annahme</div>Kein Bestandscode vorhanden — alles neu gebaut auf den Nocturne-Tokens. Blau-Violett des Konzepts wird zum Accent <span style="color:#e9e9ed">#9184D9</span>; Pink bleibt weg, Statusfarben nur für Verifiziert, Warnung, SOS.</div>
+      <div><div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#9184d9;margin-bottom:6px">Diskretion</div>Keine eindeutigen Symbole, keine Erotik-Bildsprache. Gesperrte Inhalte: Blur + Schloss + Preis. Kategorien wie Größe und Tragedauer bleiben benennbar.</div>
+      <div><div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#9184d9;margin-bottom:6px">Interaktion</div>Konfigurator rechnet live, Safe-Meet-Timer läuft, Chat tippt, Freischaltungen buchen vom Wallet ab. Untere Navigation springt zwischen den Frames.</div>
+    </div>
+    <div style="font-size:12px;color:#75798c">Bildflächen sind Drop-Zonen — Fotos einfach hineinziehen.</div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px 44px;align-items:flex-start">
+
+    <!-- ═══ 1 · Käufer-Dashboard ═══ -->
+    <div id="f-home" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">01</span><span style="font-size:13px;font-weight:500">Käufer-Dashboard</span><span style="font-size:11px;color:#75798c">Home</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:56px 18px 12px;display:flex;align-items:center;gap:12px">
+            <image-slot id="me-avatar" shape="circle" style="width:38px;height:38px;flex:none" placeholder="Ich"></image-slot>
+            <div style="flex:1;display:flex;flex-direction:column">
+              <span style="font-size:11px;color:#75798c">Guten Abend</span>
+              <span style="font-size:16px;font-weight:500;letter-spacing:-0.01em">Jonas</span>
+            </div>
+            <button class="btn btn-icon btn-secondary" style="position:relative;border-radius:10px">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5S6.5 14 6.5 10z"></path><path d="M10.2 18.5a2 2 0 0 0 3.6 0"></path></svg>
+              <span style="position:absolute;top:6px;right:7px;width:6px;height:6px;border-radius:50%;background:#9184d9"></span>
+            </button>
+          </div>
+
+          <div style="flex:1;overflow:auto;padding:0 18px 18px;display:flex;flex-direction:column;gap:18px">
+
+            <div style="position:relative;overflow:hidden;border-radius:14px;padding:16px;background:linear-gradient(140deg,#262a60 0%,#1e2140 55%,#232532 100%);box-shadow:0 0 0 1px #3f424d">
+              <div style="position:absolute;top:-40px;right:-30px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(145,132,217,0.30),transparent 70%)"></div>
+              <div style="position:relative;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">Guthaben</span>
+                  <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#cfd3e5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v5c0 4.3-2.9 8-7 10-4.1-2-7-5.7-7-10V6z"></path><path d="M8.8 12.2l2.3 2.3 4.1-4.4"></path></svg>Geschützt</span>
+                </div>
+                <div style="display:flex;align-items:flex-end;gap:8px">
+                  <span style="font-size:34px;font-weight:500;letter-spacing:-0.03em;line-height:1">{{ walletStr }}</span>
+                  <span style="font-size:11px;color:#b2b6ca;padding-bottom:5px">{{ reservedStr }} reserviert</span>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-primary" style="flex:1;min-height:40px" onClick="{{ topUp }}">Aufladen</button>
+                  <a class="btn btn-secondary" href="#f-wallet" style="flex:1;min-height:40px">Wallet</a>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Empfohlene Creator</span>
+                <a href="#f-discover" style="font-size:11px;text-decoration:none">Alle</a>
+              </div>
+              <div style="display:flex;gap:10px;overflow:auto;padding-bottom:4px">
+                <sc-for list="{{ creators }}" as="c" hint-placeholder-count="3">
+                  <a href="#f-profile" style="flex:none;width:126px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;background:#232532;border-radius:12px;padding:8px;box-shadow:0 0 0 1px #3f424d">
+                    <div style="position:relative;height:96px">
+                      <image-slot id="{{ c.slot }}" shape="rounded" radius="9" placeholder="Porträt"></image-slot>
+                      <span style="position:absolute;bottom:6px;left:6px;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;background:rgba(22,24,38,0.78);font-size:9px;color:#e9e9ed">
+                        <span style="width:5px;height:5px;border-radius:50%;background: {{ c.dot }}"></span>{{ c.status }}
+                      </span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:13px;font-weight:500">{{ c.name }}</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#9184d9"><path d="M12 2l2.4 1.6 2.9-.3 1 2.7 2.4 1.7-.7 2.8.7 2.8-2.4 1.7-1 2.7-2.9-.3L12 22l-2.4-1.6-2.9.3-1-2.7-2.4-1.7.7-2.8-.7-2.8 2.4-1.7 1-2.7 2.9.3z"></path><path d="M8.6 12.2l2.3 2.3 4.4-4.6" fill="none" stroke="#161826" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                      </div>
+                      <span style="font-size:10px;color:#75798c">{{ c.region }}</span>
+                      <span style="font-size:10px;color:#b5abfc">{{ c.price }}</span>
+                    </div>
+                  </a>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Neue Inhalte</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div style="position:relative;height:150px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px #3f424d">
+                  <image-slot id="post-1" shape="rect" placeholder="Beitrag"></image-slot>
+                  <sc-if value="{{ locked.post1 }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(14px);background:rgba(22,24,38,0.55)">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d2cefd" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"></rect><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"></path></svg>
+                      <span style="font-size:11px;color:#cfd3e5">Freischalten</span>
+                      <button class="btn btn-primary" style="min-height:32px;font-size:12px" onClick="{{ unlock.post1 }}">3,90 €</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ open.post1 }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;top:8px;left:8px;padding:2px 7px;border-radius:6px;background:rgba(22,24,38,0.8);font-size:9px;color:#b5abfc">Freigeschaltet</span>
+                  </sc-if>
+                </div>
+                <div style="position:relative;height:150px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px #3f424d">
+                  <image-slot id="post-2" shape="rect" placeholder="Beitrag"></image-slot>
+                  <sc-if value="{{ locked.post2 }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(14px);background:rgba(22,24,38,0.55)">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d2cefd" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"></rect><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"></path></svg>
+                      <span style="font-size:11px;color:#cfd3e5">Freischalten</span>
+                      <button class="btn btn-primary" style="min-height:32px;font-size:12px" onClick="{{ unlock.post2 }}">4,90 €</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ open.post2 }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;top:8px;left:8px;padding:2px 7px;border-radius:6px;background:rgba(22,24,38,0.8);font-size:9px;color:#b5abfc">Freigeschaltet</span>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Offene Bestellungen</span>
+              <sc-for list="{{ orders }}" as="o" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;gap:9px;background:#232532;border-radius:10px;padding:12px;box-shadow:0 0 0 1px #3f424d">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:34px;height:34px;flex:none;border-radius:8px;background:#292b31;display:grid;place-items:center">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.2 12 4l8 4.2v7.6L12 20l-8-4.2z"></path><path d="M4 8.2 12 12.4l8-4.2M12 12.4V20"></path></svg>
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column">
+                      <span style="font-size:13px">{{ o.title }}</span>
+                      <span style="font-size:10px;color:#75798c">{{ o.meta }}</span>
+                    </div>
+                    <span class="tag tag-accent" style="font-size:10px">{{ o.status }}</span>
+                  </div>
+                  <div style="height:3px;border-radius:2px;background:#292b31;overflow:hidden">
+                    <div style="height:100%;border-radius:2px;background:#9184d9;width: {{ o.pct }}"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Nächste Übergabe</span>
+              <a href="#f-meet" style="display:flex;align-items:center;gap:12px;background:#232532;border-radius:10px;padding:12px;box-shadow:0 0 0 1px #3f424d;text-decoration:none;color:inherit">
+                <div style="width:40px;height:40px;flex:none;border-radius:9px;background:#262a60;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <span style="font-size:9px;color:#b5abfc;letter-spacing:0.06em">AUG</span>
+                  <span style="font-size:15px;font-weight:500;line-height:1">14</span>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column">
+                  <span style="font-size:13px">Safe-Meet · 18:30</span>
+                  <span style="font-size:10px;color:#75798c">Köln Innenstadt · QR-Check-in bereit</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#22c55e"><span style="width:5px;height:5px;border-radius:50%;background:#22c55e;animation:ms-pulse 2.4s ease-in-out infinite"></span>bestätigt</span>
+              </a>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Aktive Chats</span>
+                <a href="#f-chat" style="font-size:11px;text-decoration:none">Alle</a>
+              </div>
+              <sc-for list="{{ chats }}" as="ch" hint-placeholder-count="2">
+                <a href="#f-chat" style="display:flex;align-items:center;gap:11px;padding:4px 0;text-decoration:none;color:inherit">
+                  <image-slot id="{{ ch.slot }}" shape="circle" style="width:36px;height:36px;flex:none" placeholder=" "></image-slot>
+                  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+                    <span style="font-size:13px">{{ ch.name }}</span>
+                    <span style="font-size:11px;color:#75798c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ch.last }}</span>
+                  </div>
+                  <span style="font-size:10px;color:#75798c">{{ ch.time }}</span>
+                </a>
+              </sc-for>
+            </div>
+          </div>
+          <dc-import name="AppNav" active="home" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 2 · Entdecken ═══ -->
+    <div id="f-discover" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">02</span><span style="font-size:13px;font-weight:500">Entdecken</span><span style="font-size:11px;color:#75798c">Creator-Karten, Paywall</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:56px 18px 10px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:20px;font-weight:500;letter-spacing:-0.015em">Entdecken</span>
+              <span style="font-size:11px;color:#75798c">{{ creatorCount }} Creator</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;position:relative">
+                <svg style="position:absolute;left:10px;top:11px" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#75798c" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>
+                <input class="input" placeholder="Name, Kategorie, Region" style="padding-left:31px;min-height:38px">
+              </div>
+              <button class="btn btn-secondary btn-icon" style="min-height:38px;width:38px">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"></path></svg>
+              </button>
+            </div>
+            <div style="display:flex;gap:7px;overflow:auto;padding-bottom:2px">
+              <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+                <button style="position:relative;flex:none;padding:6px 12px;min-height:32px;border-radius:8px;border:1px solid rgba(233,233,237,0.16);background:transparent;color:#cfd3e5;font:inherit;font-size:12px;cursor:pointer" onClick="{{ f.toggle }}">
+                  {{ f.label }}
+                  <sc-if value="{{ f.on }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;inset:0;border-radius:8px;box-shadow:inset 0 0 0 1.5px #9184d9;background:rgba(145,132,217,0.14);pointer-events:none"></span>
+                  </sc-if>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1;overflow:auto;padding:6px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start">
+            <sc-for list="{{ discover }}" as="d" hint-placeholder-count="6">
+              <a href="#f-profile" style="display:flex;flex-direction:column;gap:8px;min-width:0;text-decoration:none;color:inherit;background:#232532;border-radius:12px;padding:8px;box-shadow:0 0 0 1px #3f424d">
+                <div style="position:relative;height:132px;min-width:0">
+                  <image-slot id="{{ d.slot }}" shape="rounded" radius="9" placeholder="Porträt"></image-slot>
+                  <sc-if value="{{ d.blurred }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;inset:0;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;backdrop-filter:blur(13px);background:rgba(22,24,38,0.5)">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d2cefd" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"></rect><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"></path></svg>
+                      <span style="font-size:10px;color:#cfd3e5">18+ verifizieren</span>
+                    </div>
+                  </sc-if>
+                  <span style="position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;background:rgba(22,24,38,0.8);font-size:9px">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 3l2.7 5.7 6.3.8-4.6 4.3 1.2 6.2L12 17l-5.6 3 1.2-6.2L3 9.5l6.3-.8z"></path></svg>{{ d.rating }}
+                  </span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span style="font-size:14px;font-weight:500">{{ d.name }}</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#9184d9"><path d="M12 2l2.4 1.6 2.9-.3 1 2.7 2.4 1.7-.7 2.8.7 2.8-2.4 1.7-1 2.7-2.9-.3L12 22l-2.4-1.6-2.9.3-1-2.7-2.4-1.7.7-2.8-.7-2.8 2.4-1.7 1-2.7 2.9.3z"></path><path d="M8.6 12.2l2.3 2.3 4.4-4.6" fill="none" stroke="#161826" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span style="margin-left:auto;width:6px;height:6px;border-radius:50%;background: {{ d.dot }}"></span>
+                  </div>
+                  <span style="font-size:10px;color:#75798c">{{ d.region }}</span>
+                  <div style="display:flex;gap:4px;flex-wrap:wrap">
+                    <sc-for list="{{ d.cats }}" as="t" hint-placeholder-count="2">
+                      <span class="tag tag-neutral" style="font-size:9px;padding:2px 7px">{{ t }}</span>
+                    </sc-for>
+                  </div>
+                  <span style="font-size:11px;color:#b5abfc;margin-top:2px">{{ d.price }}</span>
+                </div>
+              </a>
+            </sc-for>
+          </div>
+          <dc-import name="AppNav" active="discover" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 3 · Creator-Profil ═══ -->
+    <div id="f-profile" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">03</span><span style="font-size:13px;font-weight:500">Creator-Profil</span><span style="font-size:11px;color:#75798c">Tabs sind klickbar</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="flex:1;overflow:auto;display:flex;flex-direction:column">
+            <div style="position:relative;height:184px;flex:none">
+              <image-slot id="cover-lina" shape="rect" placeholder="Coverbild — dunkle Lifestyle-Aufnahme"></image-slot>
+              <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,24,38,0.55) 0%,transparent 40%,#161826 100%);pointer-events:none"></div>
+              <div style="position:absolute;top:52px;left:14px;right:14px;display:flex;justify-content:space-between;pointer-events:none">
+                <button class="btn btn-icon" style="background:rgba(22,24,38,0.6);border-radius:10px;pointer-events:auto">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"></path></svg>
+                </button>
+                <button class="btn btn-icon" style="background:rgba(22,24,38,0.6);border-radius:10px;pointer-events:auto">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5.5" r="1.3" fill="currentColor"></circle><circle cx="12" cy="12" r="1.3" fill="currentColor"></circle><circle cx="12" cy="18.5" r="1.3" fill="currentColor"></circle></svg>
+                </button>
+              </div>
+            </div>
+            <div style="padding:0 18px 18px;display:flex;flex-direction:column;gap:16px;margin-top:-42px">
+              <div style="display:flex;align-items:flex-end;gap:12px">
+                <div style="position:relative;flex:none">
+                  <image-slot id="avatar-lina" shape="circle" style="width:78px;height:78px" placeholder="Profil"></image-slot>
+                  <span style="position:absolute;bottom:3px;right:3px;width:14px;height:14px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2.5px #161826"></span>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:3px;padding-bottom:2px">
+                  <div style="display:flex;align-items:center;gap:5px">
+                    <span style="font-size:21px;font-weight:500;letter-spacing:-0.015em">Lina</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#9184d9"><path d="M12 2l2.4 1.6 2.9-.3 1 2.7 2.4 1.7-.7 2.8.7 2.8-2.4 1.7-1 2.7-2.9-.3L12 22l-2.4-1.6-2.9.3-1-2.7-2.4-1.7.7-2.8-.7-2.8 2.4-1.7 1-2.7 2.9.3z"></path><path d="M8.6 12.2l2.3 2.3 4.4-4.6" fill="none" stroke="#161826" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  </div>
+                  <span style="font-size:11px;color:#75798c">Region Köln · seit 2024</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:0">
+                <div style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:500">4,9</span><span style="font-size:10px;color:#75798c">128 Bewertungen</span></div>
+                <div style="width:1px;background:rgba(233,233,237,0.12)"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:1px;padding-left:14px"><span style="font-size:16px;font-weight:500">1.204</span><span style="font-size:10px;color:#75798c">Abonnenten</span></div>
+                <div style="width:1px;background:rgba(233,233,237,0.12)"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:1px;padding-left:14px"><span style="font-size:16px;font-weight:500">~2 Std.</span><span style="font-size:10px;color:#75798c">Antwortzeit</span></div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" style="flex:none;min-height:42px;padding-inline:16px">Folgen</button>
+                <button class="btn btn-primary" style="flex:1;min-height:42px">Abonnieren · 12,90 €</button>
+                <a class="btn btn-secondary btn-icon" href="#f-chat" style="min-height:42px;width:42px;flex:none">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v11H12l-5 3.5v-3.5H4z"></path></svg>
+                </a>
+              </div>
+              <div style="display:flex;gap:16px;overflow:auto;border-bottom:1px solid rgba(233,233,237,0.12)">
+                <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="6">
+                  <button style="position:relative;flex:none;padding:8px 0 10px;background:transparent;border:0;font:inherit;font-size:13px;color: {{ t.color }};cursor:pointer" onClick="{{ t.select }}">
+                    {{ t.name }}
+                    <sc-if value="{{ t.on }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#9184d9;border-radius:2px"></span>
+                    </sc-if>
+                  </button>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ tabFeed }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:9px;background:#232532;border-radius:12px;padding:12px;box-shadow:0 0 0 1px #3f424d">
+                    <span style="font-size:13px;line-height:1.55;color:#cfd3e5">Neue Serie ist online — ruhige Aufnahmen, viel Stoff und Textur. Abonnenten sehen alles ohne Aufpreis.</span>
+                    <div style="position:relative;height:190px;border-radius:9px;overflow:hidden">
+                      <image-slot id="feed-1" shape="rect" placeholder="Beitragsbild"></image-slot>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:14px;font-size:11px;color:#75798c">
+                      <span style="display:inline-flex;align-items:center;gap:5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.4-7-9.2A3.9 3.9 0 0 1 12 8.4a3.9 3.9 0 0 1 7 2.4C19 15.6 12 20 12 20z"></path></svg>318</span>
+                      <span>vor 2 Std.</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:9px;background:#232532;border-radius:12px;padding:12px;box-shadow:0 0 0 1px #3f424d">
+                    <span style="font-size:13px;line-height:1.55;color:#cfd3e5">Nur für Freischaltung — 6 Aufnahmen.</span>
+                    <div style="position:relative;height:190px;border-radius:9px;overflow:hidden">
+                      <image-slot id="feed-2" shape="rect" placeholder="Beitragsbild"></image-slot>
+                      <sc-if value="{{ locked.feed }}" hint-placeholder-val="{{ true }}">
+                        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;backdrop-filter:blur(16px);background:rgba(22,24,38,0.55)">
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d2cefd" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"></rect><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"></path></svg>
+                          <span style="font-size:12px;color:#cfd3e5">6 Aufnahmen · einmalig</span>
+                          <button class="btn btn-primary" style="min-height:36px" onClick="{{ unlock.feed }}">Für 7,90 € freischalten</button>
+                          <span style="font-size:10px;color:#75798c">Zahlung über Wallet</span>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ tabShop }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <sc-for list="{{ shopItems }}" as="s" hint-placeholder-count="3">
+                    <a href="#f-config" style="display:flex;gap:11px;align-items:center;background:#232532;border-radius:10px;padding:9px;box-shadow:0 0 0 1px #3f424d;text-decoration:none;color:inherit">
+                      <image-slot id="{{ s.slot }}" shape="rounded" radius="8" style="width:62px;height:62px;flex:none" placeholder="Artikel"></image-slot>
+                      <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+                        <span style="font-size:13px">{{ s.title }}</span>
+                        <span style="font-size:10px;color:#75798c">{{ s.meta }}</span>
+                        <span style="font-size:13px;color:#b5abfc">{{ s.price }}</span>
+                      </div>
+                      <span class="tag tag-outline" style="font-size:9px">Konfigurieren</span>
+                    </a>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ tabMeet }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:8px;background:#232532;border-radius:12px;padding:14px;box-shadow:0 0 0 1px #3f424d">
+                    <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">Safe-Meet</span>
+                    <span style="font-size:13px;line-height:1.55;color:#cfd3e5">Persönliche Übergabe, öffentlich vereinbart. QR-Check-in, Sicherheits-Timer und optionaler Notfallkontakt sind immer aktiv.</span>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+                      <span class="tag tag-neutral" style="font-size:10px">Mi 18:30</span>
+                      <span class="tag tag-neutral" style="font-size:10px">Do 17:00</span>
+                      <span class="tag tag-neutral" style="font-size:10px">Sa 12:00</span>
+                    </div>
+                    <a class="btn btn-primary btn-block" href="#f-meet" style="min-height:40px">Termin anfragen</a>
+                  </div>
+                  <span style="font-size:11px;color:#75798c;line-height:1.6">Zahlungen bleiben bis zum bestätigten Abschluss im Escrow.</span>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ tabOther }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:10px;background:#232532;border-radius:12px;padding:14px;box-shadow:0 0 0 1px #3f424d">
+                  <span style="font-size:15px;font-weight:500">{{ tab }}</span>
+                  <span style="font-size:13px;line-height:1.6;color:#b2b6ca">Klare Grenzen, klare Preise. Ich beantworte jede Anfrage persönlich und sage auch ab, wenn etwas nicht passt.</span>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <span class="tag tag-accent" style="font-size:10px">Alltag</span>
+                    <span class="tag tag-accent" style="font-size:10px">Sport</span>
+                    <span class="tag tag-neutral" style="font-size:10px">Wunschauftrag</span>
+                    <span class="tag tag-neutral" style="font-size:10px">Diskreter Versand</span>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+          <dc-import name="AppNav" active="profile" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 4 · Marketplace ═══ -->
+    <div id="f-market" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">04</span><span style="font-size:13px;font-weight:500">Marketplace</span><span style="font-size:11px;color:#75798c">Filter + Favoriten aktiv</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:56px 18px 10px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:20px;font-weight:500;letter-spacing:-0.015em">Marketplace</span>
+              <button class="btn btn-secondary" style="min-height:34px;font-size:12px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"></path></svg>Filter · {{ activeFilterCount }}
+              </button>
+            </div>
+            <div style="display:flex;gap:7px;overflow:auto;padding-bottom:2px">
+              <sc-for list="{{ mFilters }}" as="f" hint-placeholder-count="5">
+                <button style="position:relative;flex:none;padding:6px 12px;min-height:32px;border-radius:8px;border:1px solid rgba(233,233,237,0.16);background:transparent;color:#cfd3e5;font:inherit;font-size:12px;cursor:pointer" onClick="{{ f.toggle }}">
+                  {{ f.label }}
+                  <sc-if value="{{ f.on }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;inset:0;border-radius:8px;box-shadow:inset 0 0 0 1.5px #9184d9;background:rgba(145,132,217,0.14);pointer-events:none"></span>
+                  </sc-if>
+                </button>
+              </sc-for>
+            </div>
+            <span style="font-size:11px;color:#75798c">{{ productCount }} Artikel · sortiert nach Relevanz</span>
+          </div>
+          <div style="flex:1;overflow:auto;padding:4px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start">
+            <sc-for list="{{ products }}" as="p" hint-placeholder-count="6">
+              <div style="display:flex;flex-direction:column;gap:8px;min-width:0;background:#232532;border-radius:12px;padding:8px;box-shadow:0 0 0 1px #3f424d">
+                <div style="position:relative;height:126px;min-width:0">
+                  <image-slot id="{{ p.slot }}" shape="rounded" radius="9" placeholder="Produktbild"></image-slot>
+                  <button style="position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(22,24,38,0.75);display:grid;place-items:center;cursor:pointer;color: {{ p.favColor }}" onClick="{{ p.toggleFav }}">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="{{ p.favFill }}" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.4-7-9.2A3.9 3.9 0 0 1 12 8.4a3.9 3.9 0 0 1 7 2.4C19 15.6 12 20 12 20z"></path></svg>
+                  </button>
+                  <sc-if value="{{ p.personal }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;bottom:6px;left:6px;padding:2px 7px;border-radius:6px;background:rgba(66,58,106,0.9);font-size:9px;color:#f5f4ff">Personalisierbar</span>
+                  </sc-if>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-size:13px;line-height:1.35">{{ p.title }}</span>
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span style="font-size:10px;color:#75798c">{{ p.creator }}</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#9184d9"><path d="M12 2l2.4 1.6 2.9-.3 1 2.7 2.4 1.7-.7 2.8.7 2.8-2.4 1.7-1 2.7-2.9-.3L12 22l-2.4-1.6-2.9.3-1-2.7-2.4-1.7.7-2.8-.7-2.8 2.4-1.7 1-2.7 2.9.3z"></path></svg>
+                  </div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:2px">
+                    <span style="font-size:15px;font-weight:500">{{ p.price }}</span>
+                    <span style="font-size:9px;color:#9397ab">{{ p.delivery }}</span>
+                  </div>
+                  <a class="btn btn-primary btn-block" href="#f-config" style="min-height:34px;font-size:12px;margin-top:4px">Konfigurieren</a>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <dc-import name="AppNav" active="discover" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 5 · Trage-Konfigurator ═══ -->
+    <div id="f-config" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">05</span><span style="font-size:13px;font-weight:500">Konfigurator</span><span style="font-size:11px;color:#75798c">4 Schritte, rechnet live</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:54px 18px 12px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid rgba(233,233,237,0.10)">
+            <div style="display:flex;align-items:center;gap:10px">
+              <button class="btn btn-icon btn-secondary" style="border-radius:10px" onClick="{{ cfgBack }}">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"></path></svg>
+              </button>
+              <div style="flex:1;display:flex;flex-direction:column">
+                <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9184d9">Schritt {{ step }} von 4</span>
+                <span style="font-size:16px;font-weight:500;letter-spacing:-0.01em">{{ stepTitle }}</span>
+              </div>
+            </div>
+            <div style="height:3px;border-radius:2px;background:#292b31;overflow:hidden">
+              <div style="height:100%;border-radius:2px;background:linear-gradient(90deg,#796cbf,#b5abfc);transition:width .35s ease;width: {{ stepPct }}"></div>
+            </div>
+          </div>
+
+          <div style="flex:1;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+            <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ productChoices }}" as="pc" hint-placeholder-count="3">
+                  <button style="position:relative;display:flex;gap:11px;align-items:center;text-align:left;background:#232532;border:1px solid rgba(233,233,237,0.10);border-radius:10px;padding:10px;font:inherit;color:inherit;cursor:pointer" onClick="{{ pc.select }}">
+                    <image-slot id="{{ pc.slot }}" shape="rounded" radius="8" style="width:58px;height:58px;flex:none" placeholder=" "></image-slot>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+                      <span style="font-size:14px">{{ pc.name }}</span>
+                      <span style="font-size:11px;color:#75798c">{{ pc.desc }}</span>
+                    </div>
+                    <span style="font-size:14px;font-weight:500">{{ pc.priceStr }}</span>
+                    <sc-if value="{{ pc.on }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;inset:0;border-radius:10px;box-shadow:inset 0 0 0 1.5px #9184d9;pointer-events:none"></span>
+                    </sc-if>
+                  </button>
+                </sc-for>
+                <div style="display:flex;gap:8px;align-items:flex-start;padding:10px;border-radius:10px;background:#1c1f2e">
+                  <svg style="flex:none;margin-top:1px" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.8v.2"></path></svg>
+                  <span style="font-size:11px;line-height:1.6;color:#9397ab">Größe und Verfügbarkeit legt die Creatorin fest. Alle Preise inkl. Plattformgebühr.</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <sc-for list="{{ options }}" as="o" hint-placeholder-count="6">
+                  <button style="position:relative;display:flex;gap:11px;align-items:center;text-align:left;background:#232532;border:1px solid rgba(233,233,237,0.10);border-radius:10px;padding:11px;font:inherit;color:inherit;cursor:pointer" onClick="{{ o.toggle }}">
+                    <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+                      <span style="font-size:14px">{{ o.name }}</span>
+                      <span style="font-size:11px;line-height:1.5;color:#75798c">{{ o.desc }}</span>
+                    </div>
+                    <span style="font-size:13px;color:#b5abfc;flex:none">{{ o.priceStr }}</span>
+                    <span style="position:relative;width:20px;height:20px;flex:none;border-radius:6px;border:1.5px solid rgba(233,233,237,0.22)">
+                      <sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}">
+                        <span style="position:absolute;inset:-1.5px;border-radius:6px;background:#9184d9;display:grid;place-items:center">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#161826" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 12.5 10 17l8.5-9"></path></svg>
+                        </span>
+                      </sc-if>
+                    </span>
+                    <sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;inset:0;border-radius:10px;box-shadow:inset 0 0 0 1.5px rgba(145,132,217,0.6);pointer-events:none"></span>
+                    </sc-if>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ deliveries }}" as="d" hint-placeholder-count="2">
+                  <button style="position:relative;display:flex;gap:11px;align-items:flex-start;text-align:left;background:#232532;border:1px solid rgba(233,233,237,0.10);border-radius:10px;padding:12px;font:inherit;color:inherit;cursor:pointer" onClick="{{ d.select }}">
+                    <span style="position:relative;width:18px;height:18px;flex:none;margin-top:2px;border-radius:50%;border:1.5px solid rgba(233,233,237,0.25)">
+                      <sc-if value="{{ d.on }}" hint-placeholder-val="{{ false }}">
+                        <span style="position:absolute;inset:-1.5px;border-radius:50%;background:#9184d9;box-shadow:inset 0 0 0 4px #232532"></span>
+                      </sc-if>
+                    </span>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+                      <span style="font-size:14px">{{ d.name }}</span>
+                      <span style="font-size:11px;line-height:1.5;color:#75798c">{{ d.desc }}</span>
+                    </div>
+                    <span style="font-size:13px;color:#b5abfc;flex:none">{{ d.priceStr }}</span>
+                    <sc-if value="{{ d.on }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;inset:0;border-radius:10px;box-shadow:inset 0 0 0 1.5px #9184d9;pointer-events:none"></span>
+                    </sc-if>
+                  </button>
+                </sc-for>
+                <button style="position:relative;display:flex;gap:11px;align-items:center;text-align:left;background:#232532;border:1px solid rgba(233,233,237,0.10);border-radius:10px;padding:12px;font:inherit;color:inherit;cursor:pointer" onClick="{{ toggleDiscreet }}">
+                  <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+                    <span style="font-size:14px">Diskrete Verpackung</span>
+                    <span style="font-size:11px;line-height:1.5;color:#75798c">Neutraler Umschlag, kein Absenderhinweis auf die Plattform.</span>
+                  </div>
+                  <span style="font-size:13px;color:#b5abfc;flex:none">+ 2,00 €</span>
+                  <span style="position:relative;width:38px;height:22px;flex:none;border-radius:11px;background: {{ discreetTrack }};transition:background .2s">
+                    <span style="position:absolute;top:3px;width:16px;height:16px;border-radius:50%;background:#e9e9ed;transition:left .2s;left: {{ discreetKnob }}"></span>
+                  </span>
+                </button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isStep4 }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:12px;background:linear-gradient(140deg,#262a60,#232532);box-shadow:0 0 0 1px #3f424d">
+                  <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">Wallet</span>
+                  <span style="font-size:26px;font-weight:500;letter-spacing:-0.02em;line-height:1">{{ walletStr }}</span>
+                  <span style="font-size:11px;color:#b2b6ca">verfügbar · Zahlung bleibt bis zur Bestätigung im Escrow</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <sc-for list="{{ summary }}" as="s" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;font-size:13px">
+                      <span style="color:#b2b6ca">{{ s.label }}</span>
+                      <span>{{ s.value }}</span>
+                    </div>
+                  </sc-for>
+                  <hr class="hr" style="margin:4px 0">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between">
+                    <span style="font-size:14px">Gesamt</span>
+                    <span style="font-size:20px;font-weight:500">{{ totalStr }}</span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:9px;align-items:flex-start;padding:11px;border-radius:10px;background:#1c1f2e">
+                  <svg style="flex:none;margin-top:1px" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.3-2.9 8-7 10-4.1-2-7-5.7-7-10V6z"></path><path d="M8.8 12.2l2.3 2.3 4.1-4.4"></path></svg>
+                  <span style="font-size:11px;line-height:1.6;color:#9397ab">Die Zahlung wird erst freigegeben, wenn du den Erhalt bestätigst oder das Safe-Meet abgeschlossen ist.</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ ordered }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:34px 8px;text-align:center;animation:ms-rise .4s ease both">
+                <div style="width:66px;height:66px;border-radius:50%;background:rgba(34,197,94,0.12);display:grid;place-items:center;box-shadow:0 0 0 1px rgba(34,197,94,0.35)">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 12.5 10 17l8.5-9"></path></svg>
+                </div>
+                <span style="font-size:19px;font-weight:500">Auftrag ist sicher gebucht</span>
+                <span style="font-size:13px;line-height:1.6;color:#9397ab;max-width:250px">{{ totalStr }} liegen im Escrow. Du erhältst eine neutrale Benachrichtigung, sobald der Auftrag aktualisiert wird.</span>
+                <button class="btn btn-secondary" style="min-height:40px" onClick="{{ cfgReset }}">Noch einen Auftrag anlegen</button>
+              </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ notOrdered }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:12px 18px 10px;border-top:1px solid rgba(233,233,237,0.10);background:#1b1d2b;display:flex;align-items:center;gap:12px">
+              <div style="flex:1;display:flex;flex-direction:column">
+                <span style="font-size:10px;color:#75798c">Gesamt</span>
+                <span style="font-size:19px;font-weight:500;letter-spacing:-0.01em">{{ totalStr }}</span>
+              </div>
+              <button class="btn btn-primary" style="min-height:46px;padding-inline:22px;font-size:15px" onClick="{{ cfgNext }}">{{ cfgCta }}</button>
+            </div>
+          </sc-if>
+          <dc-import name="AppNav" active="discover" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 6 · Safe-Meet ═══ -->
+    <div id="f-meet" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">06</span><span style="font-size:13px;font-weight:500">Safe-Meet</span><span style="font-size:11px;color:#75798c">Phasen umschaltbar, Timer läuft</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:54px 18px 12px;display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:20px;font-weight:500;letter-spacing:-0.015em">Safe-Meet</span>
+            <div style="display:flex;border:1px solid rgba(233,233,237,0.16);border-radius:8px;overflow:hidden">
+              <sc-for list="{{ phases }}" as="ph" hint-placeholder-count="3">
+                <button style="position:relative;flex:1;padding:9px 4px;background:transparent;border:0;border-left:1px solid rgba(233,233,237,0.12);font:inherit;font-size:12px;color: {{ ph.color }};cursor:pointer" onClick="{{ ph.select }}">
+                  {{ ph.label }}
+                  <sc-if value="{{ ph.on }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;inset:0;box-shadow:inset 0 0 0 1px #9184d9;background:rgba(145,132,217,0.12);pointer-events:none"></span>
+                  </sc-if>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="flex:1;overflow:auto;padding:6px 18px 18px;display:flex;flex-direction:column;gap:14px">
+            <sc-if value="{{ meetBefore }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:14px;animation:ms-rise .3s ease both">
+                <div style="display:flex;align-items:center;gap:11px;background:#232532;border-radius:12px;padding:12px;box-shadow:0 0 0 1px #3f424d">
+                  <image-slot id="meet-avatar" shape="circle" style="width:44px;height:44px;flex:none" placeholder=" "></image-slot>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+                    <span style="font-size:14px">Lina</span>
+                    <span style="font-size:11px;color:#75798c">Übergabe · Buchung #4821</span>
+                  </div>
+                  <span class="tag tag-accent" style="font-size:10px">bestätigt</span>
+                </div>
+                <div style="display:flex;flex-direction:column;background:#232532;border-radius:12px;box-shadow:0 0 0 1px #3f424d;overflow:hidden">
+                  <sc-for list="{{ meetDetails }}" as="m" hint-placeholder-count="5">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-top:1px solid rgba(233,233,237,0.08)">
+                      <span style="font-size:12px;color:#9397ab">{{ m.label }}</span>
+                      <span style="font-size:13px">{{ m.value }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;background:#232532;border-radius:12px;padding:18px;box-shadow:0 0 0 1px #3f424d">
+                  <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">QR-Check-in</span>
+                  <div style="width:132px;height:132px;border-radius:10px;background:#e9e9ed;padding:10px">
+                    <div style="width:100%;height:100%;display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);gap:2px">
+                      <sc-for list="{{ qr }}" as="q" hint-placeholder-count="81">
+                        <span style="border-radius:1px;background: {{ q }}"></span>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <span style="font-size:11px;color:#75798c;text-align:center;line-height:1.55">Beide scannen beim Treffen. Erst danach startet der Sicherheits-Timer.</span>
+                </div>
+                <button class="btn btn-primary btn-block" style="min-height:46px" onClick="{{ startMeet }}">Check-in starten</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ meetDuring }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:16px;animation:ms-rise .3s ease both">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 16px;border-radius:16px;background:radial-gradient(120% 90% at 50% 0%,#262a60 0%,#1c1f2e 60%,#161826 100%);box-shadow:0 0 0 1px #3f424d">
+                  <span style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#22c55e">
+                    <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;animation:ms-pulse 2s ease-in-out infinite"></span>Sicher aktiv
+                  </span>
+                  <div style="position:relative;width:196px;height:196px;border-radius:50%;background: {{ ringBg }};display:grid;place-items:center">
+                    <div style="width:172px;height:172px;border-radius:50%;background:#161826;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+                      <span style="font-size:42px;font-weight:500;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums">{{ timerStr }}</span>
+                      <span style="font-size:11px;color:#9397ab">Minuten verbleibend</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:18px">
+                    <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#b2b6ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s6.5-6 6.5-11a6.5 6.5 0 1 0-13 0C5.5 15 12 21 12 21z"></path><circle cx="12" cy="10" r="2.2"></circle></svg>GPS verbunden</span>
+                    <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#b2b6ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3l7 3v5c0 4.3-2.9 8-7 10-4.1-2-7-5.7-7-10V6z"></path></svg>Kontakt hinterlegt</span>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <button class="btn btn-secondary btn-block" style="min-height:46px" onClick="{{ extendMeet }}">Treffen um 15 Min. verlängern</button>
+                  <button class="btn btn-primary btn-block" style="min-height:46px" onClick="{{ endMeet }}">Sicher beenden</button>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-radius:10px;background:#1c1f2e;box-shadow:inset 0 0 0 1px rgba(239,68,68,0.28)">
+                  <div style="display:flex;flex-direction:column">
+                    <span style="font-size:12px;color:#e9e9ed">Notfall</span>
+                    <span style="font-size:10px;color:#75798c">Sendet Standort an deinen Kontakt</span>
+                  </div>
+                  <button class="btn" style="min-height:36px;color:#ef4444;border:1px solid rgba(239,68,68,0.5);padding-inline:16px">SOS</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ meetAfter }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;animation:ms-rise .3s ease both">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:28px 16px;border-radius:16px;background:#232532;box-shadow:0 0 0 1px #3f424d">
+                  <div style="width:58px;height:58px;border-radius:50%;background:rgba(34,197,94,0.12);display:grid;place-items:center;box-shadow:0 0 0 1px rgba(34,197,94,0.35)">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 12.5 10 17l8.5-9"></path></svg>
+                  </div>
+                  <span style="font-size:18px;font-weight:500">Treffen abgeschlossen</span>
+                  <span style="font-size:12px;color:#9397ab;text-align:center;line-height:1.6">Zahlung von 68,00 € wurde freigegeben. Der Sicherheits-Timer ist beendet.</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:11px;background:#232532;border-radius:12px;padding:14px;box-shadow:0 0 0 1px #3f424d">
+                  <span style="font-size:13px">Wie war die Übergabe?</span>
+                  <div style="display:flex;gap:8px">
+                    <sc-for list="{{ stars }}" as="s" hint-placeholder-count="5">
+                      <button style="width:40px;height:40px;border-radius:9px;border:1px solid rgba(233,233,237,0.14);background:transparent;display:grid;place-items:center;cursor:pointer" onClick="{{ s.rate }}">
+                        <svg width="19" height="19" viewBox="0 0 24 24" fill="{{ s.fill }}" stroke="{{ s.stroke }}" stroke-width="1.6"><path d="M12 3l2.7 5.7 6.3.8-4.6 4.3 1.2 6.2L12 17l-5.6 3 1.2-6.2L3 9.5l6.3-.8z"></path></svg>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <textarea class="input" placeholder="Kurze Bewertung (optional)" style="min-height:72px;font-size:13px"></textarea>
+                  <button class="btn btn-primary btn-block" style="min-height:42px">Bewertung senden</button>
+                </div>
+                <button class="btn btn-ghost" style="align-self:flex-start;font-size:12px;color:#9397ab">Problem melden</button>
+              </div>
+            </sc-if>
+          </div>
+          <dc-import name="AppNav" active="home" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 7 · Nachrichten ═══ -->
+    <div id="f-chat" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">07</span><span style="font-size:13px;font-weight:500">Nachrichten</span><span style="font-size:11px;color:#75798c">Antwort kommt live</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:52px 14px 10px;display:flex;align-items:center;gap:11px;border-bottom:1px solid rgba(233,233,237,0.10);background:#1b1d2b">
+            <button class="btn btn-icon" style="width:30px;height:30px">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"></path></svg>
+            </button>
+            <image-slot id="chat-avatar" shape="circle" style="width:36px;height:36px;flex:none" placeholder=" "></image-slot>
+            <div style="flex:1;display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-size:14px;font-weight:500">Lina</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#9184d9"><path d="M12 2l2.4 1.6 2.9-.3 1 2.7 2.4 1.7-.7 2.8.7 2.8-2.4 1.7-1 2.7-2.9-.3L12 22l-2.4-1.6-2.9.3-1-2.7-2.4-1.7.7-2.8-.7-2.8 2.4-1.7 1-2.7 2.9.3z"></path></svg>
+              </div>
+              <span style="font-size:10px;color:#22c55e">online</span>
+            </div>
+            <button class="btn btn-icon btn-secondary" style="border-radius:10px;width:34px;height:34px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3l7 3v5c0 4.3-2.9 8-7 10-4.1-2-7-5.7-7-10V6z"></path></svg>
+            </button>
+          </div>
+
+          <div style="flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px">
+            <span style="align-self:center;font-size:10px;color:#75798c;padding:3px 10px;border-radius:6px;background:#1c1f2e">Heute</span>
+            <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="4">
+              <div style="display:flex;justify-content: {{ m.just }};animation:ms-rise .3s ease both">
+                <div style="max-width:76%;padding:9px 12px;border-radius:14px;font-size:13px;line-height:1.5;background: {{ m.bg }};color: {{ m.fg }};border-bottom-right-radius: {{ m.brr }};border-bottom-left-radius: {{ m.blr }}">
+                  {{ m.text }}
+                  <sc-if value="{{ m.paid }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-flex;align-items:center;gap:4px;margin-left:7px;font-size:10px;color:#b5abfc">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="6" width="18" height="12.5" rx="2.5"></rect><path d="M3 10h18"></path></svg>0,99 €
+                    </span>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+
+            <div style="display:flex;justify-content:flex-start">
+              <div style="width:200px;display:flex;flex-direction:column;gap:7px;padding:9px;border-radius:14px;border-bottom-left-radius:5px;background:#232532">
+                <div style="position:relative;height:132px;border-radius:9px;overflow:hidden">
+                  <image-slot id="chat-media" shape="rect" placeholder="Medien"></image-slot>
+                  <sc-if value="{{ mediaLocked }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(15px);background:rgba(22,24,38,0.55)">
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#d2cefd" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"></rect><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"></path></svg>
+                      <button class="btn btn-primary" style="min-height:32px;font-size:12px" onClick="{{ unlock.media }}">4,90 € ansehen</button>
+                    </div>
+                  </sc-if>
+                </div>
+                <span style="font-size:10px;color:#75798c">Verschwindet nach dem Ansehen</span>
+              </div>
+            </div>
+
+            <sc-if value="{{ typing }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;justify-content:flex-start">
+                <div style="display:flex;gap:4px;padding:12px 14px;border-radius:14px;border-bottom-left-radius:5px;background:#232532">
+                  <span style="width:6px;height:6px;border-radius:50%;background:#b5abfc;animation:ms-dot 1.2s infinite"></span>
+                  <span style="width:6px;height:6px;border-radius:50%;background:#b5abfc;animation:ms-dot 1.2s .2s infinite"></span>
+                  <span style="width:6px;height:6px;border-radius:50%;background:#b5abfc;animation:ms-dot 1.2s .4s infinite"></span>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="padding:10px 14px;border-top:1px solid rgba(233,233,237,0.10);background:#1b1d2b;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;gap:7px;overflow:auto">
+              <a class="btn btn-secondary" href="#f-config" style="flex:none;min-height:32px;font-size:11px">Produkt anbieten</a>
+              <a class="btn btn-secondary" href="#f-meet" style="flex:none;min-height:32px;font-size:11px">Safe-Meet anfragen</a>
+              <button class="btn btn-secondary" style="flex:none;min-height:32px;font-size:11px">Wunschauftrag</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn btn-icon btn-secondary" style="border-radius:10px;width:38px;height:38px">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+              </button>
+              <input class="input" placeholder="Nachricht · 0,99 €" style="min-height:38px;border-radius:19px">
+              <button class="btn btn-primary btn-icon" style="border-radius:50%;width:38px;height:38px">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"></path></svg>
+              </button>
+            </div>
+          </div>
+          <dc-import name="AppNav" active="chat" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 8 · Wallet ═══ -->
+    <div id="f-wallet" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">08</span><span style="font-size:13px;font-weight:500">Wallet</span><span style="font-size:11px;color:#75798c">wie eine Banking-App</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:56px 18px 8px;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:20px;font-weight:500;letter-spacing:-0.015em">Wallet</span>
+            <button class="btn btn-icon btn-secondary" style="border-radius:10px">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3l7 3v5c0 4.3-2.9 8-7 10-4.1-2-7-5.7-7-10V6z"></path><path d="M8.8 12.2l2.3 2.3 4.1-4.4"></path></svg>
+            </button>
+          </div>
+          <div style="flex:1;overflow:auto;padding:8px 18px 18px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:16px;background:linear-gradient(150deg,#262a60 0%,#1f2238 55%,#232532 100%);box-shadow:0 0 0 1px #3f424d">
+              <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">Verfügbares Guthaben</span>
+              <span style="font-size:40px;font-weight:500;letter-spacing:-0.035em;line-height:1">{{ walletStr }}</span>
+              <div style="display:flex;gap:0">
+                <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+                  <span style="font-size:10px;color:#9397ab">Reserviert</span>
+                  <span style="font-size:14px">{{ reservedStr }}</span>
+                </div>
+                <div style="width:1px;background:rgba(233,233,237,0.14)"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:2px;padding-left:14px">
+                  <span style="font-size:10px;color:#9397ab">Offene Escrow</span>
+                  <span style="font-size:14px">2 Vorgänge</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+              <button class="btn btn-primary" style="min-height:46px" onClick="{{ topUp }}">Aufladen</button>
+              <button class="btn btn-secondary" style="min-height:46px">Auszahlung</button>
+              <button class="btn btn-secondary" style="min-height:46px">Zahlungsmethoden</button>
+              <button class="btn btn-secondary" style="min-height:46px">Sicherheitsprüfung</button>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Transaktionen</span>
+                <span style="font-size:11px;color:#75798c">neutrale Bezeichnungen</span>
+              </div>
+              <sc-for list="{{ txns }}" as="t" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid rgba(233,233,237,0.07)">
+                  <div style="width:34px;height:34px;flex:none;border-radius:9px;background:#232532;display:grid;place-items:center;box-shadow:0 0 0 1px #3f424d">
+                    <span style="font-size:14px;color: {{ t.color }}">{{ t.glyph }}</span>
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column">
+                    <span style="font-size:13px">{{ t.label }}</span>
+                    <span style="font-size:10px;color:#75798c">{{ t.meta }}</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end">
+                    <span style="font-size:13px;color: {{ t.color }}">{{ t.amount }}</span>
+                    <span style="font-size:10px;color:#75798c">{{ t.state }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:10px;background:#1c1f2e">
+              <svg style="flex:none;margin-top:1px" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"></rect><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"></path></svg>
+              <span style="font-size:11px;line-height:1.6;color:#9397ab">Auf deinem Kontoauszug erscheint ausschließlich ein neutraler Zahlungsdienstleister.</span>
+            </div>
+          </div>
+          <dc-import name="AppNav" active="wallet" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ═══ 9 · Creator-Dashboard ═══ -->
+    <div id="f-creator" style="flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:24px">
+      <div style="display:flex;align-items:baseline;gap:9px"><span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#423a6a;color:#f5f4ff;border-radius:5px">09</span><span style="font-size:13px;font-weight:500">Creator-Dashboard</span><span style="font-size:11px;color:#75798c">Auszahlung, Bestellungen</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+          <div style="padding:56px 18px 10px;display:flex;align-items:center;gap:11px">
+            <image-slot id="creator-avatar" shape="circle" style="width:36px;height:36px;flex:none" placeholder=" "></image-slot>
+            <div style="flex:1;display:flex;flex-direction:column">
+              <span style="font-size:11px;color:#75798c">Creator-Konto</span>
+              <span style="font-size:16px;font-weight:500;letter-spacing:-0.01em">Lina</span>
+            </div>
+            <span class="tag tag-accent" style="font-size:10px">Verifiziert</span>
+          </div>
+          <div style="flex:1;overflow:auto;padding:6px 18px 18px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:14px;background:#232532;box-shadow:0 0 0 1px #3f424d">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Einnahmen · Juli</span>
+                <span style="font-size:11px;color:#22c55e">+18 %</span>
+              </div>
+              <span style="font-size:32px;font-weight:500;letter-spacing:-0.03em;line-height:1">2.418,50 €</span>
+              <div style="display:flex;align-items:flex-end;gap:5px;height:56px">
+                <sc-for list="{{ bars }}" as="b" hint-placeholder-count="14">
+                  <span style="flex:1;border-radius:3px;background: {{ b.bg }};height: {{ b.h }}"></span>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;gap:5px;padding:13px;border-radius:12px;background:#232532;box-shadow:0 0 0 1px #3f424d">
+                  <span style="font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:#75798c">{{ k.label }}</span>
+                  <span style="font-size:22px;font-weight:500;letter-spacing:-0.02em;line-height:1.1">{{ k.value }}</span>
+                  <span style="font-size:10px;color:#b5abfc">{{ k.hint }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:14px;background:linear-gradient(140deg,#262a60,#232532);box-shadow:0 0 0 1px #3f424d">
+              <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">Auszahlbar</span>
+              <span style="font-size:26px;font-weight:500;letter-spacing:-0.02em;line-height:1">1.164,20 €</span>
+              <span style="font-size:11px;color:#b2b6ca">Nächste automatische Auszahlung: 1. August</span>
+              <button class="btn btn-primary btn-block" style="min-height:44px">Jetzt auszahlen</button>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Neue Bestellungen</span>
+              <sc-for list="{{ creatorOrders }}" as="o" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:11px;padding:11px;border-radius:10px;background:#232532;box-shadow:0 0 0 1px #3f424d">
+                  <div style="width:34px;height:34px;flex:none;border-radius:9px;background:#292b31;display:grid;place-items:center;font-size:12px;color:#b5abfc">{{ o.initials }}</div>
+                  <div style="flex:1;display:flex;flex-direction:column">
+                    <span style="font-size:13px">{{ o.title }}</span>
+                    <span style="font-size:10px;color:#75798c">{{ o.meta }}</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+                    <span style="font-size:13px">{{ o.amount }}</span>
+                    <span class="tag tag-neutral" style="font-size:9px">{{ o.state }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:9px;padding:14px;border-radius:12px;background:#1c1f2e">
+              <span style="font-size:13px">Sichtbarkeit</span>
+              <span style="font-size:11px;line-height:1.6;color:#9397ab">Du bestimmst, in welchen Regionen dein Profil erscheint und wer dich anschreiben darf.</span>
+              <button class="btn btn-secondary" style="align-self:flex-start;min-height:38px">Einstellungen öffnen</button>
+            </div>
+          </div>
+          <dc-import name="AppNav" active="profile" hint-size="100%,90px"></dc-import>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;appName&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;MeinSlip&quot;,&quot;MS Connect&quot;,&quot;MS Space&quot;,&quot;M Platform&quot;],&quot;default&quot;:&quot;MeinSlip&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Diskretion&quot;},&quot;neutralNames&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Diskretion&quot;}}">
+const eur = n => n.toFixed(2).replace('.', ',') + ' €';
+
+class Component extends DCLogic {
+  state = {
+    wallet: 148.5,
+    unlockedPost1: false, unlockedPost2: false, unlockedFeed: false, unlockedMedia: false,
+    filters: { verified: true, online: false, nah: false, neu: false },
+    mFilters: { verified: true, personal: false, uebergabe: false, neu: false, bewertung: false },
+    favs: { p2: true },
+    tab: 'Feed',
+    step: 1, prod: 'classic', opts: {}, delivery: 'safeship', discreet: true, ordered: false,
+    meet: 'during', secs: 54 * 60 + 32,
+    rating: 0,
+    typing: true,
+    msgs: [
+      { id: 1, me: false, text: 'Hey, danke für deine Anfrage — schön, dass du hier bist.' },
+      { id: 2, me: true, text: 'Gern. Ist Größe S noch verfügbar?', paid: true },
+      { id: 3, me: false, text: 'Ja. Ich kann sie zwei Tage tragen, Sport inklusive, wenn du magst.' },
+      { id: 4, me: true, text: 'Perfekt. Ich lege das im Konfigurator an.', paid: true }
+    ]
+  };
+
+  componentDidMount() {
+    this.tick = setInterval(() => {
+      if (this.state.meet === 'during') this.setState(s => ({ secs: Math.max(0, s.secs - 1) }));
+    }, 1000);
+    this.reply = setTimeout(() => this.setState(s => ({
+      typing: false,
+      msgs: s.msgs.concat([{ id: 5, me: false, text: 'Alles klar — ich bestätige dir die Übergabe für Mittwoch 18:30.' }])
+    })), 3200);
+  }
+  componentWillUnmount() { clearInterval(this.tick); clearTimeout(this.reply); }
+
+  spend(amount, key) {
+    this.setState(s => ({ wallet: Math.max(0, s.wallet - amount), [key]: true }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const neutral = this.props.neutralNames ?? true;
+    const accent = '#9184d9', accentLt = '#b5abfc', muted = '#75798c';
+
+    const creators = [
+      { slot: 'c-lina', name: 'Lina', region: 'Region Köln', price: '12,90 €/Monat', online: true },
+      { slot: 'c-mira', name: 'Mira', region: 'Region Hamburg', price: '9,90 €/Monat', online: false },
+      { slot: 'c-jo', name: 'Jo', region: 'Region Leipzig', price: '14,90 €/Monat', online: true },
+      { slot: 'c-nele', name: 'Nele', region: 'Region München', price: '11,50 €/Monat', online: true }
+    ].map(c => ({ ...c, dot: c.online ? '#22c55e' : '#75798c', status: c.online ? 'online' : 'vor 2 Std.' }));
+
+    const discover = [
+      { slot: 'd-1', name: 'Lina', region: 'Region Köln · 12 km', rating: '4,9', cats: ['Alltag', 'Sport'], price: '12,90 €/Monat', online: true, blurred: false },
+      { slot: 'd-2', name: 'Mira', region: 'Region Hamburg', rating: '4,8', cats: ['Alltag', 'Wunsch'], price: '9,90 €/Monat', online: false, blurred: false },
+      { slot: 'd-3', name: 'Jo', region: 'Region Leipzig', rating: '5,0', cats: ['Sport', 'Treffen'], price: '14,90 €/Monat', online: true, blurred: true },
+      { slot: 'd-4', name: 'Nele', region: 'Region München', rating: '4,7', cats: ['Alltag'], price: '11,50 €/Monat', online: true, blurred: false },
+      { slot: 'd-5', name: 'Ari', region: 'Region Berlin', rating: '4,9', cats: ['Wunsch', 'Versand'], price: '15,90 €/Monat', online: false, blurred: true },
+      { slot: 'd-6', name: 'Tessa', region: 'Region Stuttgart', rating: '4,6', cats: ['Alltag', 'Sport'], price: '8,90 €/Monat', online: true, blurred: false }
+    ].map(d => ({ ...d, dot: d.online ? '#22c55e' : '#3f424d' }));
+
+    const fLabels = { verified: 'Verifiziert', online: 'Jetzt online', nah: 'In der Nähe', neu: 'Neu' };
+    const filters = Object.keys(fLabels).map(k => ({
+      label: fLabels[k], on: !!s.filters[k],
+      toggle: () => this.setState(st => ({ filters: { ...st.filters, [k]: !st.filters[k] } }))
+    }));
+
+    const mLabels = { verified: 'Verifiziert', personal: 'Personalisierbar', uebergabe: 'Übergabe', neu: 'Neu eingestellt', bewertung: 'Ab 4,5 ★' };
+    const mFilters = Object.keys(mLabels).map(k => ({
+      label: mLabels[k], on: !!s.mFilters[k],
+      toggle: () => this.setState(st => ({ mFilters: { ...st.mFilters, [k]: !st.mFilters[k] } }))
+    }));
+
+    const prodTitle = (n, c) => (neutral ? n : c);
+    const products = [
+      { id: 'p1', slot: 'm-1', title: prodTitle('Artikel · Größe S · 2 Tage', 'Slip · Größe S · 2 Tage'), creator: 'Lina', price: '32,90 €', delivery: 'Safe-Ship', personal: true },
+      { id: 'p2', slot: 'm-2', title: prodTitle('Sport-Set · Größe M', 'Sport-Slip · Größe M'), creator: 'Jo', price: '44,00 €', delivery: 'Übergabe', personal: true },
+      { id: 'p3', slot: 'm-3', title: prodTitle('Artikel · Größe L · 1 Tag', 'Slip · Größe L · 1 Tag'), creator: 'Mira', price: '24,90 €', delivery: 'Safe-Ship', personal: false },
+      { id: 'p4', slot: 'm-4', title: prodTitle('Set · Größe S · Wunsch', 'Wäsche-Set · Größe S'), creator: 'Nele', price: '58,00 €', delivery: 'Safe-Ship', personal: true },
+      { id: 'p5', slot: 'm-5', title: prodTitle('Artikel · Größe M · 3 Tage', 'Slip · Größe M · 3 Tage'), creator: 'Ari', price: '39,50 €', delivery: 'Übergabe', personal: false },
+      { id: 'p6', slot: 'm-6', title: prodTitle('Artikel · Größe XS', 'Slip · Größe XS'), creator: 'Tessa', price: '21,90 €', delivery: 'Safe-Ship', personal: true }
+    ].map(p => ({
+      ...p,
+      favColor: s.favs[p.id] ? '#ec4899' : '#cfd3e5',
+      favFill: s.favs[p.id] ? '#ec4899' : 'none',
+      toggleFav: () => this.setState(st => ({ favs: { ...st.favs, [p.id]: !st.favs[p.id] } }))
+    }));
+
+    const tabNames = ['Feed', 'Shop', 'Wünsche', 'Treffen', 'Über mich', 'Bewertungen'];
+    const tabs = tabNames.map(n => ({
+      name: n, on: s.tab === n, color: s.tab === n ? '#e9e9ed' : muted,
+      select: () => this.setState({ tab: n })
+    }));
+
+    const shopItems = [
+      { slot: 's-1', title: prodTitle('Artikel · Größe S', 'Slip · Größe S'), meta: 'Tragedauer wählbar · Safe-Ship', price: 'ab 24,90 €' },
+      { slot: 's-2', title: prodTitle('Sport-Set', 'Sport-Slip'), meta: 'Nach dem Training · Übergabe möglich', price: 'ab 34,90 €' },
+      { slot: 's-3', title: 'Wunschauftrag', meta: 'Individuell abgestimmt', price: 'ab 39,00 €' }
+    ];
+
+    const productChoices = [
+      { key: 'classic', slot: 'cfg-1', name: prodTitle('Artikel Classic', 'Slip Classic'), desc: 'Größe S · 1 Tag Tragedauer', price: 24.9 },
+      { key: 'sport', slot: 'cfg-2', name: 'Sport-Set', desc: 'Größe M · nach dem Training', price: 34.9 },
+      { key: 'wunsch', slot: 'cfg-3', name: 'Wunschauftrag', desc: 'Frei abgestimmt mit der Creatorin', price: 39.0 }
+    ].map(p => ({ ...p, priceStr: eur(p.price), on: s.prod === p.key, select: () => this.setState({ prod: p.key }) }));
+
+    const optionDefs = [
+      { key: 'tag2', name: 'Zusätzlicher Tragetag', desc: 'Verlängert die Tragedauer um 24 Stunden.', price: 8 },
+      { key: 'sport', name: 'Sporteinheit', desc: 'Eine Trainingseinheit im Artikel.', price: 6 },
+      { key: 'wunsch', name: 'Persönlicher Wunsch', desc: 'Eine individuelle Absprache, schriftlich bestätigt.', price: 12 },
+      { key: 'duft', name: 'Duftoption', desc: 'Vakuumierte Verpackung direkt nach dem Tragen.', price: 4.5 },
+      { key: 'foto', name: 'Foto-Update', desc: 'Zwei diskrete Aufnahmen während der Tragedauer.', price: 5 },
+      { key: 'proof', name: 'Proof-of-Wear', desc: 'Zeitstempel und Kurzvideo als Nachweis.', price: 7.5 },
+      { key: 'express', name: 'Express-Bearbeitung', desc: 'Start innerhalb von 24 Stunden.', price: 9 }
+    ];
+    const options = optionDefs.map(o => ({
+      ...o, priceStr: '+ ' + eur(o.price), on: !!s.opts[o.key],
+      toggle: () => this.setState(st => ({ opts: { ...st.opts, [o.key]: !st.opts[o.key] } }))
+    }));
+
+    const deliveryDefs = [
+      { key: 'safeship', name: 'Safe-Ship', desc: 'Versandlabel der Plattform — deine Adresse und die der Creatorin bleiben verborgen.', price: 4.9 },
+      { key: 'meet', name: 'Persönliche Übergabe', desc: 'Safe-Meet mit QR-Check-in, Timer und optionalem Notfallkontakt.', price: 0 }
+    ];
+    const deliveries = deliveryDefs.map(d => ({
+      ...d, priceStr: d.price ? '+ ' + eur(d.price) : 'inklusive', on: s.delivery === d.key,
+      select: () => this.setState({ delivery: d.key })
+    }));
+
+    const base = productChoices.find(p => p.on).price;
+    const optSum = optionDefs.reduce((a, o) => a + (s.opts[o.key] ? o.price : 0), 0);
+    const delSum = deliveryDefs.find(d => d.key === s.delivery).price;
+    const total = base + optSum + delSum + (s.discreet ? 2 : 0);
+    const optCount = optionDefs.filter(o => s.opts[o.key]).length;
+
+    const summary = [
+      { label: productChoices.find(p => p.on).name, value: eur(base) },
+      { label: optCount + (optCount === 1 ? ' Option' : ' Optionen'), value: optSum ? '+ ' + eur(optSum) : '—' },
+      { label: deliveryDefs.find(d => d.key === s.delivery).name, value: delSum ? '+ ' + eur(delSum) : 'inklusive' },
+      { label: 'Diskrete Verpackung', value: s.discreet ? '+ ' + eur(2) : '—' }
+    ];
+
+    const stepTitles = { 1: 'Artikel wählen', 2: 'Optionen hinzufügen', 3: 'Lieferung', 4: 'Zahlung' };
+    const meetPhases = [{ k: 'before', l: 'Vor dem Treffen' }, { k: 'during', l: 'Während' }, { k: 'after', l: 'Danach' }];
+    const phases = meetPhases.map(p => ({
+      label: p.l, on: s.meet === p.k, color: s.meet === p.k ? accentLt : muted,
+      select: () => this.setState({ meet: p.k })
+    }));
+
+    const mm = String(Math.floor(s.secs / 60)).padStart(2, '0');
+    const ss = String(s.secs % 60).padStart(2, '0');
+    const pct = Math.round((s.secs / (90 * 60)) * 100);
+
+    // deterministic pseudo-QR
+    const qr = [];
+    for (let i = 0; i < 81; i++) {
+      const r = Math.floor(i / 9), c = i % 9;
+      const finder = (r < 3 && c < 3) || (r < 3 && c > 5) || (r > 5 && c < 3);
+      const v = finder ? ((r === 1 && c === 1) || (r === 1 && c === 7) || (r === 7 && c === 1) ? 0 : 1) : ((r * 7 + c * 5 + ((r * c) % 4)) % 3 === 0 ? 1 : 0);
+      qr.push(v ? '#161826' : 'transparent');
+    }
+
+    const msgs = s.msgs.map(m => ({
+      ...m,
+      just: m.me ? 'flex-end' : 'flex-start',
+      bg: m.me ? '#423a6a' : '#232532',
+      fg: m.me ? '#f5f4ff' : '#e9e9ed',
+      brr: m.me ? '5px' : '14px',
+      blr: m.me ? '14px' : '5px'
+    }));
+
+    const barVals = [38, 52, 30, 64, 48, 72, 58, 41, 80, 66, 54, 88, 70, 96];
+    const bars = barVals.map((v, i) => ({ h: v + '%', bg: i > 10 ? accent : '#3f424d' }));
+
+    return {
+      appName: this.props.appName ?? 'MeinSlip',
+      walletStr: eur(s.wallet), reservedStr: eur(42),
+      topUp: () => this.setState(st => ({ wallet: st.wallet + 50 })),
+
+      creators, discover, filters, mFilters, products,
+      creatorCount: '482', productCount: '1.264',
+      activeFilterCount: Object.values(s.mFilters).filter(Boolean).length,
+
+      locked: { post1: !s.unlockedPost1, post2: !s.unlockedPost2, feed: !s.unlockedFeed },
+      open: { post1: s.unlockedPost1, post2: s.unlockedPost2 },
+      mediaLocked: !s.unlockedMedia,
+      unlock: {
+        post1: () => this.spend(3.9, 'unlockedPost1'),
+        post2: () => this.spend(4.9, 'unlockedPost2'),
+        feed: () => this.spend(7.9, 'unlockedFeed'),
+        media: () => this.spend(4.9, 'unlockedMedia')
+      },
+
+      tab: s.tab, tabs,
+      tabFeed: s.tab === 'Feed', tabShop: s.tab === 'Shop', tabMeet: s.tab === 'Treffen',
+      tabOther: ['Wünsche', 'Über mich', 'Bewertungen'].indexOf(s.tab) > -1,
+      shopItems,
+
+      step: s.step, stepTitle: stepTitles[s.step], stepPct: (s.step / 4) * 100 + '%',
+      isStep1: !s.ordered && s.step === 1, isStep2: !s.ordered && s.step === 2,
+      isStep3: !s.ordered && s.step === 3, isStep4: !s.ordered && s.step === 4,
+      ordered: s.ordered, notOrdered: !s.ordered,
+      productChoices, options, deliveries, summary,
+      totalStr: eur(total), cfgCta: s.step === 4 ? 'Sicher bestellen' : 'Weiter',
+      discreetTrack: s.discreet ? accent : '#3f424d',
+      discreetKnob: s.discreet ? '19px' : '3px',
+      toggleDiscreet: () => this.setState(st => ({ discreet: !st.discreet })),
+      cfgNext: () => {
+        if (s.step < 4) this.setState({ step: s.step + 1 });
+        else this.setState(st => ({ ordered: true, wallet: Math.max(0, st.wallet - total) }));
+      },
+      cfgBack: () => this.setState(st => ({ step: Math.max(1, st.step - 1), ordered: false })),
+      cfgReset: () => this.setState({ ordered: false, step: 1, opts: {} }),
+
+      phases, meetBefore: s.meet === 'before', meetDuring: s.meet === 'during', meetAfter: s.meet === 'after',
+      timerStr: mm + ':' + ss,
+      ringBg: 'conic-gradient(' + accent + ' ' + pct + '%, #292b31 ' + pct + '%)',
+      qr,
+      startMeet: () => this.setState({ meet: 'during' }),
+      endMeet: () => this.setState({ meet: 'after' }),
+      extendMeet: () => this.setState(st => ({ secs: st.secs + 900 })),
+      stars: [1, 2, 3, 4, 5].map(n => ({
+        fill: n <= s.rating ? '#f59e0b' : 'none',
+        stroke: n <= s.rating ? '#f59e0b' : '#75798c',
+        rate: () => this.setState({ rating: n })
+      })),
+
+      msgs, typing: s.typing,
+
+      txns: [
+        { glyph: '↑', color: '#22c55e', label: 'Guthaben aufgeladen', meta: 'Heute · 18:04', amount: '+ 50,00 €', state: 'abgeschlossen' },
+        { glyph: '↓', color: '#e9e9ed', label: 'Auftrag #4821', meta: 'Heute · 17:12', amount: '- 32,90 €', state: 'im Escrow' },
+        { glyph: '↓', color: '#e9e9ed', label: 'Inhalt freigeschaltet', meta: 'Gestern', amount: '- 4,90 €', state: 'abgeschlossen' },
+        { glyph: '↓', color: '#e9e9ed', label: 'Abonnement', meta: '22. Juli', amount: '- 12,90 €', state: 'monatlich' },
+        { glyph: '↑', color: '#22c55e', label: 'Rückerstattung', meta: '19. Juli', amount: '+ 24,90 €', state: 'abgeschlossen' },
+        { glyph: '↓', color: '#e9e9ed', label: 'Übergabe #4790', meta: '14. Juli', amount: '- 68,00 €', state: 'freigegeben' }
+      ],
+
+      orders: [
+        { title: 'Auftrag #4821 · Lina', meta: 'Tragedauer läuft · Safe-Ship', status: 'in Arbeit', pct: '58%' },
+        { title: 'Auftrag #4816 · Mira', meta: 'Versandlabel erstellt', status: 'unterwegs', pct: '86%' }
+      ],
+      chats: [
+        { slot: 'ch-1', name: 'Lina', last: 'Alles klar — ich bestätige dir die Übergabe.', time: '18:32' },
+        { slot: 'ch-2', name: 'Jo', last: 'Foto-Update ist unterwegs.', time: '16:05' },
+        { slot: 'ch-3', name: 'Mira', last: 'Danke für die Bewertung.', time: 'Gestern' }
+      ],
+      meetDetails: [
+        { label: 'Datum', value: 'Mi, 14. August' }, { label: 'Uhrzeit', value: '18:30' },
+        { label: 'Treffpunkt', value: 'Köln, Rudolfplatz' }, { label: 'Buchungswert', value: '68,00 €' },
+        { label: 'Sicherheitskontakt', value: 'hinterlegt' }
+      ],
+      bars,
+      kpis: [
+        { label: 'Neue Bestellungen', value: '7', hint: '3 heute' },
+        { label: 'Nachrichten', value: '24', hint: '5 unbeantwortet' },
+        { label: 'Aktive Abos', value: '138', hint: '+12 diese Woche' },
+        { label: 'Safe-Meet', value: '3', hint: 'nächstes Mi 18:30' }
+      ],
+      creatorOrders: [
+        { initials: 'JK', title: 'Auftrag #4821', meta: 'Classic · 2 Tage · Safe-Ship', amount: '32,90 €', state: 'annehmen' },
+        { initials: 'TM', title: 'Wunschauftrag #4819', meta: 'Individuell · Foto-Update', amount: '51,00 €', state: 'geprüft' },
+        { initials: 'SR', title: 'Übergabe #4818', meta: 'Safe-Meet · Do 17:00', amount: '68,00 €', state: 'bestätigt' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

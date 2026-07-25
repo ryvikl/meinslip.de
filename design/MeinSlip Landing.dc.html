@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/nocturne-1e5b4287-5e1f-4f8c-8683-71daed6b3bf9/styles.css">
+  <script src="_ds/nocturne-1e5b4287-5e1f-4f8c-8683-71daed6b3bf9/_ds_bundle.js"></script>
+  <script src="./image-slot.js"></script>
+  <style>
+    body { margin: 0; background: #161826; }
+    a { color: #b5abfc; }
+    a:hover { color: #d2cefd; }
+    @keyframes ms-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(1.6); } }
+    @keyframes ms-drift { 0% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-3%,2%,0) scale(1.08); } 100% { transform: translate3d(0,0,0) scale(1); } }
+    @keyframes ms-ring { 0% { transform: scale(.85); opacity: .55; } 100% { transform: scale(1.5); opacity: 0; } }
+  </style>
+</helmet>
+
+<div style="background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif;overflow-x:hidden">
+
+  <header style="position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);background:rgba(22,24,38,0.72);border-bottom:1px solid rgba(233,233,237,0.08)">
+    <div style="max-width:1200px;margin:0 auto;padding:14px 40px;display:flex;align-items:center;gap:32px">
+      <a href="#" style="display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;margin-right:auto">
+        <img src="assets/app-icon.png" alt="" style="width:34px;height:34px;border-radius:9px">
+        <span style="font-size:17px;font-weight:500;letter-spacing:-0.01em">MeinSlip<span style="color:#75798c">.de</span></span>
+      </a>
+      <nav style="display:flex;align-items:center;gap:26px">
+        <a href="#entdecken" style="font-size:14px;color:#cfd3e5;text-decoration:none" style-hover="color:#e9e9ed">Entdecken</a>
+        <a href="#sicherheit" style="font-size:14px;color:#cfd3e5;text-decoration:none" style-hover="color:#e9e9ed">Sicherheit</a>
+        <a href="#creator" style="font-size:14px;color:#cfd3e5;text-decoration:none" style-hover="color:#e9e9ed">Für Creator</a>
+      </nav>
+      <div style="display:flex;align-items:center;gap:10px">
+        <a class="btn btn-ghost" href="#" style="font-size:14px">Anmelden</a>
+        <a class="btn btn-primary" href="#entdecken" style="min-height:38px;padding-inline:16px">Jetzt entdecken</a>
+      </div>
+    </div>
+  </header>
+
+  <section style="position:relative;overflow:hidden">
+    <div style="position:absolute;top:-260px;left:-120px;width:820px;height:820px;border-radius:50%;background:radial-gradient(circle,rgba(38,42,96,0.85) 0%,rgba(38,42,96,0.25) 45%,transparent 70%);animation:ms-drift 26s ease-in-out infinite;pointer-events:none"></div>
+    <div style="position:absolute;top:60px;right:-180px;width:640px;height:640px;border-radius:50%;background:radial-gradient(circle,rgba(145,132,217,0.22) 0%,transparent 68%);animation:ms-drift 34s ease-in-out infinite reverse;pointer-events:none"></div>
+
+    <div style="position:relative;max-width:1200px;margin:0 auto;padding:96px 40px 88px;display:grid;grid-template-columns:1.05fr 0.95fr;gap:64px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:26px">
+        <span style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:5px 12px;border-radius:20px;border:1px solid rgba(145,132,217,0.4);font-size:12px;color:#d2cefd">
+          <span style="width:6px;height:6px;border-radius:50%;background:#9184d9;animation:ms-pulse 2.6s ease-in-out infinite"></span>
+          Diskretion beginnt beim Design
+        </span>
+        <h1 style="margin:0;font-size:60px;line-height:1.04;letter-spacing:-0.03em;font-weight:500">Dein Raum.<br>Deine Regeln.</h1>
+        <p style="margin:0;font-size:18px;line-height:1.6;color:#b2b6ca;max-width:470px;text-wrap:pretty">Eine diskrete Plattform für exklusive Inhalte, persönliche Wünsche und sichere Verbindungen.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a class="btn btn-primary" href="#entdecken" style="min-height:52px;padding-inline:26px;font-size:16px">Profile entdecken</a>
+          <a class="btn btn-secondary" href="#creator" style="min-height:52px;padding-inline:26px;font-size:16px">Als Creator starten</a>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 26px;margin-top:8px;max-width:470px">
+          <sc-for list="{{ trust }}" as="t" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:9px;font-size:13px;color:#cfd3e5">
+              <svg style="flex:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9184d9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 12.5 10 17l8.5-9"></path></svg>
+              {{ t }}
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;justify-content:center">
+        <div style="position:absolute;bottom:-40px;width:340px;height:120px;border-radius:50%;background:radial-gradient(ellipse,rgba(145,132,217,0.22),transparent 70%);filter:blur(10px)"></div>
+        <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="368" height="748" hint-size="368px,748px">
+          <div style="height:100%;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif">
+            <div style="padding:54px 16px 10px;display:flex;align-items:center;gap:10px">
+              <image-slot id="l-me" shape="circle" style="width:34px;height:34px;flex:none" placeholder=" "></image-slot>
+              <div style="flex:1;display:flex;flex-direction:column">
+                <span style="font-size:10px;color:#75798c">Guten Abend</span>
+                <span style="font-size:15px;font-weight:500">Jonas</span>
+              </div>
+              <span style="width:30px;height:30px;border-radius:9px;background:#232532;display:grid;place-items:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" stroke-width="1.7" stroke-linecap="round"><path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5S6.5 14 6.5 10z"></path></svg>
+              </span>
+            </div>
+            <div style="flex:1;overflow:hidden;padding:0 16px;display:flex;flex-direction:column;gap:14px">
+              <div style="position:relative;overflow:hidden;border-radius:13px;padding:14px;background:linear-gradient(140deg,#262a60,#1e2140 60%,#232532);box-shadow:0 0 0 1px #3f424d">
+                <div style="position:absolute;top:-40px;right:-30px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(145,132,217,0.3),transparent 70%)"></div>
+                <div style="position:relative;display:flex;flex-direction:column;gap:9px">
+                  <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">Guthaben</span>
+                  <span style="font-size:30px;font-weight:500;letter-spacing:-0.03em;line-height:1">148,50 €</span>
+                  <span style="font-size:10px;color:#b2b6ca">42,00 € reserviert · Escrow geschützt</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Empfohlene Creator</span>
+                <div style="display:flex;gap:9px">
+                  <sc-for list="{{ heroCreators }}" as="c" hint-placeholder-count="3">
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;background:#232532;border-radius:11px;padding:7px;box-shadow:0 0 0 1px #3f424d">
+                      <div style="position:relative;height:82px;min-width:0">
+                        <image-slot id="{{ c.slot }}" shape="rounded" radius="8" placeholder=" "></image-slot>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:3px">
+                        <span style="font-size:11px;font-weight:500">{{ c.name }}</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="#9184d9"><path d="M12 2l2.4 1.6 2.9-.3 1 2.7 2.4 1.7-.7 2.8.7 2.8-2.4 1.7-1 2.7-2.9-.3L12 22l-2.4-1.6-2.9.3-1-2.7-2.4-1.7.7-2.8-.7-2.8 2.4-1.7 1-2.7 2.9.3z"></path></svg>
+                      </div>
+                      <span style="font-size:9px;color:#75798c">{{ c.region }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Nachrichten</span>
+                <div style="display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;background:#232532;box-shadow:0 0 0 1px #3f424d">
+                  <image-slot id="l-ch" shape="circle" style="width:30px;height:30px;flex:none" placeholder=" "></image-slot>
+                  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+                    <span style="font-size:12px">Lina</span>
+                    <span style="font-size:10px;color:#75798c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Übergabe bestätigt für Mittwoch.</span>
+                  </div>
+                  <span style="width:7px;height:7px;border-radius:50%;background:#9184d9"></span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:#1c1f2e">
+                <span style="width:30px;height:30px;border-radius:9px;background:#262a60;display:grid;place-items:center">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.3-2.9 8-7 10-4.1-2-7-5.7-7-10V6z"></path><path d="M8.8 12.2l2.3 2.3 4.1-4.4"></path></svg>
+                </span>
+                <div style="flex:1;display:flex;flex-direction:column">
+                  <span style="font-size:11px">Safe-Meet · Mi 18:30</span>
+                  <span style="font-size:10px;color:#75798c">QR-Check-in bereit</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#22c55e"><span style="width:5px;height:5px;border-radius:50%;background:#22c55e;animation:ms-pulse 2.4s ease-in-out infinite"></span>sicher</span>
+              </div>
+            </div>
+            <nav style="display:flex;gap:2px;padding:8px 6px 34px;background:#1b1d2b;border-top:1px solid rgba(233,233,237,0.10)">
+              <sc-for list="{{ heroNav }}" as="n" hint-placeholder-count="5">
+                <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;font-size:10px;color: {{ n.color }}">
+                  <span style="width:18px;height:18px;border-radius:5px;background: {{ n.chip }}"></span>{{ n.label }}
+                </span>
+              </sc-for>
+            </nav>
+          </div>
+        </x-import>
+      </div>
+    </div>
+  </section>
+
+  <section id="entdecken" style="max-width:1200px;margin:0 auto;padding:20px 40px 96px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(233,233,237,0.10);border-radius:14px;overflow:hidden">
+      <sc-for list="{{ promises }}" as="p" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:32px 30px;background:#161826">
+          <span style="font-size:22px;font-weight:500;letter-spacing:-0.015em">{{ p.title }}</span>
+          <span style="font-size:14px;line-height:1.65;color:#9397ab;text-wrap:pretty">{{ p.body }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="max-width:1200px;margin:0 auto;padding:0 40px 104px;display:flex;flex-direction:column;gap:34px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:40px">
+      <h2 style="margin:0;font-size:38px;letter-spacing:-0.025em;font-weight:500;max-width:520px">Drei Bereiche.<br>Ein Konto.</h2>
+      <p style="margin:0;font-size:14px;line-height:1.65;color:#75798c;max-width:340px">Alles läuft über dieselbe Wallet, dieselbe Verifizierung und dieselben Regeln.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+      <sc-for list="{{ areas }}" as="a" hint-placeholder-count="3">
+        <div style="position:relative;display:flex;flex-direction:column;gap:16px;padding:26px;border-radius:14px;background:#232532;box-shadow:0 0 0 1px #3f424d;transition:transform .3s ease, box-shadow .3s ease" style-hover="transform:translateY(-6px);box-shadow:0 0 0 1px #9184d9, 0 18px 44px rgba(145,132,217,0.18)">
+          <span style="width:42px;height:42px;border-radius:11px;background:#292b31;display:grid;place-items:center;color:#b5abfc">{{ a.icon }}</span>
+          <span style="font-size:20px;font-weight:500;letter-spacing:-0.015em">{{ a.title }}</span>
+          <span style="font-size:14px;line-height:1.65;color:#9397ab;flex:1;text-wrap:pretty">{{ a.body }}</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <sc-for list="{{ a.tags }}" as="t" hint-placeholder-count="3">
+              <span class="tag tag-neutral" style="font-size:10px">{{ t }}</span>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="creator" style="position:relative;padding:0 0 104px">
+    <div style="max-width:1200px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:0.9fr 1.1fr;gap:60px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#9184d9">Für Creator</span>
+        <h2 style="margin:0;font-size:38px;line-height:1.1;letter-spacing:-0.025em;font-weight:500">Baue deine eigene Community auf.</h2>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ creatorPoints }}" as="c" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:11px;font-size:15px;color:#cfd3e5">
+              <span style="width:22px;height:22px;flex:none;border-radius:7px;background:#292b31;display:grid;place-items:center">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 12.5 10 17l8.5-9"></path></svg>
+              </span>
+              {{ c }}
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:6px">
+          <a class="btn btn-primary" href="#" style="min-height:48px;padding-inline:22px;font-size:15px">Creator werden</a>
+          <a class="btn btn-ghost" href="#sicherheit" style="min-height:48px;font-size:15px">Auszahlungen ansehen</a>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;padding:24px;border-radius:16px;background:#1c1f2e;box-shadow:0 0 0 1px #3f424d, 0 24px 60px rgba(0,0,0,0.5)">
+        <div style="display:flex;align-items:center;gap:11px">
+          <image-slot id="l-creator" shape="circle" style="width:36px;height:36px;flex:none" placeholder=" "></image-slot>
+          <div style="flex:1;display:flex;flex-direction:column">
+            <span style="font-size:14px;font-weight:500">Creator-Dashboard</span>
+            <span style="font-size:11px;color:#75798c">Juli 2026</span>
+          </div>
+          <span class="tag tag-accent" style="font-size:10px">Verifiziert</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:12px;background:#232532;box-shadow:0 0 0 1px #3f424d">
+            <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9397ab">Einnahmen</span>
+            <span style="font-size:30px;font-weight:500;letter-spacing:-0.03em;line-height:1">2.418,50 €</span>
+            <div style="display:flex;align-items:flex-end;gap:5px;height:58px">
+              <sc-for list="{{ bars }}" as="b" hint-placeholder-count="14">
+                <span style="flex:1;border-radius:3px;background: {{ b.bg }};height: {{ b.h }}"></span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:12px;background:linear-gradient(150deg,#262a60,#232532);box-shadow:0 0 0 1px #3f424d">
+            <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#b5abfc">Auszahlbar</span>
+            <span style="font-size:24px;font-weight:500;letter-spacing:-0.02em;line-height:1">1.164,20 €</span>
+            <span style="font-size:11px;color:#b2b6ca;flex:1">Nächste Auszahlung 1. August</span>
+            <span class="btn btn-primary" style="min-height:38px">Auszahlen</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:5px;padding:14px;border-radius:11px;background:#232532;box-shadow:0 0 0 1px #3f424d">
+              <span style="font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:#75798c">{{ k.label }}</span>
+              <span style="font-size:20px;font-weight:500;letter-spacing:-0.02em;line-height:1.1">{{ k.value }}</span>
+              <span style="font-size:10px;color:#b5abfc">{{ k.hint }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="position:relative;margin-bottom:104px;height:340px;overflow:hidden">
+    <div class="lighten" style="position:absolute;inset:0">
+      <image-slot id="l-band" shape="rect" placeholder="Dunkle Lifestyle-Aufnahme — Stoff, Textur, Silhouette"></image-slot>
+    </div>
+    <div style="position:absolute;inset:0;background:linear-gradient(90deg,#161826 6%,rgba(22,24,38,0.55) 45%,rgba(22,24,38,0.1) 100%);pointer-events:none"></div>
+    <div style="position:relative;max-width:1200px;margin:0 auto;padding:0 40px;height:100%;display:flex;flex-direction:column;justify-content:center;gap:14px;pointer-events:none">
+      <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b5abfc">Bildsprache</span>
+      <span style="font-size:30px;font-weight:500;letter-spacing:-0.02em;max-width:520px;line-height:1.2">Premium-Lifestyle statt Erotik-Werbung.</span>
+      <span style="font-size:14px;line-height:1.65;color:#b2b6ca;max-width:420px">Stoffe, Texturen, Silhouetten und selbstbewusste Porträts — nie explizit, immer hochwertig.</span>
+    </div>
+  </section>
+
+  <section id="sicherheit" style="max-width:1200px;margin:0 auto;padding:0 40px 104px;display:flex;flex-direction:column;gap:36px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:40px">
+      <h2 style="margin:0;font-size:38px;line-height:1.1;letter-spacing:-0.025em;font-weight:500;max-width:560px">Sicherheit ist kein Zusatz.<br>Sie ist das System.</h2>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#22c55e;padding-bottom:8px">
+        <span style="position:relative;width:8px;height:8px"><span style="position:absolute;inset:0;border-radius:50%;background:#22c55e"></span><span style="position:absolute;inset:0;border-radius:50%;border:1px solid #22c55e;animation:ms-ring 2.4s ease-out infinite"></span></span>
+        Alle Systeme aktiv
+      </span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(233,233,237,0.10);border-radius:14px;overflow:hidden">
+      <sc-for list="{{ security }}" as="s" hint-placeholder-count="4">
+        <div style="position:relative;display:flex;flex-direction:column;gap:14px;padding:28px 24px 30px;background:#161826;transition:background .3s ease" style-hover="background:#1c1f2e">
+          <div style="position:relative;width:52px;height:52px;display:grid;place-items:center">
+            <span style="position:absolute;inset:0;border-radius:50%;border:1px solid rgba(145,132,217,0.35)"></span>
+            <span style="position:absolute;inset:8px;border-radius:50%;border:1px solid rgba(145,132,217,0.18)"></span>
+            <span style="color:#b5abfc">{{ s.icon }}</span>
+          </div>
+          <span style="font-size:17px;font-weight:500">{{ s.title }}</span>
+          <span style="font-size:13px;line-height:1.65;color:#9397ab;text-wrap:pretty">{{ s.body }}</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:#75798c;margin-top:auto">
+            <span style="width:5px;height:5px;border-radius:50%;background:#22c55e;animation:ms-pulse 2.8s ease-in-out infinite"></span>{{ s.state }}
+          </span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="position:relative;overflow:hidden;border-top:1px solid rgba(233,233,237,0.08)">
+    <div style="position:absolute;top:-320px;left:50%;transform:translateX(-50%);width:900px;height:640px;border-radius:50%;background:radial-gradient(circle,rgba(38,42,96,0.9) 0%,transparent 68%);pointer-events:none"></div>
+    <div style="position:relative;max-width:760px;margin:0 auto;padding:96px 40px 104px;display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center">
+      <h2 style="margin:0;font-size:42px;line-height:1.12;letter-spacing:-0.03em;font-weight:500">Bereit für eine Plattform,<br>die zu deinen Regeln passt?</h2>
+      <p style="margin:0;font-size:16px;line-height:1.65;color:#b2b6ca;max-width:460px">Sichere Zahlungen. Klare Regeln. Volle Kontrolle.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <a class="btn btn-primary" href="#" style="min-height:52px;padding-inline:28px;font-size:16px">Kostenlos registrieren</a>
+        <a class="btn btn-secondary" href="#creator" style="min-height:52px;padding-inline:28px;font-size:16px">Creator werden</a>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px">
+        <sc-for list="{{ hints }}" as="h" hint-placeholder-count="4">
+          <span class="tag tag-outline" style="font-size:11px;border-color:rgba(233,233,237,0.18);color:#9397ab">{{ h }}</span>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid rgba(233,233,237,0.08)">
+    <div style="max-width:1200px;margin:0 auto;padding:34px 40px;display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;margin-right:auto">
+        <img src="assets/app-icon.png" alt="" style="width:26px;height:26px;border-radius:7px">
+        <span style="font-size:13px;color:#9397ab">MeinSlip.de · Diskrete Verbindungen. Sichere Transaktionen.</span>
+      </div>
+      <div style="display:flex;gap:20px;font-size:12px">
+        <a href="#" style="color:#75798c;text-decoration:none" style-hover="color:#cfd3e5">Impressum</a>
+        <a href="#" style="color:#75798c;text-decoration:none" style-hover="color:#cfd3e5">Datenschutz</a>
+        <a href="#" style="color:#75798c;text-decoration:none" style-hover="color:#cfd3e5">AGB</a>
+        <a href="#" style="color:#75798c;text-decoration:none" style-hover="color:#cfd3e5">Support</a>
+      </div>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const icon = (paths, extra) => React.createElement('svg', {
+  width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+  strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round'
+}, paths.map((d, i) => React.createElement('path', { key: i, d })).concat(extra || []));
+
+class Component extends DCLogic {
+  renderVals() {
+    const accent = '#9184d9';
+    return {
+      trust: ['Identitätsgeprüfte Creator', 'Sichere Wallet-Zahlungen', 'Diskrete Nutzung', 'Geschützte Kommunikation'],
+
+      heroCreators: [
+        { slot: 'l-c1', name: 'Lina', region: 'Köln' },
+        { slot: 'l-c2', name: 'Mira', region: 'Hamburg' },
+        { slot: 'l-c3', name: 'Jo', region: 'Leipzig' }
+      ],
+      heroNav: [
+        { label: 'Home', color: '#b5abfc', chip: 'rgba(145,132,217,0.35)' },
+        { label: 'Entdecken', color: '#75798c', chip: '#292b31' },
+        { label: 'Chat', color: '#75798c', chip: '#292b31' },
+        { label: 'Wallet', color: '#75798c', chip: '#292b31' },
+        { label: 'Profil', color: '#75798c', chip: '#292b31' }
+      ],
+
+      promises: [
+        { title: 'Diskret', body: 'Neutrale Darstellung, geschützte Daten und unauffällige Nutzung — auf dem Homescreen wie auf dem Kontoauszug.' },
+        { title: 'Sicher', body: 'Verifizierung, Escrow-Zahlungen und kontrollierte Übergaben. Geld bewegt sich erst, wenn die Bedingungen erfüllt sind.' },
+        { title: 'Direkt', body: 'Creator und Käufer kommunizieren ohne Werbung und ohne unnötige Zwischenwege.' }
+      ],
+
+      areas: [
+        {
+          title: 'Content', tags: ['Abos', 'Pay-per-View', 'Private Inhalte'],
+          body: 'Exklusive Beiträge, Abonnements und Freischaltungen — Sichtbarkeit bestimmt die Creatorin.',
+          icon: icon(['M4 6.5h16v11H4z', 'M10 9.8l4.5 2.7-4.5 2.7z'])
+        },
+        {
+          title: 'Marketplace', tags: ['Konfigurator', 'Safe-Ship', 'Personalisiert'],
+          body: 'Personalisierte Produkte, individuelle Konfigurationen und diskreter Versand ohne private Absenderdaten.',
+          icon: icon(['M4 8.2 12 4l8 4.2v7.6L12 20l-8-4.2z', 'M4 8.2 12 12.4l8-4.2', 'M12 12.4V20'])
+        },
+        {
+          title: 'Safe-Meet', tags: ['QR-Check-in', 'Timer', 'Notfallkontakt'],
+          body: 'Sicher gebuchte persönliche Übergaben mit Check-in, Sicherheits-Timer und optionalem Notfallkontakt.',
+          icon: icon(['M12 21s6.5-6 6.5-11a6.5 6.5 0 1 0-13 0C5.5 15 12 21 12 21z'], [React.createElement('circle', { key: 'c', cx: 12, cy: 10, r: 2.2 })])
+        }
+      ],
+
+      creatorPoints: [
+        'Eigene Preise festlegen', 'Nachrichten monetarisieren', 'Produkte anbieten',
+        'Wunschaufträge annehmen', 'Auszahlungen verwalten', 'Sichtbarkeit selbst bestimmen'
+      ],
+
+      bars: [38, 52, 30, 64, 48, 72, 58, 41, 80, 66, 54, 88, 70, 96]
+        .map((v, i) => ({ h: v + '%', bg: i > 10 ? accent : '#3f424d' })),
+
+      kpis: [
+        { label: 'Bestellungen', value: '7', hint: '3 heute' },
+        { label: 'Nachrichten', value: '24', hint: '5 offen' },
+        { label: 'Abos', value: '138', hint: '+12' },
+        { label: 'Safe-Meet', value: '3', hint: 'Mi 18:30' }
+      ],
+
+      security: [
+        { title: 'Verified Identity', state: 'geprüft', body: 'Creator werden vor der Freischaltung geprüft — Ausweis, Selfie-Abgleich, Alter.', icon: icon(['M12 3l7 3v5c0 4.3-2.9 8-7 10-4.1-2-7-5.7-7-10V6z', 'M8.8 12.2l2.3 2.3 4.1-4.4']) },
+        { title: 'Protected Wallet', state: 'escrow aktiv', body: 'Zahlungen werden verwaltet und erst bei erfüllten Bedingungen freigegeben.', icon: icon(['M3 6.5h18v11H3z', 'M3 10.5h18'], [React.createElement('circle', { key: 'c', cx: 17, cy: 14, r: 1.2, fill: 'currentColor', stroke: 'none' })]) },
+        { title: 'Safe-Ship', state: 'label bereit', body: 'Versandlabels der Plattform schützen private Absenderdaten auf beiden Seiten.', icon: icon(['M4 8.2 12 4l8 4.2v7.6L12 20l-8-4.2z', 'M4 8.2 12 12.4l8-4.2']) },
+        { title: 'Safe-Meet', state: 'überwacht', body: 'QR-Check-in, Sicherheits-Timer und optionaler Notfallkontakt bei jeder Übergabe.', icon: icon(['M12 7v5l3.5 2'], [React.createElement('circle', { key: 'c', cx: 12, cy: 12, r: 8.5 })]) }
+      ],
+
+      hints: ['18+', 'Diskrete Nutzung', 'Verifizierte Accounts', 'Werbefreie Plattform']
+    };
+  }
+}
+</script>
+</body>
+</html>

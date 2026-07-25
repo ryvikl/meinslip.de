@@ -1,8 +1,10 @@
 # Design-System
 
-> **Stand:** 25.07.2026 · Grundlage ist das Designkonzept in
-> [`../konzepte-eingang/chatgpt-designkonzept.md`](../konzepte-eingang/chatgpt-designkonzept.md). Die Designrichtung
-> wurde übernommen, drei Punkte wurden korrigiert. Dieses Dokument ist maßgeblich, das Eingangsdokument nicht.
+> **Stand:** 25.07.2026 · Maßgeblich ist **Nocturne**, geliefert als Export aus Claude Design und umgesetzt in
+> [`../public/assets/css/nocturne.css`](../public/assets/css/nocturne.css). Nocturne hat die zuvor hier
+> beschriebene Palette **vollständig ersetzt**. Die alte Palette ist unten als
+> [Vorgeschichte](#vorgeschichte-die-ersetzte-palette) dokumentiert, weil ihre drei Korrekturen erklären, worauf
+> bei jeder Farbänderung zu achten ist — sie ist aber **nicht mehr in Kraft**, und `tokens.css` wurde gelöscht.
 
 ## Die Designidee
 
@@ -12,7 +14,47 @@ Die Plattform sieht aus wie Revolut und Vinted, nicht wie eine Erotikseite. Das 
 
 ---
 
-## Korrektur 1: Drei Farben verfehlen die Barrierefreiheit
+## Nocturne
+
+Nocturne ist dunkel, ruhig und farbarm — genau die Richtung, die die Designidee verlangt. Zwei Eigenschaften unterscheiden es von der ersetzten Palette:
+
+**Ein Akzent statt dreier Markentöne.** `#9184d9` trägt allein. Blau, Violett und Pink nebeneinander waren dekorativ, aber sie machten jede Hervorhebung beliebig: Wenn drei Farben „wichtig" bedeuten, bedeutet keine es. Der zweite Ton `#a7a1db` ist ein Vertreter derselben Familie, keine zweite Aussage.
+
+**Umrissene statt gefüllter Schaltflächen.** Damit entfällt der Stolperstein, der die alte Palette überhaupt erst zur Korrektur zwang — weiße Schrift auf mittelhellem Grund. Ein Umriss trägt seine Schrift auf dem Seitenhintergrund, wo sie 14,54:1 erreicht; der Umriss selbst muss nur 3:1 schaffen und schafft 4,71:1.
+
+**Dichte 0,70×.** Die Abstandstokens sind auf 70 % gestaucht (`--space-6: 16.8px` statt 24 px). Das ist der Grund, warum Nocturne mehr auf einen Handybildschirm bekommt, ohne gedrängt zu wirken.
+
+### Zwei Fehler im Export, beide behoben
+
+| Befund | Warum das nicht bleiben durfte | Behebung |
+| :--- | :--- | :--- |
+| **Rahmen der Eingabefelder bei 1,58:1** | WCAG 1.4.11 verlangt 3:1 für Bedienelemente. Ein Feld, dessen Rand man nicht sieht, ist kein Feld. | Neues Token `--color-feld-rahmen` mit 40 % Textfarbe → **3,23:1** |
+| **`@import` von Google Fonts** | Überträgt die IP-Adresse jedes Besuchers in die USA, bevor er zustimmen konnte. Auf einer Plattform, die mit Diskretion wirbt, ist das der denkbar schlechteste erste Netzwerkaufruf. | Acht Inter-Schnitte als `woff2` selbst gehostet unter `public/assets/fonts/`, eingebunden per `@font-face` |
+
+Beide sind durch Tests abgesichert: `HuelleTest::testKeineSchriftVonFremdenServern` und die Kontrastprüfung.
+
+### Gemessene Werte
+
+Alle Angaben aus `docs/kontrast-pruefung.py`, nicht abgeschrieben.
+
+| Rolle | Wert | auf `#161826` | auf `#232532` |
+| :--- | :--- | ---: | ---: |
+| Fließtext `--color-text` | `#e9e9ed` | 14,54:1 | 12,55:1 |
+| Akzent als Schrift | `#9184d9` | 5,45:1 | 4,71:1 |
+| Sekundärtext `neutral-400` | `#b2b6ca` | 8,75:1 | 7,55:1 |
+| Schwächster zulässiger Text `neutral-500` | `#9397ab` | 6,08:1 | 5,25:1 |
+| Rahmen Eingabefeld | 40 % Text | — | 3,23:1 |
+| Rahmen bei Fokus / `.btn-primary` | Akzent | — | 4,71:1 |
+
+`neutral-600` bis `neutral-900` liegen zwischen 4,08:1 und 1,24:1 und sind **ausschließlich Flächen- und Rahmenfarben** — niemals Schrift. Das Prüfskript führt sie getrennt auf, damit die Grenze im Bericht sichtbar bleibt.
+
+---
+
+## Vorgeschichte: die ersetzte Palette
+
+> Alles ab hier beschreibt den Stand **vor** Nocturne. Die Farbwerte sind nicht mehr in Kraft. Der Abschnitt bleibt, weil die drei Korrekturen die Prüfschritte begründen, die weiterhin bei jeder Farbänderung laufen — und weil Korrektur 2 eine Produktentscheidung ist, die unabhängig vom Design gilt.
+
+### Korrektur 1: Drei Farben verfehlen die Barrierefreiheit
 
 Das Barrierefreiheitsstärkungsgesetz gilt seit dem 28.06.2025 für den elektronischen Geschäftsverkehr und verlangt WCAG 2.1 AA. Die vorgeschlagene Palette wurde nachgerechnet — das Skript liegt bei und ist Teil der Prüfung.
 
@@ -29,7 +71,7 @@ Das Barrierefreiheitsstärkungsgesetz gilt seit dem 28.06.2025 für den elektron
 | Alarm `#EF4444` | 5,22:1 | 4,71:1 | besteht |
 | **Border Gray `#1E293B`** | **1,34:1** | **1,21:1** | **fällt durch** für Rahmen von Eingabefeldern (1.4.11 verlangt 3:1) |
 
-### Die Korrekturen
+#### Die Korrekturen
 
 Beim Nachrechnen fiel eine zweite Ebene auf, die im Eingangskonzept gar nicht betrachtet wurde: **Der Primary-Button mit Blau-Violett-Verlauf und weißer Schrift erreicht mit den Originalfarben nur 3,68:1** — weiße Schrift auf mittelhellem Blau ist der klassische Stolperstein. Deshalb werden Füll- und Textrollen getrennt.
 
@@ -52,7 +94,7 @@ Die ursprünglichen Markentöne `#3B82F6`, `#8B5CF6` und `#EF4444` bleiben erhal
 
 ---
 
-## Korrektur 2: Screenshot-Sperre und verschwindende Medien gibt es nicht
+### Korrektur 2: Screenshot-Sperre und verschwindende Medien gibt es nicht
 
 Das Designkonzept nennt „gesperrte Screenshots, soweit technisch möglich" und „verschwindende Medien". **In einer Progressive Web App ist beides nicht umsetzbar.** Es gibt im Browser kein Gegenstück zu Androids `FLAG_SECURE`, und iOS Safari bietet gar nichts. Jeder angezeigte Inhalt ist abgreifbar, spätestens über die Entwicklerwerkzeuge.
 
@@ -70,7 +112,7 @@ Das als Sicherheitsversprechen zu kommunizieren wäre ein Vertrauensbruch, sobal
 
 ---
 
-## Korrektur 3: Farben als Tokens, heller Modus möglich halten
+### Korrektur 3: Farben als Tokens, heller Modus möglich halten
 
 Das Konzept ist ausschließlich dunkel. Als Markenentscheidung vertretbar — aber die Farben werden als Tokens angelegt, sodass ein heller Modus später ohne Neubau möglich ist. `prefers-color-scheme` wird ausgewertet.
 
@@ -78,58 +120,50 @@ Das Konzept ist ausschließlich dunkel. Als Markenentscheidung vertretbar — ab
 
 ## Tokens
 
-Maßgeblich ist `public/assets/css/tokens.css`. Die Rollentrennung ist dort bewusst im Namen sichtbar: `-fill` trägt Schrift, `-text` **ist** Schrift, ohne Endung ist dekorativ.
+Maßgeblich ist [`../public/assets/css/nocturne.css`](../public/assets/css/nocturne.css). Ergänzungen der Anwendung
+stehen in `app.css` und dürfen **keinen einzigen Hexwert** enthalten — Farben, Abstände, Radien und Schatten kommen
+ausschließlich aus den Tokens. Nur so bleibt ein heller Modus später eine Frage von `prefers-color-scheme` und nicht
+ein Umbau.
 
 ```css
 :root {
   /* Flächen */
-  --ms-bg:             #080B14;
-  --ms-surface:        #111827;
-  --ms-surface-raised: #182236;
+  --color-bg:      #161826;
+  --color-surface: #232532;
 
   /* Schrift */
-  --ms-text:           #F8FAFC;
-  --ms-text-muted:     #CBD5E1;
-  --ms-text-subtle:    #94A3B8;   /* korrigiert von #64748B */
+  --color-text:    #e9e9ed;
 
-  /* Marke — dekorativ: Symbole, Fokusring, Aktivzustand. Nie Schrift darauf. */
-  --ms-accent:         #3B82F6;
-  --ms-accent-2:       #8B5CF6;
-  --ms-accent-3:       #EC4899;
+  /* Akzent — trägt allein. Als Schrift zulässig: 5,45:1 bzw. 4,71:1. */
+  --color-accent:   #9184d9;
+  --color-accent-2: #a7a1db;
 
-  /* Marke — als Schrift auf dunklem Grund */
-  --ms-accent-text:    #4C8DF7;   /* korrigiert von #3B82F6 */
-  --ms-accent-2-text:  #A78BFA;   /* korrigiert von #8B5CF6 */
-  --ms-accent-3-text:  #EC4899;
+  /* Linien */
+  --color-divider:     color-mix(in srgb, #e9e9ed 16%, transparent);
+  --color-feld-rahmen: color-mix(in srgb, #e9e9ed 40%, transparent);  /* ergänzt, 3,23:1 */
 
-  /* Marke — als Schaltflächenfüllung, trägt weiße Schrift */
-  --ms-accent-fill:    #2563EB;   /* korrigiert von #3B82F6 */
-  --ms-accent-2-fill:  #7C3AED;   /* korrigiert von #8B5CF6 */
-  --ms-on-fill:        #FFFFFF;
+  /* Tonleitern, in OKLCH auf einer gemeinsamen Helligkeitsskala erzeugt:
+     100–500 sind als Schrift zulässig, 600–900 ausschließlich Flächen. */
+  --color-neutral-100: #f3f5fe;  /* … */  --color-neutral-900: #292b31;
+  --color-accent-100:  #f5f4ff;  /* … */  --color-accent-900:  #2b2741;
 
-  /* Rahmen */
-  --ms-border:             #1E293B;  /* nur dekorative Trennlinien */
-  --ms-border-interactive: #687A96;  /* korrigiert, Eingabefelder und Bedienelemente */
+  /* Schrift — selbst gehostet, siehe public/assets/fonts/ */
+  --font-heading: "Inter", system-ui, sans-serif;
+  --font-body:    "Inter", system-ui, sans-serif;
 
-  /* Status */
-  --ms-success:      #22C55E;
-  --ms-success-fill: #22C55E;
-  --ms-warning:      #F59E0B;
-  --ms-warning-fill: #F59E0B;
-  --ms-danger:       #EF4444;   /* dekorativ */
-  --ms-danger-text:  #F35B5B;   /* korrigiert von #EF4444 */
-  --ms-danger-fill:  #DC2626;   /* korrigiert, trägt weiße Schrift */
+  /* Abstände, Dichte 0,70× */
+  --space-1: 2.8px;  --space-2: 5.6px;  --space-3: 8.4px;
+  --space-4: 11.2px; --space-6: 16.8px; --space-8: 22.4px;
 
   /* Form */
-  --ms-radius:    14px;
-  --ms-radius-sm:  8px;
-  --ms-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --radius-sm: 4px;  --radius-md: 8px;  --radius-lg: 14px;
 }
 ```
 
-Der Primary-Button behält damit seinen Blau-Violett-Verlauf — `#2563EB` nach `#7C3AED` — und weiße Schrift bleibt an beiden Enden lesbar (5,17:1 und 5,70:1).
+*(Gekürzt — die vollständigen Tonleitern stehen in der Datei.)*
 
-Schriftgrößen wie im Eingangskonzept: große Überschrift 44–56 px, Bereichsüberschrift 30–36 px, Kartenüberschrift 18–22 px, Fließtext 15–17 px, Navigation 13–15 px, Labels 11–13 px.
+Schriftgrößen: große Überschrift `clamp(1.75rem, 4vw, 2.5rem)`, darunter die Größen des Systems. Die Kopfzeile ist
+der einzige Ort mit einer eigenen Größe (`1.0625rem` für die Wortmarke).
 
 ---
 
@@ -173,18 +207,29 @@ Alle Texte liegen in `resources/lang/de-DE/`. Keine deutschen Zeichenketten im C
 
 ## Prüfung der Kontrastwerte
 
-Die Werte oben sind nicht abgeschrieben, sondern berechnet. Das Skript [`kontrast-pruefung.py`](kontrast-pruefung.py) prüft drei Dinge und muss nach **jeder** Farbänderung ohne Fehler durchlaufen:
+Die Werte oben sind nicht abgeschrieben, sondern berechnet. Das Skript [`kontrast-pruefung.py`](kontrast-pruefung.py) prüft vier Dinge und muss nach **jeder** Farbänderung ohne Fehler durchlaufen. Es läuft in `.github/workflows/pruefen.yml` bei jedem Push:
 
-1. **Schrift auf jeder der drei Flächen** — mindestens 4,5:1
-2. **Weiße Schrift auf jeder Schaltflächenfüllung** — mindestens 4,5:1, und die Füllung selbst mindestens 3:1 gegen den Seitenhintergrund, damit ihr Rand erkennbar bleibt
-3. **Dekorative Farben** (Symbole, Fokusring, Aktivzustand) — mindestens 3:1 gegen den Hintergrund
+1. **Jede Textfarbe auf beiden Flächen** (`--color-bg` und `--color-surface`) — mindestens 4,5:1
+2. **Rahmen von Bedienelementen** gegen die Kartenfläche — mindestens 3:1 nach WCAG 1.4.11. Das betrifft Eingabefelder in Ruhe, bei Hover und bei Fokus sowie den Umriss von `.btn-primary`
+3. **Schrift auf getönten Flächen** (`.tag-accent`, `.tag-neutral`) — mindestens 4,5:1 gegen die eigene Füllung, nicht gegen den Seitenhintergrund
+4. **Die Stufen 600–900 der Tonleitern** werden getrennt ausgewiesen und als *„als Schrift unzulaessig"* markiert, damit die Grenze im Bericht steht und nicht im Gedächtnis
 
 ```
 $ python3 docs/kontrast-pruefung.py
 ...
-Alle Farbkombinationen erfuellen WCAG 2.1 AA.
+Alle geprueften Farbkombinationen erfuellen WCAG 2.1 AA.
 $ echo $?
 0
 ```
 
-Der zweite Punkt hat die Korrektur der Füllfarben überhaupt erst ausgelöst — die Prüfung ist also nicht dekorativ, sie hat bereits einen echten Fehler gefunden, der sonst bis in die fertige Oberfläche durchgelaufen wäre.
+Die Prüfung ist nicht dekorativ: Sie hat in beiden Designs je einen echten Fehler gefunden, der sonst bis in die fertige Oberfläche durchgelaufen wäre — in der alten Palette die weiße Schrift auf Schaltflächenfüllungen (3,68:1), in Nocturne den Rahmen der Eingabefelder (1,58:1).
+
+---
+
+## Was die Oberfläche selbst absichert
+
+Zwei Dinge prüft kein Farbskript, beide haben in dieser Oberfläche bereits zugeschlagen:
+
+**Die Kopfzeile muss auf ein Telefon passen.** Marke, Anmelde- und Registrierknopf, Pseudonym und Schnellverbergen zusammen brauchten gemessene **447 px**. Verbreitete Geräte haben 360–390 px. Unterhalb von 560 px trägt deshalb die untere Navigation die Wege — sie führt abgemeldet zur Anmeldung —, die Wortmarke wird auf das Zeichen reduziert (der Text bleibt für Vorlesegeräte erhalten, sonst hätte der Verweis zur Startseite keinen lesbaren Namen), und das Pseudonym wird bei 12 Zeichen abgeschnitten. Danach: **258 px** abgemeldet, **301 px** angemeldet mit dem längstmöglichen Pseudonym.
+
+**Ein Pseudonym darf 30 Zeichen haben.** Ungebremst schiebt es jede Zeile auseinander, in die es gesetzt wird. Gekappt wird immer per CSS, nie im PHP — so bleibt der volle Name im Markup und Vorlesegeräte geben ihn vollständig aus.

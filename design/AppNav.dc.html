@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/nocturne-1e5b4287-5e1f-4f8c-8683-71daed6b3bf9/styles.css">
+  <script src="_ds/nocturne-1e5b4287-5e1f-4f8c-8683-71daed6b3bf9/_ds_bundle.js"></script>
+</helmet>
+<nav style="display:flex;align-items:stretch;gap:2px;padding:8px 6px 34px;background:#1b1d2b;border-top:1px solid rgba(233,233,237,0.10);font-family:Inter,system-ui,sans-serif">
+  <a href="#f-home" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;min-height:44px;text-decoration:none;border-radius:10px;color: {{ cHome }}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.2 12 3.6l8.5 6.6V20a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"></path><path d="M9.2 21v-6.4h5.6V21"></path></svg>
+    <span style="font-size:11px;letter-spacing:0.01em">Home</span>
+  </a>
+  <a href="#f-discover" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;min-height:44px;text-decoration:none;border-radius:10px;color: {{ cDisc }}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M14.9 9.1 13.4 13.4 9.1 14.9l1.5-4.3z"></path></svg>
+    <span style="font-size:11px;letter-spacing:0.01em">Entdecken</span>
+  </a>
+  <a href="#f-chat" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;min-height:44px;text-decoration:none;border-radius:10px;color: {{ cChat }}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v11H12l-5 3.5v-3.5H4z"></path></svg>
+    <span style="font-size:11px;letter-spacing:0.01em">Nachrichten</span>
+  </a>
+  <a href="#f-wallet" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;min-height:44px;text-decoration:none;border-radius:10px;color: {{ cWallet }}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12.5" rx="2.5"></rect><path d="M3 10h18"></path><circle cx="16.6" cy="14.2" r="1.1" fill="currentColor" stroke="none"></circle></svg>
+    <span style="font-size:11px;letter-spacing:0.01em">Wallet</span>
+  </a>
+  <a href="#f-profile" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;min-height:44px;text-decoration:none;border-radius:10px;color: {{ cProfile }}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="10" r="3.1"></circle><path d="M6.3 19.2a6.4 6.4 0 0 1 11.4 0"></path></svg>
+    <span style="font-size:11px;letter-spacing:0.01em">Profil</span>
+  </a>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:90},&quot;active&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;discover&quot;,&quot;chat&quot;,&quot;wallet&quot;,&quot;profile&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active || 'home';
+    const on = '#b5abfc', off = '#75798c';
+    const c = k => (k === active ? on : off);
+    return { cHome: c('home'), cDisc: c('discover'), cChat: c('chat'), cWallet: c('wallet'), cProfile: c('profile') };
+  }
+}
+</script>
+</body>
+</html>

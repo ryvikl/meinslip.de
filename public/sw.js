@@ -10,13 +10,22 @@
  * bleiben. Zwischengespeichert wird nur die Hülle.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const HUELLE_CACHE = `meinslip-huelle-${VERSION}`;
 
+/*
+ * Achtung beim Ändern: cache.addAll() bricht ab, sobald EIN Eintrag fehlt —
+ * dann installiert sich der Service Worker gar nicht und der Offline-Betrieb
+ * fällt still aus. Ein umbenanntes Stylesheet hat genau das schon ausgelöst.
+ * HuelleTest.php prüft deshalb, dass jeder Eintrag hier auch existiert.
+ *
+ * nocturne.css muss mit in die Liste: app.css holt es per @import in einer
+ * eigenen Anfrage nach. Fehlt es, lädt die Offline-Seite ohne jede Gestaltung.
+ */
 const HUELLE = [
   "/offline",
   "/assets/css/app.css",
-  "/assets/css/tokens.css",
+  "/assets/css/nocturne.css",
   "/assets/js/app.js",
 ];
 

@@ -1,10 +1,12 @@
-@import url("tokens.css");
+@import url("nocturne.css");
 
 /*
- * Grundlayout und Komponenten.
+ * Anwendungsspezifische Ergänzungen zum Nocturne-Designsystem.
  *
- * Mobile zuerst: Navigation am unteren Rand, große Berührungsflächen,
- * einhändige Bedienung.
+ * Regel aus dem Systemhandbuch: Farben, Abstände, Radien und Schatten kommen
+ * ausschließlich aus den Tokens — hier steht kein einziger Hexwert und keine
+ * Zahl, die ein Token schon trägt. Ergänzt wird nur, was das System nicht
+ * abdeckt: Kopfleiste, untere Navigation, Hero und der Diskretions-Vorhang.
  */
 
 *,
@@ -20,67 +22,50 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--ms-bg);
-  color: var(--ms-text);
-  font-family: var(--ms-font);
-  font-size: var(--ms-text-body);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--ms-font-titel);
-  line-height: 1.2;
-  margin: 0 0 var(--ms-raum-4);
-  letter-spacing: -0.02em;
-}
+/* Nocturne: Hierarchie über Größe und Raum, Überschriften nie fetter als 500. */
+h1 { font-size: clamp(2rem, 6vw, 3.75rem); line-height: 1.04; letter-spacing: -0.03em; margin: 0; }
+h2 { font-size: clamp(1.5rem, 4vw, 2.25rem); line-height: 1.1; letter-spacing: -0.02em; margin: 0; }
+h3 { font-size: 1.0625rem; letter-spacing: -0.01em; margin: 0; }
 
-h1 { font-size: var(--ms-text-hero); }
-h2 { font-size: var(--ms-text-bereich); }
-h3 { font-size: var(--ms-text-karte); }
+p { margin: 0; }
 
-p { margin: 0 0 var(--ms-raum-4); }
+a { color: var(--color-accent-300); text-underline-offset: 3px; }
 
-a {
-  color: var(--ms-accent-text);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-}
-
-/* Sichtbarer Fokus — Pflicht für Tastaturbedienung. */
+/* Fokus kommt aus dem System, nie der Browser-Standard. */
 :focus-visible {
-  outline: 3px solid var(--ms-accent);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-  border-radius: var(--ms-radius-sm);
+  border-radius: var(--radius-sm);
 }
 
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
+img { max-width: 100%; height: auto; display: block; }
 
 /* --- Aufbau ------------------------------------------------------------ */
 
 .ms-huelle {
-  width: min(1120px, 100% - 2 * var(--ms-raum-4));
+  width: min(1120px, 100% - 2 * var(--space-6));
   margin-inline: auto;
 }
 
 .ms-inhalt {
-  /* Platz für die untere Navigation auf dem Smartphone. */
-  padding-block: var(--ms-raum-6) calc(var(--ms-raum-8) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-block: var(--space-8) calc(var(--space-8) * 3 + env(safe-area-inset-bottom));
 }
 
-/* Nur für Screenreader. */
+@media (min-width: 860px) {
+  .ms-inhalt { padding-bottom: var(--space-8); }
+}
+
 .ms-nur-vorlesen {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
@@ -88,214 +73,182 @@ img {
 
 .ms-sprungmarke {
   position: absolute;
-  left: var(--ms-raum-4);
+  left: var(--space-6);
   top: -100px;
   z-index: 100;
-  background: var(--ms-accent-fill);
-  color: var(--ms-on-fill);
-  padding: var(--ms-raum-3) var(--ms-raum-4);
-  border-radius: var(--ms-radius-sm);
-  transition: top var(--ms-uebergang);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-accent);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: top 150ms ease;
 }
 
-.ms-sprungmarke:focus {
-  top: var(--ms-raum-4);
-}
+.ms-sprungmarke:focus { top: var(--space-6); }
 
-/* --- Kopfzeile --------------------------------------------------------- */
+/* --- Kopfleiste -------------------------------------------------------- */
 
 .ms-kopf {
   position: sticky;
   top: 0;
   z-index: 20;
   backdrop-filter: blur(12px);
-  background: color-mix(in srgb, var(--ms-bg) 82%, transparent);
-  border-bottom: 1px solid var(--ms-border);
+  background: color-mix(in srgb, var(--color-bg) 84%, transparent);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .ms-kopf__reihe {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ms-raum-4);
-  padding-block: var(--ms-raum-3);
+  gap: var(--space-6);
+  padding-block: var(--space-4);
 }
 
 .ms-marke {
   display: inline-flex;
   align-items: center;
-  gap: var(--ms-raum-2);
-  font-weight: 700;
-  color: var(--ms-text);
+  gap: var(--space-3);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
   text-decoration: none;
-  font-family: var(--ms-font-titel);
 }
 
-.ms-marke__zeichen {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--ms-accent-fill), var(--ms-accent-2-fill));
-  display: grid;
-  place-items: center;
-  color: var(--ms-on-fill);
-  font-weight: 800;
-}
+.ms-marke img { width: 34px; height: 34px; border-radius: 9px; }
+.ms-marke__endung { color: var(--color-neutral-500); }
 
-.ms-kopf__nav {
-  display: none;
-  gap: var(--ms-raum-5);
-  align-items: center;
-}
+.ms-kopf__nav { display: none; align-items: center; gap: var(--space-8); }
 
-@media (min-width: 860px) {
-  .ms-kopf__nav { display: flex; }
-}
+@media (min-width: 860px) { .ms-kopf__nav { display: flex; } }
 
 .ms-kopf__nav a {
-  color: var(--ms-text-muted);
+  font-size: 0.875rem;
+  color: var(--color-neutral-300);
   text-decoration: none;
-  font-size: var(--ms-text-nav);
 }
 
-.ms-kopf__nav a:hover { color: var(--ms-text); }
+.ms-kopf__nav a:hover { color: var(--color-text); }
 
-/* --- Schaltflächen ----------------------------------------------------- */
+.ms-kopf__aktionen { display: flex; align-items: center; gap: var(--space-3); }
 
-.ms-knopf {
+/* Ein Pseudonym darf 30 Zeichen haben. Ungebremst schiebt es die Kopfzeile
+   auseinander, deshalb hier gekappt — der volle Text bleibt im Markup und
+   wird von Vorlesegeräten weiterhin vollständig ausgegeben. */
+.ms-kopf__pseudonym {
+  display: inline-block;
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.7;
+}
+
+/* Gemessen: Marke und Aktionen zusammen brauchen 447 px. Verbreitete
+   Telefone haben 360–390 px. Unterhalb 560 px trägt deshalb die untere
+   Navigation die Wege, und die Kopfzeile behält nur Marke, Hauptaktion und
+   Schnellverbergen. Der Markenname bleibt für Vorlesegeräte erhalten —
+   sonst hätte der Verweis zur Startseite keinen lesbaren Namen mehr. */
+@media (max-width: 559px) {
+  .ms-marke__text {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ms-kopf__nebenaktion { display: none; }
+}
+
+/* --- Hero -------------------------------------------------------------- */
+
+.ms-hero { display: flex; flex-direction: column; gap: var(--space-8); }
+
+.ms-hero__marke {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--ms-raum-2);
-  min-height: 48px;              /* große Berührungsfläche */
-  padding: var(--ms-raum-3) var(--ms-raum-5);
-  border-radius: var(--ms-radius-pill);
-  border: 1px solid transparent;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  transition: transform var(--ms-uebergang), filter var(--ms-uebergang);
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-lg);
+  font-size: 0.75rem;
+  color: var(--color-neutral-300);
 }
 
-.ms-knopf:active { transform: translateY(1px); }
-
-.ms-knopf--haupt {
-  background: linear-gradient(135deg, var(--ms-accent-fill), var(--ms-accent-2-fill));
-  color: var(--ms-on-fill);
+/* Der Akzent als Marke, nicht als Fläche — Nocturne-Grundregel. */
+.ms-hero__punkt {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-accent);
 }
 
-.ms-knopf--haupt:hover { filter: brightness(1.08); }
-
-.ms-knopf--zweit {
-  background: var(--ms-surface);
-  color: var(--ms-text);
-  border-color: var(--ms-border-interactive);
+.ms-hero__unterzeile {
+  color: var(--color-neutral-300);
+  font-size: 1.0625rem;
+  max-width: 52ch;
 }
 
-.ms-knopf--gefahr {
-  background: var(--ms-danger-fill);
-  color: var(--ms-on-fill);
-}
+.ms-hero__knoepfe { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 
-.ms-knopf--leer {
-  background: transparent;
-  color: var(--ms-text-muted);
-}
+.ms-hero__knoepfe .btn { min-height: 48px; padding-inline: var(--space-8); font-size: 1rem; }
 
-/* --- Karten ------------------------------------------------------------ */
-
-.ms-karte {
-  background: var(--ms-surface);
-  border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius);
-  padding: var(--ms-raum-5);
-  transition: transform var(--ms-uebergang), border-color var(--ms-uebergang);
-}
-
-.ms-karte--hebend:hover {
-  transform: translateY(-3px);
-  border-color: var(--ms-border-interactive);
-}
-
-.ms-karte__titel {
-  margin-bottom: var(--ms-raum-2);
-}
-
-.ms-karte__text {
-  color: var(--ms-text-subtle);
+.ms-merkmale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
+  padding: 0;
   margin: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--color-neutral-300);
 }
+
+.ms-merkmale li { display: flex; align-items: center; gap: var(--space-2); }
+.ms-merkmale svg { color: var(--color-accent); flex: none; }
+
+/* --- Raster und Karten ------------------------------------------------- */
 
 .ms-raster {
   display: grid;
-  gap: var(--ms-raum-4);
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
-/* --- Abzeichen --------------------------------------------------------- */
+.ms-abschnitt { display: flex; flex-direction: column; gap: var(--space-6); }
 
-.ms-abzeichen {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ms-raum-1);
-  padding: var(--ms-raum-1) var(--ms-raum-3);
-  border-radius: var(--ms-radius-pill);
-  font-size: var(--ms-text-label);
-  font-weight: 600;
-  border: 1px solid var(--ms-border-interactive);
-  color: var(--ms-text-muted);
-}
-
-.ms-abzeichen--geprueft {
-  color: var(--ms-success-text);
-  border-color: color-mix(in srgb, var(--ms-success) 45%, transparent);
-}
-
-.ms-abzeichen--treuhand {
-  color: var(--ms-accent-text);
-  border-color: color-mix(in srgb, var(--ms-accent) 45%, transparent);
-}
-
-.ms-abzeichen--warnung {
-  color: var(--ms-warning-text);
-  border-color: color-mix(in srgb, var(--ms-warning) 45%, transparent);
+.ms-kicker {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
 }
 
 /* --- Formulare --------------------------------------------------------- */
 
-.ms-feld {
-  display: block;
-  margin-bottom: var(--ms-raum-4);
+.ms-formular {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 26rem;
 }
 
-.ms-feld__marke {
-  display: block;
-  font-size: var(--ms-text-label);
-  color: var(--ms-text-subtle);
-  margin-bottom: var(--ms-raum-2);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
+.field { display: flex; flex-direction: column; gap: var(--space-2); }
+.field label { font-size: 0.8125rem; color: var(--color-neutral-300); }
+.field .hinweis { font-size: 0.75rem; color: var(--color-neutral-500); }
 
-.ms-feld__eingabe {
-  width: 100%;
-  min-height: 48px;
-  padding: var(--ms-raum-3) var(--ms-raum-4);
-  background: var(--ms-surface-raised);
-  /* 3:1 gegen die Fläche — WCAG 1.4.11 für Bedienelemente. */
-  border: 1px solid var(--ms-border-interactive);
-  border-radius: var(--ms-radius-sm);
-  color: var(--ms-text);
-  font: inherit;
-}
-
-.ms-feld__eingabe::placeholder { color: var(--ms-text-subtle); }
-
-.ms-feld__fehler {
-  color: var(--ms-danger-text);
-  font-size: var(--ms-text-nav);
-  margin-top: var(--ms-raum-2);
+.ms-fehler {
+  padding: var(--space-4);
+  border: 1px solid var(--color-accent-700);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  font-size: 0.875rem;
 }
 
 /* --- Untere Navigation ------------------------------------------------- */
@@ -306,88 +259,62 @@ img {
   bottom: 0;
   z-index: 30;
   display: flex;
-  justify-content: space-around;
-  background: color-mix(in srgb, var(--ms-surface) 94%, transparent);
+  gap: 2px;
+  padding: var(--space-3) var(--space-2) calc(var(--space-3) + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   backdrop-filter: blur(12px);
-  border-top: 1px solid var(--ms-border);
-  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--color-divider);
 }
 
-@media (min-width: 860px) {
-  .ms-untennav { display: none; }
-}
+@media (min-width: 860px) { .ms-untennav { display: none; } }
 
 .ms-untennav__eintrag {
   flex: 1;
-  min-height: 56px;
-  display: grid;
-  place-items: center;
-  gap: 2px;
-  color: var(--ms-text-subtle);
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+  border-radius: var(--radius-lg);
   text-decoration: none;
-  font-size: var(--ms-text-label);
-  padding-block: var(--ms-raum-2);
+  font-size: 0.6875rem;
+  color: var(--color-neutral-500);
 }
 
-.ms-untennav__eintrag[aria-current="page"] { color: var(--ms-accent-text); }
-
-/* --- Hero -------------------------------------------------------------- */
-
-.ms-hero {
-  padding-block: var(--ms-raum-8);
-}
-
-.ms-hero__unterzeile {
-  color: var(--ms-text-muted);
-  font-size: 1.125rem;
-  max-width: 52ch;
-}
-
-.ms-hero__knoepfe {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ms-raum-3);
-  margin-top: var(--ms-raum-5);
-}
-
-.ms-merkmale {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ms-raum-3);
-  margin-top: var(--ms-raum-6);
-  padding: 0;
-  list-style: none;
-}
+.ms-untennav__eintrag[aria-current="page"] { color: var(--color-accent); }
 
 /* --- Fußzeile ---------------------------------------------------------- */
 
 .ms-fuss {
-  border-top: 1px solid var(--ms-border);
-  padding-block: var(--ms-raum-6);
-  margin-bottom: 72px;           /* Platz für die untere Navigation */
-  color: var(--ms-text-subtle);
-  font-size: var(--ms-text-nav);
+  border-top: 1px solid var(--color-divider);
+  padding-block: var(--space-8);
+  margin-bottom: 72px;
+  font-size: 0.8125rem;
+  color: var(--color-neutral-500);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
-@media (min-width: 860px) {
-  .ms-fuss { margin-bottom: 0; }
-}
+@media (min-width: 860px) { .ms-fuss { margin-bottom: 0; } }
 
 .ms-fuss__links {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ms-raum-4);
+  gap: var(--space-4) var(--space-6);
   padding: 0;
-  margin: 0 0 var(--ms-raum-4);
+  margin: 0;
   list-style: none;
 }
 
-.ms-fuss a { color: var(--ms-text-subtle); }
+.ms-fuss a { color: var(--color-neutral-400); text-decoration: none; }
+.ms-fuss a:hover { color: var(--color-text); text-decoration: underline; }
 
 /* --- Schnellverbergen -------------------------------------------------- */
 
 /*
- * Diskretion als Funktion, nicht als Versprechen: Esc oder ein Doppeltipp
+ * Diskretion als Funktion, nicht als Versprechen: Esc oder die Schaltfläche
  * legt sofort einen unverfänglichen Bildschirm darüber.
  */
 .ms-vorhang {
@@ -396,36 +323,28 @@ img {
   z-index: 999;
   display: none;
   place-items: center;
-  background: #0f1521;
-  color: #cbd5e1;
-  font-family: var(--ms-font);
+  background: var(--color-bg);
   text-align: center;
-  padding: var(--ms-raum-6);
+  padding: var(--space-8);
 }
 
 .ms-vorhang[data-sichtbar="ja"] { display: grid; }
 
-/* --- Unscharfe Vorschau ------------------------------------------------ */
+/* --- Gesperrte Inhalte ------------------------------------------------- */
 
 /*
- * ACHTUNG: Diese Klasse ist nur die visuelle Hülle. Die eigentliche
- * Unschärfe wird SERVERSEITIG als eigene Datei erzeugt — ein Weichzeichner
- * per CSS wäre wirkungslos, weil das Original dann im Browser läge.
- * Siehe docs/05-recht-compliance.md.
+ * ACHTUNG: nur die visuelle Hülle. Die Unschärfe wird SERVERSEITIG als eigene
+ * Datei erzeugt — ein Weichzeichner per CSS wäre wirkungslos, weil das
+ * Original dann im Browser läge. Siehe docs/05-recht-compliance.md.
  */
-.ms-gesperrt {
-  position: relative;
-  border-radius: var(--ms-radius);
-  overflow: hidden;
-}
+.ms-gesperrt { position: relative; border-radius: var(--radius-md); overflow: hidden; }
 
 .ms-gesperrt__schloss {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  gap: var(--ms-raum-2);
-  background: color-mix(in srgb, var(--ms-bg) 55%, transparent);
-  color: var(--ms-text);
-  font-weight: 600;
+  gap: var(--space-2);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+  font-size: 0.8125rem;
 }
