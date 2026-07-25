@@ -9,7 +9,8 @@ use MeinSlip\Core\Migrator;
 
 $wurzel = dirname(__DIR__);
 
-require $wurzel . '/vendor/autoload.php';
+require $wurzel . '/app/Core/Autoloader.php';
+MeinSlip\Core\Autoloader::starten($wurzel);
 
 Env::laden($wurzel . '/.env');
 

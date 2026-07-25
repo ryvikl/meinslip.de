@@ -49,6 +49,7 @@ Thumbs.db
 # === Test und Werkzeuge ===
 /coverage/
 .phpunit.result.cache
+/.phpunit.cache/
 
 # Composer-Sperrdatei bleibt im Repo (reproduzierbare Installation),
 # das Verzeichnis vendor/ nicht.
@@ -61,3 +62,7 @@ deployment/.deploy.env
 *.sqlite
 *.sqlite3
 /storage/*.sqlite
+
+# Bauartefakt des Deployment-Pakets
+/deployment/upload/
+/deployment/*.zip

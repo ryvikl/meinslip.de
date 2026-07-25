@@ -1,5 +1,29 @@
 # Deployment
 
+## Der schnelle Weg — ohne SSH, ohne Composer
+
+Die Anwendung hat **produktiv keine externen Abhängigkeiten**. Der eigene Klassenlader in `app/Core/Autoloader.php` ersetzt Composer, deshalb muss kein `vendor/`-Verzeichnis auf den Server. Damit reduziert sich das Deployment auf fünf Schritte:
+
+```
+./deployment/paket-bauen.sh
+```
+
+Das erzeugt `deployment/upload/` — 42 Dateien, rund 340 KB. Dann:
+
+1. **Inhalt von `deployment/upload/` per FTP-Programm hochladen** (FileZilla, Cyberduck)
+2. **Im KAS-Adminbereich unter *Domains*** das Verzeichnis der Domain auf das Unterverzeichnis **`public/`** setzen — der wichtigste Schritt, siehe unten
+3. **MySQL-Datenbank anlegen** (KAS-Adminbereich)
+4. **`.env.BEISPIEL` in `.env` umbenennen** und ausfüllen: Datenbankdaten, `APP_SCHLUESSEL`, `EINRICHTUNG_TOKEN`
+5. **Im Browser aufrufen:** `https://deine-domain/einrichten?token=DEIN_TOKEN`
+
+Die Einrichtungsseite prüft PHP-Version, Datenbankverbindung, Schreibrechte und ob die `.env` versehentlich im öffentlichen Verzeichnis liegt — und legt die Tabellen an. Danach `EINRICHTUNG_TOKEN` wieder leeren.
+
+Prüfen, ob alles läuft: `https://deine-domain/zustand`
+
+Für Deployments per SSH und rsync gibt es zusätzlich `deploy.sh` — der Weg oben ist aber der einfachere.
+
+---
+
 > **Vor dem ersten Deployment lesen.** Zwei Punkte sind nicht verhandelbar.
 
 ## Zuerst: Zugangsdaten neu setzen
