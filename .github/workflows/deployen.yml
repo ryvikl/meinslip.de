@@ -227,6 +227,45 @@ jobs:
           ssh "${SSH_BENUTZER}@${SSH_HOST}" \
             "mkdir -p '${SSH_ZIEL}/storage/logs' '${SSH_ZIEL}/storage/uploads' && chmod -R 775 '${SSH_ZIEL}/storage'"
 
+      - name: Konfiguration auf dem Server prüfen
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_BENUTZER: ${{ secrets.SSH_BENUTZER }}
+          SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
+        run: |
+          set -euo pipefail
+
+          # Die .env wird bewusst NICHT übertragen — sie lebt auf dem Server
+          # und enthält die Datenbankzugänge. Beim allerersten Deployment
+          # existiert sie deshalb noch nicht, und die Migrationen würden mit
+          # einer wenig hilfreichen Meldung scheitern.
+          if ssh "${SSH_BENUTZER}@${SSH_HOST}" "test -f '${SSH_ZIEL}/.env'"; then
+            echo "Die .env ist vorhanden."
+            exit 0
+          fi
+
+          echo "Auf dem Server fehlt noch die .env — das ist beim ersten Deployment normal."
+          echo
+          echo "Die Dateien liegen jetzt unter ${SSH_ZIEL}. Es fehlen drei Schritte:"
+          echo
+          echo "  1. Im KAS-Adminbereich eine MySQL-Datenbank anlegen."
+          echo
+          echo "  2. Per SSH verbinden und die .env aus der Vorlage erstellen:"
+          echo "       cd ${SSH_ZIEL}"
+          echo "       cp .env.BEISPIEL .env"
+          echo "       nano .env"
+          echo "     Auszufüllen: DB_NAME, DB_BENUTZER, DB_PASSWORT, APP_SCHLUESSEL."
+          echo "     Schlüssel erzeugen mit:"
+          echo "       php -r \"echo bin2hex(random_bytes(32)), PHP_EOL;\""
+          echo
+          echo "  3. Im KAS-Adminbereich unter Domains das Verzeichnis der Domain"
+          echo "     auf ${SSH_ZIEL}/public zeigen lassen."
+          echo "     Ohne diesen Schritt lägen .env und app/ offen im Netz."
+          echo
+          echo "Danach dieses Deployment erneut auslösen — dann laufen die"
+          echo "Migrationen durch und die Betriebsprüfung wird grün."
+          exit 1
+
       - name: Migrationen ausführen
         if: ${{ github.event_name == 'push' || inputs.migrationen }}
         env:
