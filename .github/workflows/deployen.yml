@@ -149,6 +149,50 @@ jobs:
           fi
           echo "Server überprüft."
 
+      - name: Zielverzeichnis absichern
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_BENUTZER: ${{ secrets.SSH_BENUTZER }}
+          SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
+        run: |
+          set -euo pipefail
+
+          # Der nächste Schritt löscht mit --delete alles im Ziel, was nicht
+          # zum Paket gehört. Zeigt SSH_ZIEL versehentlich auf ein Verzeichnis
+          # mit anderen Inhalten — etwa das Web-Stammverzeichnis des ganzen
+          # Kontos — wären die unwiederbringlich weg.
+          #
+          # Deshalb: übertragen wird nur in ein Verzeichnis, das leer ist,
+          # nicht existiert, oder aus einem früheren Deployment stammt.
+          zustand=$(ssh "${SSH_BENUTZER}@${SSH_HOST}" "
+            ziel='${SSH_ZIEL}'
+            if [ ! -d \"\$ziel\" ]; then echo neu; exit 0; fi
+            if [ -f \"\$ziel/.meinslip-deploy\" ]; then echo bekannt; exit 0; fi
+            if [ -z \"\$(ls -A \"\$ziel\" 2>/dev/null)\" ]; then echo leer; exit 0; fi
+            echo fremd
+          ")
+
+          echo "Zustand des Zielverzeichnisses: ${zustand}"
+
+          case "${zustand}" in
+            neu|leer|bekannt)
+              echo "Übertragung ist sicher."
+              ;;
+            *)
+              echo
+              echo "FEHLER: '${SSH_ZIEL}' enthält Dateien, die nicht von einem"
+              echo "früheren Deployment stammen. Die Übertragung würde sie löschen."
+              echo
+              echo "Inhalt:"
+              ssh "${SSH_BENUTZER}@${SSH_HOST}" "ls -A '${SSH_ZIEL}' | head -20"
+              echo
+              echo "Prüfe, ob SSH_ZIEL auf das richtige Verzeichnis zeigt."
+              echo "Ist es das richtige und der Inhalt darf weg, lege dort einmalig"
+              echo "eine leere Datei .meinslip-deploy an."
+              exit 1
+              ;;
+          esac
+
       - name: Übertragen
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -156,6 +200,10 @@ jobs:
           SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
         run: |
           set -euo pipefail
+
+          # Kennzeichnet das Verzeichnis als unseres — die Absicherung oben
+          # erkennt es beim nächsten Lauf daran wieder.
+          touch ./deployment/upload/.meinslip-deploy
 
           # --delete räumt entfernte Dateien auf dem Server auf.
           # Die Ausschlüsse sind lebenswichtig: .env enthält die
