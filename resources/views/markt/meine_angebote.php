@@ -6,15 +6,32 @@ declare(strict_types=1);
  * Meine Angebote.
  *
  * Verkaufen ist eine Faehigkeit, kein zweites Konto — deshalb liegt diese
- * Seite in derselben Anmeldung. Ist die Faehigkeit nicht freigeschaltet,
- * erklaert die Seite den Grund, statt eine Fehlerseite zu zeigen.
+ * Seite in derselben Anmeldung. Seit dem Modellwechsel wird sie bei der
+ * Registrierung vergeben; ihr Fehlen ist keine ausstehende Freischaltung mehr,
+ * sondern eine Sanktion. Der Zweig $gesperrt === 'faehigkeit' sagt das jetzt
+ * auch so.
+ *
+ * DER STATUS 'gesperrt' BRAUCHT MEHR ALS EIN ETIKETT. In einer Tabellenzelle
+ * steht nur ein Wort; was es bedeutet und wo die Begruendung liegt, passt dort
+ * nicht hinein. Deshalb erscheint ueber der Tabelle ein erklaerender Satz,
+ * sobald mindestens ein Angebot gesperrt ist — und nur dann. Die Begruendung
+ * selbst wird nach Art. 17 DSA zugestellt und liegt im Profil.
  *
  * @var string|null $gesperrt  anmeldung | faehigkeit | gestoert | null
  * @var list<array<string,mixed>> $angebote
  */
 
+use MeinSlip\Domain\Catalog\Angebote;
+
 $gesperrt ??= null;
 $angebote ??= [];
+
+$hatGesperrte = false;
+foreach ($angebote as $eintrag) {
+    if ((string) $eintrag['status'] === Angebote::STATUS_GESPERRT) {
+        $hatGesperrte = true;
+    }
+}
 ?>
 <section class="ms-abschnitt">
     <div>
@@ -38,9 +55,16 @@ $angebote ??= [];
             </p>
         </article>
     <?php elseif ($gesperrt === 'faehigkeit'): ?>
-        <article class="card elev-sm">
+        <?php // Seit dem Modellwechsel bedeutet dieser Zweig etwas anderes: Die
+              // Faehigkeit 'verkaufen' wird bei der Registrierung vergeben. Wer
+              // sie nicht hat, dem wurde sie entzogen — eine begruendete,
+              // protokollierte und nach Art. 17 DSA zugestellte Massnahme. Der
+              // Verweis fuehrt deshalb zur Zustellung und damit zum Widerspruch,
+              // nicht in ein Verifizierungsverfahren, das hier nichts loest. ?>
+        <article class="card elev-sm" role="status">
             <h2 class="card-title"><?= te('markt.verkaufen_gesperrt_titel') ?></h2>
             <p class="card-body"><?= te('markt.verkaufen_gesperrt_text') ?></p>
+            <p><a class="btn btn-secondary" href="/profil"><?= te('markt.verkaufen_gesperrt_zum_profil') ?></a></p>
         </article>
     <?php elseif ($angebote === []): ?>
         <article class="card elev-sm">
@@ -50,6 +74,14 @@ $angebote ??= [];
         </article>
     <?php else: ?>
         <p><a class="btn btn-primary" href="/verkaufen/neu"><?= te('markt.verkaufen_neu') ?></a></p>
+
+        <?php if ($hatGesperrte): ?>
+            <article class="card elev-sm" role="status">
+                <h2 class="card-title"><?= te('markt.gesperrt_titel') ?></h2>
+                <p class="card-body"><?= te('markt.gesperrt_liste_text') ?></p>
+                <p><a class="btn btn-secondary" href="/profil"><?= te('markt.gesperrt_zum_profil') ?></a></p>
+            </article>
+        <?php endif; ?>
 
         <?php
         /*
@@ -87,12 +119,15 @@ $angebote ??= [];
                         <?php // Der Titel ist frei gewaehlt und bis 190 Zeichen lang — ohne
                               // Umbruchstelle zoege er den Bildlauf sonst unnoetig weit. ?>
                         <td style="overflow-wrap:anywhere"><?= e((string) $angebot['titel']) ?></td>
-                        <td><span class="tag tag-neutral"><?= te('markt.status.' . (string) $angebot['status']) ?></span></td>
+                        <?php // Nur die Sperre bekommt ein hervorgehobenes Etikett: Sie ist
+                              // der einzige Status in dieser Spalte, den nicht die
+                              // Verkaeuferin selbst gesetzt hat. ?>
+                        <td><span class="tag <?= (string) $angebot['status'] === Angebote::STATUS_GESPERRT ? 'tag-accent' : 'tag-neutral' ?>"><?= te('markt.status.' . (string) $angebot['status']) ?></span></td>
                         <td><?= e(geld((int) $angebot['grundpreis_cent'], (string) $angebot['waehrung'])) ?></td>
                         <td><?= e((string) $angebot['angelegt_am']) ?></td>
                         <td>
                             <a class="btn btn-ghost" href="/verkaufen/<?= (int) $angebot['id'] ?>"><?= te('markt.verkaufen_bearbeiten') ?></a>
-                            <?php if ((string) $angebot['status'] === \MeinSlip\Domain\Catalog\Angebote::STATUS_AKTIV): ?>
+                            <?php if ((string) $angebot['status'] === Angebote::STATUS_AKTIV): ?>
                                 <a class="btn btn-ghost" href="/angebot/<?= (int) $angebot['id'] ?>"><?= te('markt.verkaufen_ansehen') ?></a>
                             <?php endif; ?>
                         </td>

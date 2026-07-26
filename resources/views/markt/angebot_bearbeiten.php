@@ -13,10 +13,22 @@ declare(strict_types=1);
  * mehr die gezeigte. Die Oberflaeche bildet das ab, statt es beim Speichern
  * abzuweisen.
  *
+ * NACH DEM TORABBAU GIBT ES ZWEI ZUSTAENDE, DIE HIER ERKLAERT WERDEN MUESSEN.
+ * Erstens 'gesperrt': eine Massnahme der Verwaltung nach einer Meldung. Die
+ * Begruendung dazu wird nach Art. 17 DSA zugestellt und liegt im Profil, nicht
+ * hier — deshalb der Verweis dorthin statt einer zweiten, moeglicherweise
+ * abweichenden Darstellung. Zweitens die fehlende Bestellbarkeit: Ein
+ * veroeffentlichtes Angebot ohne Spezifikation der Art 'zahl' oder 'freitext'
+ * ist sichtbar und ansprechbar, aber nicht bestellbar (§ 312g Abs. 2 Nr. 1
+ * BGB). Das ist kein Fehler, sondern eine Auskunft — und sie erscheint nur,
+ * wenn der Bestellvorgang ueberhaupt offen ist.
+ *
  * @var array<string,mixed>|null $angebot
  * @var list<array<string,mixed>> $kategorien
  * @var string|null $fehler
  * @var string|null $erfolg
+ * @var bool $bestellbar           Angebote::istBestellbar()
+ * @var bool $bestellvorgangAktiv  Schalter BESTELLVORGANG_AKTIV
  */
 
 use MeinSlip\Domain\Catalog\Angebote;
@@ -25,6 +37,8 @@ $angebot ??= null;
 $kategorien ??= [];
 $fehler ??= null;
 $erfolg ??= null;
+$bestellbar ??= false;
+$bestellvorgangAktiv ??= false;
 
 /** Ganzzahlige Cent als Euro-Wert fuer ein Zahlenfeld — ohne Gleitkomma. */
 $euro = static function (int $cent): string {
@@ -54,7 +68,13 @@ $euro = static function (int $cent): string {
                   // schoebe eine solche Zeichenkette auf 360 px die ganze Seite auseinander. ?>
             <h1 style="font-size:clamp(1.75rem,4vw,2.5rem);overflow-wrap:anywhere"><?= e((string) $angebot['titel']) ?></h1>
             <p style="margin-top:var(--space-3)">
-                <span class="tag tag-neutral"><?= te('markt.status.' . $status) ?></span>
+                <?php // Ein gesperrtes Angebot traegt ein anderes Etikett als die
+                      // uebrigen Status. Die Sperre ist die einzige Massnahme in
+                      // dieser Liste, die nicht von der Verkaeuferin ausgeht — sie
+                      // darf sich nicht im Grau der Selbstverstaendlichkeiten
+                      // verlieren. tag-accent ist vorhanden, eine neue Klasse
+                      // waere hier nicht zu rechtfertigen. ?>
+                <span class="tag <?= $status === Angebote::STATUS_GESPERRT ? 'tag-accent' : 'tag-neutral' ?>"><?= te('markt.status.' . $status) ?></span>
             </p>
         </div>
 
@@ -66,14 +86,54 @@ $euro = static function (int $cent): string {
             <p class="ms-fehler" role="alert"><?= te('markt.angebotsfehler.' . $fehler) ?></p>
         <?php endif; ?>
 
+        <?php if ($status === Angebote::STATUS_GESPERRT): ?>
+            <?php /*
+                   * ARTIKEL 17 DSA: DIE BEGRUENDUNG WIRD ZUGESTELLT, NICHT HIER
+                   * ERFUNDEN. Die Verwaltung schreibt beim Sperren eine
+                   * Begruendung, die als Zustellung im Profil landet. Diese
+                   * Karte sagt deshalb, DASS gesperrt wurde und WO die
+                   * Begruendung steht — sie wiederholt sie nicht. Zwei Orte
+                   * fuer denselben Text waeren zwei Orte, die auseinanderlaufen
+                   * koennen, und der falsche waere der ohne Zustellnachweis.
+                   *
+                   * Gesperrt heisst gesperrt: Weder das Stammdatenformular noch
+                   * ein Veroeffentlichen-Knopf erscheinen. Das ist keine
+                   * Anzeigefrage — Angebote::veroeffentlichen() laesst nur
+                   * 'entwurf' zu und Angebote::VERAENDERBAR nur 'entwurf' und
+                   * 'pausiert'. Die Oberflaeche bildet die Fachregel ab, statt
+                   * sie zu ersetzen.
+                   */ ?>
+            <article class="card elev-sm" role="status">
+                <h2 class="card-title"><?= te('markt.gesperrt_titel') ?></h2>
+                <p class="card-body"><?= te('markt.gesperrt_text') ?></p>
+                <p class="card-body"><?= te('markt.gesperrt_begruendung') ?></p>
+                <p><a class="btn btn-secondary" href="/profil"><?= te('markt.gesperrt_zum_profil') ?></a></p>
+            </article>
+        <?php endif; ?>
+
+        <?php if ($bestellvorgangAktiv && !$bestellbar && $status !== Angebote::STATUS_ENTFERNT): ?>
+            <?php // Sichtbar ja, bestellbar nein. Der Satz nennt ausdruecklich die
+                  // fehlende Optionsart und nicht nur "eine Spezifikation" — wer
+                  // ein Ankreuzfeld als Spezifikation gesetzt hat, wuerde sonst
+                  // ein zweites anlegen und waere keinen Schritt weiter. ?>
+            <article class="card elev-sm">
+                <h2 class="card-title"><?= te('markt.nicht_bestellbar_titel') ?></h2>
+                <p class="card-body"><?= te('markt.nicht_bestellbar_text') ?></p>
+            </article>
+        <?php endif; ?>
+
         <article class="card elev-sm">
             <p class="card-kicker"><?= te('markt.ablauf_titel') ?></p>
 
             <?php if ($status === Angebote::STATUS_ENTWURF): ?>
-                <p class="card-body"><?= te('markt.einreichen_hinweis') ?></p>
-                <form method="post" action="/verkaufen/<?= $angebotId ?>/einreichen" style="margin:0">
+                <?php // DER TORABBAU IN EINEM KNOPF. Frueher stand hier "Zur Pruefung
+                      // einreichen" und danach wartete das Angebot auf einen Menschen.
+                      // Die Route /verkaufen/{id}/einreichen gibt es weiterhin, aus der
+                      // Oberflaeche ist sie verschwunden. ?>
+                <p class="card-body"><?= te('markt.veroeffentlichen_hinweis') ?></p>
+                <form method="post" action="/verkaufen/<?= $angebotId ?>/veroeffentlichen" style="margin:0">
                     <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                    <button class="btn btn-primary" type="submit"><?= te('markt.einreichen') ?></button>
+                    <button class="btn btn-primary" type="submit"><?= te('markt.veroeffentlichen') ?></button>
                 </form>
             <?php elseif ($status === Angebote::STATUS_AKTIV): ?>
                 <form method="post" action="/verkaufen/<?= $angebotId ?>" style="margin:0">
@@ -106,7 +166,14 @@ $euro = static function (int $cent): string {
             <h2 id="stammdaten"><?= te('markt.bearbeiten_stammdaten') ?></h2>
         </div>
 
-        <?php if (!$veraenderbar): ?>
+        <?php if ($status === Angebote::STATUS_GESPERRT): ?>
+            <?php // Eigener Satz statt 'bearbeiten_gesperrt': Dessen Rat lautet
+                  // "pausiere das Angebot" — aus 'gesperrt' fuehrt kein Weg nach
+                  // 'pausiert' (Angebote::UEBERGAENGE), der Rat liefe also ins
+                  // Leere. Aus einer Sperre kommt man ueber den Widerspruch
+                  // heraus, nicht ueber einen Knopf hier. ?>
+            <p class="card"><?= te('markt.bearbeiten_gesperrt_sperre') ?></p>
+        <?php elseif (!$veraenderbar): ?>
             <p class="card"><?= te('markt.bearbeiten_gesperrt') ?></p>
         <?php else: ?>
             <form class="ms-formular" method="post" action="/verkaufen/<?= $angebotId ?>">

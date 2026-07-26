@@ -40,10 +40,34 @@ final class VerwaltungTest extends Testfall
 
         // Jeder Status ist mit 0 vorbelegt, damit die Uebersicht eine
         // vollstaendige Tabelle zeichnen kann statt Luecken zu zeigen.
-        self::assertSame([0, 0, 0, 0, 0], array_values($kennzahlen['angebote_je_status']));
+        self::assertSame(
+            array_fill(0, count(Verwaltung::ANGEBOTSSTATUS), 0),
+            array_values($kennzahlen['angebote_je_status'])
+        );
         self::assertSame(Verwaltung::ANGEBOTSSTATUS, array_keys($kennzahlen['angebote_je_status']));
         self::assertCount(14, $kennzahlen['bestellungen_je_zustand']);
         self::assertSame([0], array_values(array_unique($kennzahlen['bestellungen_je_zustand'])));
+    }
+
+    /**
+     * Die Uebersicht darf keinen Status verschweigen.
+     *
+     * Verwaltung::ANGEBOTSSTATUS ist eine Handabschrift von
+     * Angebote::STATUSWERTE — sie steht getrennt, damit die Uebersicht auch
+     * fuer leere Status eine Zeile zeichnen kann. Getrennte Listen laufen
+     * auseinander: Als der Status 'gesperrt' dazukam, fehlte er hier, und die
+     * Nachmoderation waere in der Uebersicht unsichtbar geblieben. Der
+     * bestehende Kennzahlentest haette das nicht gefunden, weil er nur gegen
+     * dieselbe Abschrift prueft.
+     */
+    public function testDieUebersichtKenntJedenAngebotsstatus(): void
+    {
+        self::assertSame(
+            \MeinSlip\Domain\Catalog\Angebote::STATUSWERTE,
+            Verwaltung::ANGEBOTSSTATUS,
+            'Verwaltung::ANGEBOTSSTATUS weicht von Angebote::STATUSWERTE ab. '
+            . 'Ein Status ohne Zeile in der Uebersicht ist ein Status, den niemand sieht.'
+        );
     }
 
     public function testKennzahlenZaehlenNeueKontenUndFristueberschreitungen(): void
@@ -647,6 +671,181 @@ final class VerwaltungTest extends Testfall
         self::assertSame('waesche_slips', $seite['zeilen'][0]['kategorie_schluessel']);
     }
 
+    // --- Gemeldete Angebote (Nachmoderation) -------------------------------
+
+    /**
+     * Die Liste, die seit dem Torabbau die Vorabpruefung ersetzt.
+     *
+     * Eine Zeile je ANGEBOT, nicht je Meldung: Zehn Meldungen zu einem Angebot
+     * sind eine Entscheidung, nicht zehn.
+     */
+    public function testGemeldeteAngeboteBuendelnMehrereMeldungenZuEinerZeile(): void
+    {
+        $verkaeufer = $this->benutzer('Verkaeuferin');
+        $melder = $this->benutzer('Melderin');
+        $angebotId = $this->angebot($verkaeufer, 'aktiv', 'Steht auf dem Markt');
+
+        $this->meldung($angebotId, Verwaltung::MELDUNG_OFFEN, '2026-08-01 12:00:00', $melder, Verwaltung::GEGENSTAND_ANGEBOT, 'betrug');
+        $this->meldung($angebotId, Verwaltung::MELDUNG_IN_PRUEFUNG, '2026-07-30 09:00:00', null, Verwaltung::GEGENSTAND_ANGEBOT, 'betrug');
+        $this->meldung($angebotId, Verwaltung::MELDUNG_OFFEN, '2026-08-02 12:00:00', null, Verwaltung::GEGENSTAND_ANGEBOT, 'urheberrecht');
+
+        $seite = $this->verwaltung->gemeldeteAngebote();
+
+        self::assertSame(1, $seite['anzahl']);
+        self::assertCount(1, $seite['zeilen']);
+
+        $zeile = $seite['zeilen'][0];
+        self::assertSame($angebotId, (int) $zeile['id']);
+        self::assertSame('Steht auf dem Markt', $zeile['titel']);
+        self::assertSame('aktiv', $zeile['status']);
+        self::assertSame('Verkaeuferin', $zeile['verkaeufer_pseudonym']);
+        self::assertSame(3, $zeile['meldungen_anzahl']);
+        // Die frueheste Frist zaehlt: Sie ist die, die zuerst reisst.
+        self::assertSame('2026-07-30 09:00:00', $zeile['zugesagt_bis']);
+        // Alle Gruende mit ihrer Haeufigkeit, haeufigster zuerst.
+        self::assertSame(['betrug' => 2, 'urheberrecht' => 1], $zeile['gruende']);
+        self::assertSame('betrug', $zeile['grund']);
+    }
+
+    /**
+     * Erledigte Meldungen sind keine Arbeit mehr — sonst waere die Liste nach
+     * einer Woche unbrauchbar und die Nachmoderation damit auch.
+     */
+    public function testGemeldeteAngeboteZeigenNurUnerledigteMeldungen(): void
+    {
+        $verkaeufer = $this->benutzer('Verkaeuferin');
+        $offenId = $this->angebot($verkaeufer, 'aktiv', 'Noch offen');
+        $erledigtId = $this->angebot($verkaeufer, 'aktiv', 'Schon entschieden');
+
+        $this->meldung($offenId, Verwaltung::MELDUNG_OFFEN, null, null, Verwaltung::GEGENSTAND_ANGEBOT);
+        $this->meldung($erledigtId, Verwaltung::MELDUNG_ERLEDIGT, null, null, Verwaltung::GEGENSTAND_ANGEBOT);
+        $this->meldung($erledigtId, Verwaltung::MELDUNG_ABGELEHNT, null, null, Verwaltung::GEGENSTAND_ANGEBOT);
+
+        $seite = $this->verwaltung->gemeldeteAngebote();
+
+        self::assertSame(1, $seite['anzahl']);
+        self::assertSame('Noch offen', $seite['zeilen'][0]['titel']);
+    }
+
+    /**
+     * meldungen.gegenstand_id ist polymorph und ohne Fremdschluessel: 'benutzer
+     * 7' und 'angebot 7' tragen dieselbe Zahl. Ohne die Bedingung auf
+     * gegenstand_art im JOIN stuenden gemeldete KONTEN in der Angebotsliste.
+     */
+    public function testGemeldeteAngeboteVerwechselnKeineGegenstandsarten(): void
+    {
+        $verkaeufer = $this->benutzer('Verkaeuferin');
+        $angebotId = $this->angebot($verkaeufer, 'aktiv', 'Unbeanstandet');
+
+        // Eine Meldung gegen ein KONTO, dessen Kennung zufaellig einer
+        // Angebotskennung gleicht.
+        $this->meldung($angebotId, Verwaltung::MELDUNG_OFFEN, null, null, Verwaltung::GEGENSTAND_BENUTZER);
+
+        self::assertSame(0, $this->verwaltung->gemeldeteAngebote()['anzahl']);
+
+        // Und eine Meldung auf ein Angebot, das es nicht gibt, erzeugt keine
+        // Zeile ohne Titel.
+        $this->meldung(9999, Verwaltung::MELDUNG_OFFEN, null, null, Verwaltung::GEGENSTAND_ANGEBOT);
+
+        self::assertSame(0, $this->verwaltung->gemeldeteAngebote()['anzahl']);
+    }
+
+    /**
+     * Sortiert nach der fruehesten zugesagten Frist. Fehlt sie — Altbestand
+     * aus der Zeit vor dem Meldeweg — tritt der Eingang an ihre Stelle; sonst
+     * stuenden diese Zeilen wegen der NULL-Sortierung beider Datenbanken ganz
+     * oben und verdraengten die Meldungen, deren Frist wirklich laeuft.
+     */
+    public function testGemeldeteAngeboteStehenNachDringlichkeit(): void
+    {
+        $verkaeufer = $this->benutzer('Verkaeuferin');
+        $spaetId = $this->angebot($verkaeufer, 'aktiv', 'Spaet');
+        $fruehId = $this->angebot($verkaeufer, 'aktiv', 'Frueh');
+        $ohneId = $this->angebot($verkaeufer, 'aktiv', 'Ohne Frist');
+
+        $this->meldung($spaetId, Verwaltung::MELDUNG_OFFEN, '2026-08-10 00:00:00', null, Verwaltung::GEGENSTAND_ANGEBOT);
+        $this->meldung($fruehId, Verwaltung::MELDUNG_OFFEN, '2026-08-01 00:00:00', null, Verwaltung::GEGENSTAND_ANGEBOT);
+        $this->meldung($ohneId, Verwaltung::MELDUNG_OFFEN, null, null, Verwaltung::GEGENSTAND_ANGEBOT, 'betrug', '2026-08-05 00:00:00');
+
+        $titel = array_map(
+            static fn (array $z): string => (string) $z['titel'],
+            $this->verwaltung->gemeldeteAngebote()['zeilen']
+        );
+
+        self::assertSame(['Frueh', 'Ohne Frist', 'Spaet'], $titel);
+    }
+
+    public function testGemeldeteAngeboteSindOhneMeldungenLeer(): void
+    {
+        $this->angebot($this->benutzer('Verkaeuferin'), 'aktiv', 'Unbeanstandet');
+
+        $seite = $this->verwaltung->gemeldeteAngebote();
+
+        self::assertSame(0, $seite['anzahl']);
+        self::assertSame([], $seite['zeilen']);
+        self::assertSame(1, $seite['seite']);
+        self::assertSame(1, $seite['seiten']);
+    }
+
+    /**
+     * Die Sperre eines Angebots ist eine Beschraenkung nach Art. 17 DSA und
+     * laeuft deshalb ueber denselben Weg wie die Kontosperre. Die Konstante
+     * steht in Verwaltung und nicht in der Routenklasse, damit
+     * ProfilTest::testJedeHandlungsartHatEinenText den fehlenden Text findet.
+     */
+    public function testDieAngebotssperreWirdProtokolliertUndZugestellt(): void
+    {
+        $verwalter = $this->verwalterin();
+        $verkaeufer = $this->benutzer('Verkaeuferin');
+        $angebotId = $this->angebot($verkaeufer, 'aktiv', 'Beanstandet');
+
+        $ereignisId = $this->verwaltung->beschraenkungProtokollierenUndZustellen(
+            $verwalter,
+            $verkaeufer,
+            Verwaltung::HANDLUNG_ANGEBOT_GESPERRT,
+            Verwaltung::GEGENSTAND_ANGEBOT,
+            $angebotId,
+            'Das Angebot zeigt eine dritte Person ohne deren Einwilligung.'
+        );
+
+        $eintrag = $this->db->eine('SELECT * FROM verwaltungs_ereignisse WHERE id = :id', ['id' => $ereignisId]);
+        self::assertSame(Verwaltung::HANDLUNG_ANGEBOT_GESPERRT, $eintrag['handlung']);
+        self::assertSame($angebotId, (int) $eintrag['gegenstand_id']);
+
+        $zustellungen = $this->verwaltung->benachrichtigungen($verkaeufer);
+        self::assertCount(1, $zustellungen);
+        self::assertSame(Verwaltung::HANDLUNG_ANGEBOT_GESPERRT, $zustellungen[0]['art']);
+        self::assertSame($angebotId, $zustellungen[0]['gegenstand_id']);
+    }
+
+    /**
+     * Die Entsperrung ist keine Beschraenkung: Art. 20 DSA verlangt, dass eine
+     * Beschwerde die Sperre heilen kann — protokolliert wird das, zugestellt
+     * nicht. Die Konstante braucht trotzdem einen Text, weil sie ueber
+     * benachrichtigen() zustellbar bleibt.
+     */
+    public function testDieEntsperrungIstEineEigeneHandlungsart(): void
+    {
+        $verwalter = $this->verwalterin();
+        $verkaeufer = $this->benutzer('Verkaeuferin');
+        $angebotId = $this->angebot($verkaeufer, 'gesperrt', 'War gesperrt');
+
+        $this->verwaltung->ereignisSchreiben(
+            $verwalter,
+            Verwaltung::HANDLUNG_ANGEBOT_ENTSPERRT,
+            Verwaltung::GEGENSTAND_ANGEBOT,
+            $angebotId,
+            'Beschwerde war begruendet, Sperre aufgehoben.'
+        );
+
+        self::assertNotSame(
+            Verwaltung::HANDLUNG_ANGEBOT_GESPERRT,
+            Verwaltung::HANDLUNG_ANGEBOT_ENTSPERRT
+        );
+        self::assertSame(1, $this->anzahlEreignisse());
+        self::assertSame([], $this->verwaltung->benachrichtigungen($verkaeufer));
+    }
+
     // --- Protokoll ---------------------------------------------------------
 
     public function testProtokollKommtNeuesteZuerst(): void
@@ -978,22 +1177,25 @@ final class VerwaltungTest extends Testfall
     }
 
     private function meldung(
-        int $gegenBenutzerId,
+        int $gegenstandId,
         string $status,
         ?string $zugesagtBis = null,
-        ?int $melderId = null
+        ?int $melderId = null,
+        string $gegenstandArt = Verwaltung::GEGENSTAND_BENUTZER,
+        string $grund = 'belaestigung',
+        ?string $angelegtAm = null
     ): int {
         return $this->db->einfuegen('meldungen', [
             'melder_id' => $melderId,
-            'gegenstand_art' => Verwaltung::GEGENSTAND_BENUTZER,
-            'gegenstand_id' => $gegenBenutzerId,
-            'grund' => 'belaestigung',
+            'gegenstand_art' => $gegenstandArt,
+            'gegenstand_id' => $gegenstandId,
+            'grund' => $grund,
             'beschreibung' => 'Testmeldung',
             'status' => $status,
             'zugesagt_bis' => $zugesagtBis,
             'erledigt_am' => null,
             'entscheidung' => null,
-            'angelegt_am' => gmdate('Y-m-d H:i:s'),
+            'angelegt_am' => $angelegtAm ?? gmdate('Y-m-d H:i:s'),
         ]);
     }
 

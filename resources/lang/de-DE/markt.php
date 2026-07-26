@@ -35,6 +35,15 @@ declare(strict_types=1);
  *    keine Versandkostenspalte, Bestellungen::anlegen() addiert keine. Wird
  *    das je eingefuehrt, muss dieser Satz im selben Schritt mitwandern.
  *
+ * SEIT DEM MODELLWECHSEL GIBT ES KEINE VORABPRUEFUNG MEHR. Wer registriert
+ * ist, darf anbieten; wer veroeffentlicht, steht sofort im Katalog. Kein Text
+ * in dieser Datei darf mehr eine Pruefung, eine Freischaltung oder ein Warten
+ * versprechen — das waere eine Zusage, die die Software nicht mehr einloest,
+ * und im Fall von 'verkaufen_gesperrt_*' sogar eine Sanktion als offene
+ * Freischaltung getarnt. Das Gegengewicht zur sofortigen Sichtbarkeit ist die
+ * Nachmoderation auf Meldung hin (Art. 16 DSA), und die braucht ihrerseits
+ * ehrliche Texte: 'melden_*' fuer den Weg hin, 'gesperrt_*' fuer die Folge.
+ *
  * Die Schluessel sind flach mit Punkt geschrieben — Lang::t zerlegt nur am
  * ersten Punkt, echte Unterarrays funktionieren nicht.
  */
@@ -85,9 +94,37 @@ return [
     'angebot_unbekannt_titel' => 'Dieses Angebot gibt es nicht',
     'angebot_unbekannt_text' => 'Der Weg führt ins Leere. Möglicherweise wurde das Angebot zurückgezogen.',
     'angebot_nicht_aktiv_titel' => 'Gerade nicht bestellbar',
-    'angebot_nicht_aktiv_text' => 'Dieses Angebot ist im Moment nicht freigeschaltet. '
-        . 'Es ist entweder noch in der Prüfung, pausiert oder zurückgezogen.',
+    'angebot_nicht_aktiv_text' => 'Dieses Angebot steht im Moment nicht im Katalog. '
+        . 'Es ist entweder ein Entwurf, pausiert, gesperrt oder zurückgezogen.',
     'angebot_beschreibung' => 'Beschreibung',
+
+    // --- Kontakt: die Hauptaktion der Angebotsseite ------------------------
+    // Der Bestellvorgang ist verriegelt, solange die Frage nach § 1 Abs. 1
+    // S. 2 Nr. 1 KWG offen ist. Diese Texte sind deshalb nicht der
+    // Ersatzbildschirm für eine kaputte Kasse, sondern der Normalfall: Auf
+    // einem Kleinanzeigenmarkt schreibt man sich, bevor etwas den Besitzer
+    // wechselt. Ist der Bestellvorgang offen und das Angebot bestellbar,
+    // rutscht dieser Knopf auf den zweiten Platz — der Text wechselt mit.
+    'kontakt_kicker' => 'Kontakt',
+    'kontakt_titel' => 'Frag nach, bevor du dich entscheidest',
+    'kontakt_hauptweg' => 'Schreib der Anbieterin eine Nachricht: zu Größe, Zustand, Tragedauer, '
+        . 'zur Übergabe oder zum Preis. Alles Weitere klärt ihr direkt miteinander.',
+    'kontakt_neben_bestellung' => 'Du kannst direkt bestellen — oder erst nachfragen, '
+        . 'wenn dir etwas unklar ist.',
+    'nachricht_schreiben' => 'Nachricht schreiben',
+    'nachricht_anmeldung' => 'Zum Schreiben brauchst du ein Konto. '
+        . 'Registrieren dauert eine Minute und schaltet auch das Anbieten frei.',
+
+    // --- Meldeweg nach Art. 16 DSA ----------------------------------------
+    // Ausdrücklich ohne Anmeldeschranke. Art. 16 Abs. 1 DSA spricht von
+    // „Personen oder Einrichtungen“ und kennt keine Kontopflicht; eine solche
+    // Hürde wäre der einfachste Weg, das Verfahren wirkungslos zu machen.
+    // Der Satz nennt deshalb ausdrücklich, dass kein Konto nötig ist.
+    'melden_kicker' => 'Etwas stimmt nicht?',
+    'melden_text' => 'Melde dieses Angebot, wenn es gegen Gesetze oder gegen unsere Regeln verstößt. '
+        . 'Jede Meldung wird von einem Menschen angesehen, und du bekommst eine Antwort. '
+        . 'Ein Konto brauchst du dafür nicht.',
+    'melden_knopf' => 'Angebot melden',
 
     // --- Konfigurator ------------------------------------------------------
     'konfigurator_kicker' => 'Konfigurator',
@@ -104,7 +141,8 @@ return [
         . 'Ohne Angabe von dir kann nichts nach deinen Wünschen angefertigt werden.',
     'konfigurator_keine_optionen_titel' => 'Noch nicht bestellbar',
     'konfigurator_keine_optionen_text' => 'Diesem Angebot fehlt die Spezifikation, '
-        . 'ohne die keine Anfertigung nach Kundenwunsch möglich ist.',
+        . 'ohne die keine Anfertigung nach Kundenwunsch möglich ist. '
+        . 'Schreib der Anbieterin — ansprechbar ist sie trotzdem.',
     'konfigurator_lieferart' => 'Lieferung',
     'konfigurator_lieferart_versand' => 'Anonymer Versand',
     'konfigurator_lieferart_uebergabe' => 'Persönliche Übergabe',
@@ -147,19 +185,32 @@ return [
     'kaufen_gesperrt_titel' => 'Erst die Altersprüfung',
     'kaufen_gesperrt_text' => 'Bestellen wird nach bestandener Altersprüfung freigeschaltet. '
         . 'Das ist keine Formalie: § 4 Abs. 2 JMStV verlangt eine geschlossene Benutzergruppe.',
-    'verkaufen_gesperrt_titel' => 'Verkaufen ist noch nicht freigeschaltet',
-    'verkaufen_gesperrt_text' => 'Verkaufen ist eine Freischaltung, kein zweites Konto. '
-        . 'Sie folgt auf die Identitätsprüfung — ohne geprüfte Identität gibt es kein Impressum '
-        . 'und keine steuerlich saubere Auszahlung.',
+
+    // DIESE BEIDEN TEXTE HABEN IHRE BEDEUTUNG GEWECHSELT, NICHT NUR IHREN
+    // WORTLAUT. Bis zum Modellwechsel war „verkaufen“ eine Fähigkeit, auf die
+    // man wartete — die Verwaltung schaltete sie frei. Seither vergibt
+    // Konten::registrieren() sie mit der Grundlage „registrierung“, und jedes
+    // Bestandskonto hat sie über 010_marktmodell.php nachgetragen bekommen.
+    // Wer sie NICHT hat, dem wurde sie entzogen: Verwaltung::faehigkeitEntziehen()
+    // ist eine begründete, protokollierte und nach Art. 17 DSA zugestellte
+    // Maßnahme — das mildere Mittel neben der Kontosperre. „Lass dich
+    // verifizieren“ wäre hier nicht bloß veraltet, sondern falsch: Es schickte
+    // eine sanktionierte Person in ein Verfahren, das ihr nichts zurückgibt,
+    // und verschwiege ihr den Widerspruchsweg nach Art. 20 DSA.
+    'verkaufen_gesperrt_titel' => 'Dir wurde das Verkaufen untersagt',
+    'verkaufen_gesperrt_text' => 'Anbieten ist für dein Konto gesperrt. Das ist eine Maßnahme '
+        . 'unserer Moderation und keine offene Freischaltung — sie hat eine Begründung, '
+        . 'und die steht in deinem Profil. Dort findest du auch den Weg, ihr zu widersprechen.',
+    'verkaufen_gesperrt_zum_profil' => 'Begründung im Profil ansehen',
 
     // --- Meine Angebote ----------------------------------------------------
     'verkaufen_kicker' => 'Verkaufen',
     'verkaufen_titel' => 'Meine Angebote',
-    'verkaufen_unterzeile' => 'Jedes Angebot beginnt als Entwurf, geht durch die Prüfung und '
-        . 'erscheint erst danach im Katalog.',
+    'verkaufen_unterzeile' => 'Jedes Angebot beginnt als Entwurf. Sobald du es veröffentlichst, '
+        . 'steht es sofort im Katalog — und du kannst es jederzeit wieder pausieren.',
     'verkaufen_leer_titel' => 'Noch kein Angebot',
     'verkaufen_leer_text' => 'Leg dein erstes Angebot an. Du kannst es in Ruhe als Entwurf vorbereiten '
-        . 'und erst einreichen, wenn es fertig ist.',
+        . 'und veröffentlichen, wenn es fertig ist.',
     'verkaufen_neu' => 'Neues Angebot',
     'verkaufen_bearbeiten' => 'Bearbeiten',
     'verkaufen_ansehen' => 'Im Katalog ansehen',
@@ -170,19 +221,40 @@ return [
     'spalte_aktion' => 'Aktion',
 
     'status.entwurf' => 'Entwurf',
+    // Bleibt, obwohl niemand mehr dorthin geleitet wird: Der Altpfad
+    // /verkaufen/{id}/einreichen besteht fort, und ohne diesen Schlüssel
+    // stünde in der Statusspalte '[[markt.status.in_pruefung]]'.
     'status.in_pruefung' => 'In Prüfung',
     'status.aktiv' => 'Im Katalog',
     'status.pausiert' => 'Pausiert',
+    'status.gesperrt' => 'Gesperrt',
     'status.entfernt' => 'Zurückgezogen',
+
+    // --- Status „gesperrt“: die Nachmoderation erklären --------------------
+    // Art. 17 DSA verlangt eine Begründung der Maßnahme, und sie wird
+    // zugestellt — sie landet im Profil, nicht hier. Diese Texte sagen
+    // deshalb, DASS gesperrt wurde und WO die Begründung liegt. Zwei
+    // Fundstellen für denselben Text wären zwei, die auseinanderlaufen können.
+    'gesperrt_titel' => 'Dieses Angebot ist gesperrt',
+    'gesperrt_text' => 'Nach einer Meldung hat unsere Moderation dieses Angebot aus dem Katalog '
+        . 'genommen. Es lässt sich weder bearbeiten noch erneut veröffentlichen.',
+    'gesperrt_begruendung' => 'Warum das geschehen ist, steht in der Zustellung in deinem Profil. '
+        . 'Dort findest du auch den Weg, der Entscheidung zu widersprechen — '
+        . 'ein Widerspruch kann die Sperre aufheben.',
+    'gesperrt_zum_profil' => 'Zur Begründung im Profil',
+    'gesperrt_liste_text' => 'Mindestens eines deiner Angebote wurde nach einer Meldung gesperrt. '
+        . 'Die Begründung liegt als Zustellung in deinem Profil, samt Weg zum Widerspruch.',
 
     // --- Angebot anlegen ---------------------------------------------------
     'anlegen_kicker' => 'Neues Angebot',
     'anlegen_titel' => 'Angebot anlegen',
-    'anlegen_unterzeile' => 'Das Angebot entsteht als Entwurf. Sichtbar wird es erst nach der Prüfung.',
+    'anlegen_unterzeile' => 'Das Angebot entsteht als Entwurf. Sichtbar wird es in dem Moment, '
+        . 'in dem du es veröffentlichst.',
     'anlegen_absenden' => 'Entwurf anlegen',
     'anlegen_naechster_schritt' => 'Im nächsten Schritt legst du die Optionen des Konfigurators fest. '
-        . 'Mindestens eine davon muss eine Spezifikation sein — sonst lässt sich das Angebot '
-        . 'nicht einreichen und wäre unverkäuflich.',
+        . 'Für die Sichtbarkeit brauchst du sie nicht — veröffentlichen kannst du sofort. '
+        . 'Bestellbar wird das Angebot aber erst mit einer Spezifikation, in die die Käuferin '
+        . 'etwas einträgt.',
 
     'feld_titel' => 'Titel',
     'feld_beschreibung' => 'Beschreibung',
@@ -207,6 +279,11 @@ return [
     'bearbeiten_speichern' => 'Änderungen speichern',
     'bearbeiten_gesperrt' => 'In diesem Status sind keine Änderungen möglich. '
         . 'Pausiere das Angebot, wenn du es überarbeiten willst.',
+    // Eigener Satz für die Sperre: Der Rat „pausiere das Angebot“ liefe ins
+    // Leere, weil Angebote::UEBERGAENGE aus „gesperrt“ nur nach „aktiv“
+    // (Widerspruch) und „entfernt“ führt.
+    'bearbeiten_gesperrt_sperre' => 'Ein gesperrtes Angebot lässt sich nicht bearbeiten. '
+        . 'Die Sperre hebt nur ein erfolgreicher Widerspruch auf.',
 
     'optionen_titel' => 'Optionen des Konfigurators',
     'optionen_unterzeile' => 'Eine Option mit Spezifikation ist Pflicht. Sie ist die Angabe, '
@@ -236,9 +313,34 @@ return [
     'art.freitext' => 'Freier Text',
 
     'ablauf_titel' => 'Weg des Angebots',
+
+    // DER ABGEBAUTE VORABPRÜFUNG IN ZWEI TEXTEN. Vorher stand hier „Zur
+    // Prüfung einreichen“ und „Nach dem Einreichen sieht ein Mensch das
+    // Angebot an“ — beides trifft nicht mehr zu. Der Hinweis nennt jetzt
+    // ausdrücklich das Gegenstück zur sofortigen Sichtbarkeit: die jederzeit
+    // mögliche Pause. Ohne diesen Halbsatz klänge „sofort sichtbar“ wie eine
+    // Einbahnstraße, und genau diese Sorge hält Menschen vom Veröffentlichen ab.
+    'veroeffentlichen' => 'Jetzt veröffentlichen',
+    'veroeffentlichen_hinweis' => 'Dein Angebot ist sofort im Katalog sichtbar — es wartet auf '
+        . 'niemanden. Du kannst es jederzeit pausieren und weiter bearbeiten. '
+        . 'Verstößt ein Angebot gegen Gesetze oder unsere Regeln, greifen wir auf Meldung hin ein.',
+    // Bleibt für den Altpfad /verkaufen/{id}/einreichen, der weiterhin
+    // erreichbar ist und diese Rückmeldung setzt (siehe 'erfolg.eingereicht').
     'einreichen' => 'Zur Prüfung einreichen',
-    'einreichen_hinweis' => 'Nach dem Einreichen sieht ein Mensch das Angebot an. '
-        . 'Bis dahin ist es nicht bearbeitbar.',
+
+    // Sichtbar und bestellbar sind zwei Fragen. Der Satz nennt die fehlende
+    // ART der Option, nicht bloß „eine Spezifikation“: Wer ein Ankreuzfeld als
+    // Spezifikation gesetzt hat, legte sonst ein zweites an und käme keinen
+    // Schritt weiter. Rechtsgrund ist § 312g Abs. 2 Nr. 1 BGB in der Auslegung
+    // des EuGH (C-529/19) — nur ein von der Käuferin geschriebener Wert macht
+    // die Ware zur Anfertigung nach ihren Angaben.
+    'nicht_bestellbar_titel' => 'Sichtbar, aber noch nicht bestellbar',
+    'nicht_bestellbar_text' => 'Zum Bestellen braucht dein Angebot mindestens eine Option, '
+        . 'die als Spezifikation markiert ist UND von der Art „Zahl“ oder „Freier Text“. '
+        . 'Ein Ankreuzfeld genügt nicht: Es trägt keine Angabe der Käuferin und damit nicht '
+        . 'den Ausschluss des Widerrufsrechts. Im Katalog steht dein Angebot trotzdem, '
+        . 'und anschreiben kann man dich auch.',
+
     'aktion_pausieren' => 'Pausieren',
     'aktion_fortsetzen' => 'Wieder anbieten',
     'aktion_entfernen' => 'Endgültig zurückziehen',
@@ -297,6 +399,13 @@ return [
     'bestellfehler.waehrung' => 'Dieses Angebot ist in einer Währung ausgezeichnet, '
         . 'die noch nicht abgerechnet werden kann.',
     'bestellfehler.angebot' => 'Dieses Angebot ist gerade nicht bestellbar.',
+    // Kein Ausfall, sondern der verriegelte Zustand: Solange die Frage nach
+    // § 1 Abs. 1 S. 2 Nr. 1 KWG offen ist, steht der Schalter
+    // BESTELLVORGANG_AKTIV auf aus und Bestellungen::anlegen() wirft. Diesen
+    // Bildschirm sieht nur, wer die Anfrage von Hand baut — das Formular wird
+    // in diesem Zustand gar nicht erst gerendert.
+    'bestellfehler.bestellvorgang_gesperrt' => 'Bestellen ist zurzeit nicht möglich. '
+        . 'Schreib der Anbieterin stattdessen eine Nachricht — alles Weitere klärt ihr direkt.',
     'bestellfehler.allgemein' => 'Die Bestellung konnte nicht angelegt werden. Bitte versuche es erneut.',
 
     // --- Fehler aus MeinSlip\Domain\Catalog\AngebotFehler ------------------
@@ -320,6 +429,15 @@ return [
     'angebotsfehler.option_unbekannt' => 'Diese Option gibt es nicht.',
     'angebotsfehler.keine_spezifikation' => 'Das Angebot braucht mindestens eine Option, '
         . 'die als Spezifikation markiert ist. Ohne sie trägt der Widerrufsausschluss nicht.',
+    // Dieser Schlüssel existierte in Angebote.php seit jeher, hatte aber
+    // weder einen Text noch einen Platz in der Weißliste von MarktRouten —
+    // der Bildschirm blieb nach dem Fehlversuch stumm. Der Satz nennt die
+    // fehlende ART, nicht bloß „eine Spezifikation“: Wer bereits ein
+    // Ankreuzfeld als Spezifikation gesetzt hat, legte sonst ein zweites an
+    // und käme keinen Schritt weiter.
+    'angebotsfehler.spezifikation_braucht_eingabe' => 'Als Spezifikation zählt nur eine Option '
+        . 'der Art „Zahl“ oder „Freier Text“ — etwas, das die Käuferin selbst einträgt. '
+        . 'Ein Ankreuzfeld individualisiert die Ware nicht.',
     'angebotsfehler.ablehnungsgrund_fehlt' => 'Eine Ablehnung braucht eine Begründung.',
     'angebotsfehler.eigenpruefung_unzulaessig' => 'Niemand prüft das eigene Angebot.',
     'angebotsfehler.statuswechsel_unzulaessig' => 'Dieser Schritt ist von hier aus nicht möglich.',
@@ -332,6 +450,8 @@ return [
     'erfolg.gespeichert' => 'Gespeichert.',
     'erfolg.option_gespeichert' => 'Die Option ist gespeichert.',
     'erfolg.option_entfernt' => 'Die Option ist entfernt.',
+    'erfolg.veroeffentlicht' => 'Dein Angebot steht ab sofort im Katalog.',
+    // Bleibt für den Altpfad /verkaufen/{id}/einreichen.
     'erfolg.eingereicht' => 'Das Angebot liegt zur Prüfung vor.',
     'erfolg.pausiert' => 'Das Angebot ist pausiert.',
     'erfolg.fortgesetzt' => 'Das Angebot ist wieder im Katalog.',

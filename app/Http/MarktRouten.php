@@ -57,6 +57,16 @@ use MeinSlip\Domain\Order\Preisrechner;
  *     oder Aufpreise geaendert haben. § 312j Abs. 2 BGB verlangt den
  *     Gesamtpreis unmittelbar vor Abgabe der Bestellung, also wird die
  *     Preisgrundlage beim Anzeigen festgehalten und beim Absenden verglichen.
+ *
+ *  6. SICHTBAR UND BESTELLBAR SIND ZWEI FRAGEN. Seit dem Modellwechsel gibt es
+ *     kein Freigabetor mehr: Wer veroeffentlicht, steht sofort im Katalog. Ob
+ *     dort auch bestellt werden kann, entscheiden zwei voneinander unabhaengige
+ *     Dinge — der Schalter BESTELLVORGANG_AKTIV (aufsichtsrechtlich gesperrt,
+ *     § 1 Abs. 1 S. 2 Nr. 1 KWG) und Angebote::istBestellbar() (§ 312g Abs. 2
+ *     Nr. 1 BGB). Ist eines von beiden nicht erfuellt, ist "Nachricht
+ *     schreiben" die Hauptaktion und der Konfigurator erscheint gar nicht.
+ *     Die Gegenprobe steht in bestellen(): der Schalter wird dort noch einmal
+ *     serverseitig gelesen, nicht nur beim Rendern.
  */
 final class MarktRouten
 {
@@ -81,6 +91,10 @@ final class MarktRouten
         'gespeichert',
         'option_gespeichert',
         'option_entfernt',
+        'veroeffentlicht',
+        // 'eingereicht' bleibt: Die Route /verkaufen/{id}/einreichen ist als
+        // Altpfad erhalten und setzt den Schluessel weiterhin. Aus der
+        // Oberflaeche ist sie verschwunden, erreichbar ist sie noch.
         'eingereicht',
         'pausiert',
         'fortgesetzt',
@@ -111,6 +125,13 @@ final class MarktRouten
         'option_aufpreis_ungueltig',
         'option_unbekannt',
         'keine_spezifikation',
+        // Wirft zurPruefungEinreichen(), wenn als Spezifikation nur Optionen
+        // der Art 'auswahl' vorliegen. Der Schluessel fehlte hier bisher, und
+        // weil ausListe() alles Unbekannte auf null zieht, blieb der Bildschirm
+        // nach dem Fehlversuch stumm. Nach dem Torabbau traegt derselbe Text
+        // den Hinweis auf /verkaufen/{id}, welche Optionsart zum Bestellen
+        // fehlt — siehe bearbeitenFormular().
+        'spezifikation_braucht_eingabe',
         'ablehnungsgrund_fehlt',
         'eigenpruefung_unzulaessig',
         'statuswechsel_unzulaessig',
@@ -272,6 +293,12 @@ final class MarktRouten
             'fehler' => $fehler,
             'eingaben' => $eingaben,
             'gestoert' => false,
+            // Solange der Bestellvorgang ruht, rendert die Vorlage den
+            // Konfigurator gar nicht erst. Der Schalter wird hier gelesen und
+            // nicht in der Vorlage, damit die Entscheidung an einer Stelle
+            // faellt und nicht in jeder Verzweigung des HTML wiederholt wird.
+            'bestellvorgangAktiv' => Env::bool('BESTELLVORGANG_AKTIV', false),
+            'bestellbar' => false,
         ];
 
         $db = $this->datenbank();
@@ -282,7 +309,8 @@ final class MarktRouten
             return $this->rendern($anfrage, 'markt.angebot', t('markt.angebot_kicker'), $daten);
         }
 
-        $angebot = (new Angebote($db))->laden($angebotId);
+        $angebote = new Angebote($db);
+        $angebot = $angebote->laden($angebotId);
 
         if ($angebot === null) {
             return $this->rendern($anfrage, 'markt.angebot', t('markt.angebot_unbekannt_titel'), $daten);
@@ -344,14 +372,26 @@ final class MarktRouten
             ['id' => (int) $angebot['kategorie_id']]
         );
 
+        // Beide Pruefungen aus § 312g Abs. 2 Nr. 1 BGB in einem Wert. Die
+        // Vorlage rechnete das bisher selbst nach, zaehlte dabei aber nur das
+        // Kennzeichen ist_spezifikation und uebersah die Art: Ein angekreuztes
+        // Kaestchen traegt keinen Wert der Kaeuferin und damit den
+        // Widerrufsausschluss nicht. Die Fachklasse ist die einzige Stelle, an
+        // der diese Bedingung steht.
+        $daten['bestellbar'] = $angebote->istBestellbar($angebotId);
+
         if ($benutzerId !== 0) {
             $daten['darfKaufen'] = $konten->hatFaehigkeit($benutzerId, Konten::FAEHIGKEIT_KAUFEN);
         }
 
         // Nur wo das Bestellformular tatsaechlich erscheint, wird die gezeigte
         // Preisgrundlage festgehalten. Sonst legte jeder Streifzug durch den
-        // Katalog ein Cookie an, das nie jemand einloest.
-        if ($oeffentlich && $daten['darfKaufen'] === true) {
+        // Katalog ein Cookie an, das nie jemand einloest. Ruht der
+        // Bestellvorgang, erscheint es nirgends.
+        if ($oeffentlich
+            && $daten['darfKaufen'] === true
+            && $daten['bestellvorgangAktiv'] === true
+            && $daten['bestellbar'] === true) {
             $this->preisstandMerken($angebot);
         }
 
@@ -380,6 +420,21 @@ final class MarktRouten
             $a,
             (int) ($p['id'] ?? 0)
         ));
+
+        // Der Hauptweg nach dem Torabbau. Die Adresse traegt einen statischen
+        // Teil hinter dem Platzhalter; der Router verankert seine Muster mit
+        // ^...$ und {id} steht fuer ([^/]+), das keinen Schraegstrich frisst —
+        // eine Kollision mit '/verkaufen/{id}' ist damit ausgeschlossen.
+        $router->post(
+            '/verkaufen/{id}/veroeffentlichen',
+            fn (Request $a, array $p): Response => $this->veroeffentlichen($a, (int) ($p['id'] ?? 0))
+        );
+
+        // ALTPFAD, WOERTLICH UNVERAENDERT. Aus der Oberflaeche ist der Weg
+        // verschwunden, die Route bleibt: Produktiv liegen Angebote in
+        // 'in_pruefung', und wer die Vorabdurchsicht ausdruecklich will, soll
+        // sie behalten koennen. Entfernen hiesse, ein Lesezeichen und einen
+        // fachlich weiterhin gueltigen Weg ohne Not zu brechen.
         $router->post('/verkaufen/{id}/einreichen', fn (Request $a, array $p): Response => $this->einreichen(
             $a,
             (int) ($p['id'] ?? 0)
@@ -508,6 +563,8 @@ final class MarktRouten
                 'kategorien' => [],
                 'fehler' => 'angebot_unbekannt',
                 'erfolg' => null,
+                'bestellbar' => false,
+                'bestellvorgangAktiv' => false,
             ]);
         }
 
@@ -522,6 +579,13 @@ final class MarktRouten
                 ),
                 'fehler' => $this->ausListe($anfrage->eingabe('fehler'), self::ANGEBOTSFEHLER),
                 'erfolg' => $this->ausListe($anfrage->eingabe('erfolg'), self::ERFOLGE),
+                // Beide Werte tragen denselben Hinweis: Solange der
+                // Bestellvorgang ruht, ist die fehlende Spezifikation folgenlos
+                // und ein Hinweis darauf waere blosses Rauschen. Ist er offen,
+                // ist sie der Unterschied zwischen sichtbar und verkaeuflich —
+                // und die Verkaeuferin erfaehrt hier, welche Optionsart fehlt.
+                'bestellbar' => (new Angebote($db))->istBestellbar($angebotId),
+                'bestellvorgangAktiv' => Env::bool('BESTELLVORGANG_AKTIV', false),
             ]
         );
     }
@@ -612,6 +676,43 @@ final class MarktRouten
         }
 
         return Response::weiterleitung('/verkaufen/' . $angebotId . '?erfolg=' . $erfolg);
+    }
+
+    /**
+     * Stellt das eigene Angebot sofort oeffentlich.
+     *
+     * Der Knopf, der die Vorabpruefung abloest. Es gibt hier bewusst keine
+     * zusaetzliche Bedingung ueber Angebote::veroeffentlichen() hinaus — die
+     * Fachklasse prueft Eigentum und Ausgangsstatus, und mehr soll das Tor
+     * nicht sein. Insbesondere wird die Spezifikation NICHT verlangt: Sie
+     * gehoert zur Bestellbarkeit, nicht zur Sichtbarkeit. Ein Angebot ohne sie
+     * ist sichtbar und ueber "Nachricht schreiben" erreichbar, nur eben nicht
+     * bestellbar — genau das sagt der Hinweis in bearbeitenFormular().
+     */
+    private function veroeffentlichen(Request $anfrage, int $angebotId): Response
+    {
+        if (!Formularschutz::gueltig($anfrage)) {
+            return Response::weiterleitung('/verkaufen/' . $angebotId);
+        }
+
+        $zugang = $this->verkaufszugang($anfrage);
+
+        if ($zugang['gesperrt'] !== null) {
+            return Response::weiterleitung('/verkaufen');
+        }
+
+        /** @var Database $db */
+        $db = $zugang['db'];
+
+        try {
+            (new Angebote($db))->veroeffentlichen($angebotId, $zugang['benutzerId']);
+        } catch (AngebotFehler $fehler) {
+            return Response::weiterleitung(
+                '/verkaufen/' . $angebotId . '?fehler=' . $this->ohneEigentuemerhinweis($fehler->schluessel())
+            );
+        }
+
+        return Response::weiterleitung('/verkaufen/' . $angebotId . '?erfolg=veroeffentlicht');
     }
 
     private function einreichen(Request $anfrage, int $angebotId): Response
@@ -719,6 +820,18 @@ final class MarktRouten
     {
         if (!Formularschutz::gueltig($anfrage)) {
             return Response::weiterleitung('/angebot/' . $angebotId);
+        }
+
+        // DER GESCHLOSSENE BESTELLVORGANG IST KEIN AUSGEBLENDETER KNOPF.
+        // Die Vorlage rendert das Formular nicht, solange der Schalter aus ist —
+        // das allein waere Zugriffsschutz durch Verbergen. Bestellungen::anlegen()
+        // wirft in diesem Fall BestellvorgangGesperrt; ohne die Zeile hier
+        // liefe eine handgebaute Anfrage in den allgemeinen \Throwable-Zweig
+        // weiter unten und erzeugte eine Protokollzeile fuer einen Zustand, der
+        // gar keine Stoerung ist. Stattdessen bekommt die Person die ehrliche
+        // Auskunft.
+        if (!Env::bool('BESTELLVORGANG_AKTIV', false)) {
+            return $this->angebotSeite($anfrage, $angebotId, 'bestellvorgang_gesperrt');
         }
 
         $sitzung = $this->sitzung($anfrage);

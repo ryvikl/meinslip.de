@@ -90,7 +90,7 @@ final class Verwaltung
      * GROUP BY liefert nur belegte Werte. Massgeblich ist und bleibt
      * Angebote::STATUSWERTE; diese Klasse ruft den Katalog aber nicht auf.
      */
-    public const ANGEBOTSSTATUS = ['entwurf', 'in_pruefung', 'aktiv', 'pausiert', 'entfernt'];
+    public const ANGEBOTSSTATUS = ['entwurf', 'in_pruefung', 'aktiv', 'pausiert', 'gesperrt', 'entfernt'];
 
     /** Angebote in diesem Status warten auf eine Entscheidung. */
     public const ANGEBOT_IN_PRUEFUNG = 'in_pruefung';
@@ -103,6 +103,25 @@ final class Verwaltung
     public const HANDLUNG_KONTO_GESPERRT = 'konto_gesperrt';
     public const HANDLUNG_KONTO_ENTSPERRT = 'konto_entsperrt';
     public const HANDLUNG_MELDUNG_BEARBEITET = 'meldung_bearbeitet';
+
+    /**
+     * Die beiden Handlungen der Nachmoderation.
+     *
+     * Sie stehen HIER und nicht in VerwaltungsRouten, obwohl die Wirkung dort
+     * ausgeloest wird (Angebote::sperren() haelt die Zustandsmaschine). Der
+     * Grund ist ein Test: tests/ProfilTest::testJedeHandlungsartHatEinenText
+     * sammelt alle Konstanten dieser Klasse, deren Name mit 'HANDLUNG_'
+     * beginnt, und verlangt fuer jede einen Text unter 'profil.art.<wert>'.
+     * Eine Konstante in der Routenklasse faende er nicht — und die betroffene
+     * Person laese '[[profil.art.angebot_gesperrt]]' an genau der Stelle, an
+     * der nach Art. 17 Abs. 1 DSA die Begruendung stehen muss.
+     *
+     * Die Sperre ist eine Beschraenkung und laeuft deshalb ueber
+     * beschraenkungProtokollierenUndZustellen(). Die Entsperrung ist keine —
+     * sie wird protokolliert, aber nicht zugestellt (siehe statusSetzen()).
+     */
+    public const HANDLUNG_ANGEBOT_GESPERRT = 'angebot_gesperrt';
+    public const HANDLUNG_ANGEBOT_ENTSPERRT = 'angebot_entsperrt';
 
     /** Gegenstandsarten, wie sie auch meldungen.gegenstand_art benutzt. */
     public const GEGENSTAND_BENUTZER = 'benutzer';
@@ -497,6 +516,84 @@ final class Verwaltung
 
         foreach ($zeilen as $i => $zeile) {
             $zeilen[$i]['grundpreis_cent'] = (int) $zeile['grundpreis_cent'];
+        }
+
+        return $this->seitenwerk($zeilen, $anzahl, $seite, $seiten);
+    }
+
+    /**
+     * Gemeldete Angebote — die Arbeitsliste der Nachmoderation.
+     *
+     * DIESE LISTE ERSETZT DIE VORABPRUEFUNG. offeneAngebote() zeigt, was noch
+     * nicht auf dem Markt ist; diese Liste zeigt, was drauf ist und beanstandet
+     * wurde. Seit dem Modellwechsel ist sie die Liste, die taeglich abgearbeitet
+     * wird — die andere leert sich und bleibt leer.
+     *
+     * Eine Zeile je ANGEBOT, nicht je Meldung: Zehn Meldungen zu einem Angebot
+     * sind eine Entscheidung, nicht zehn. Die Zahl der Meldungen bleibt als
+     * Spalte erhalten, weil sie Dringlichkeit ausdrueckt.
+     *
+     * Sortiert nach der fruehesten zugesagten Frist. Wo sie fehlt — bei
+     * Altbestand aus der Zeit vor dem Meldeweg — tritt der Eingang an ihre
+     * Stelle: Ohne COALESCE stuenden diese Zeilen wegen der NULL-Sortierung in
+     * beiden Datenbanken ganz oben und verdraengten die Meldungen, deren Frist
+     * wirklich laeuft.
+     *
+     * Die Meldegruende werden in einer zweiten Abfrage geholt und in PHP
+     * gebuendelt, nicht per GROUP_CONCAT: Das gibt es zwar in MySQL und SQLite,
+     * aber mit unterschiedlicher Syntax fuer das Trennzeichen. Jede
+     * Gruppierung nennt saemtliche ausgewaehlten Spalten, damit auch MySQL mit
+     * ONLY_FULL_GROUP_BY sie annimmt.
+     *
+     * @return array{zeilen:list<array<string,mixed>>, anzahl:int, seite:int, seiten:int, pro_seite:int}
+     */
+    public function gemeldeteAngebote(int $seite = 1): array
+    {
+        [$platzhalter, $statuswerte] = $this->inListe('m', self::MELDUNG_UNERLEDIGT);
+        $werte = ['art' => self::GEGENSTAND_ANGEBOT] + $statuswerte;
+
+        // COUNT(DISTINCT ...) statt COUNT(*) ueber eine Unterabfrage: Beide
+        // Datenbanken koennen es, und es zaehlt dasselbe wie die Gruppierung
+        // unten — die Angebote, nicht die Meldungen.
+        $anzahl = $this->zahl(
+            'SELECT COUNT(DISTINCT m.gegenstand_id)
+               FROM meldungen m
+               JOIN angebote a ON a.id = m.gegenstand_id
+              WHERE m.gegenstand_art = :art AND m.status IN (' . $platzhalter . ')',
+            $werte
+        );
+        [$seite, $versatz, $seiten] = $this->blaettern($seite, $anzahl);
+
+        $zeilen = $this->db->alle(
+            'SELECT a.id, a.titel, a.status, a.grundpreis_cent, a.waehrung, a.verkaeufer_id,
+                    v.pseudonym AS verkaeufer_pseudonym, v.status AS verkaeufer_status,
+                    COUNT(m.id) AS meldungen_anzahl,
+                    MIN(m.zugesagt_bis) AS zugesagt_bis,
+                    MIN(m.angelegt_am) AS erste_meldung_am
+               FROM angebote a
+               JOIN benutzer v ON v.id = a.verkaeufer_id
+               JOIN meldungen m ON m.gegenstand_id = a.id
+                                AND m.gegenstand_art = :art
+                                AND m.status IN (' . $platzhalter . ')
+              GROUP BY a.id, a.titel, a.status, a.grundpreis_cent, a.waehrung, a.verkaeufer_id,
+                       v.pseudonym, v.status
+              ORDER BY COALESCE(MIN(m.zugesagt_bis), MIN(m.angelegt_am)) ASC, a.id ASC
+              LIMIT ' . self::PRO_SEITE . ' OFFSET ' . $versatz,
+            $werte
+        );
+
+        $gruende = $this->meldegruendeJeAngebot(
+            array_map(static fn (array $z): int => (int) $z['id'], $zeilen)
+        );
+
+        foreach ($zeilen as $i => $zeile) {
+            $angebotId = (int) $zeile['id'];
+            $zeilen[$i]['grundpreis_cent'] = (int) $zeile['grundpreis_cent'];
+            $zeilen[$i]['meldungen_anzahl'] = (int) $zeile['meldungen_anzahl'];
+            $zeilen[$i]['gruende'] = $gruende[$angebotId] ?? [];
+            // Ein einzelner Grund fuer die knappe Darstellung: der haeufigste.
+            // Er ist immer belegt, weil die Zeile nur ueber Meldungen entsteht.
+            $zeilen[$i]['grund'] = array_key_first($gruende[$angebotId] ?? []);
         }
 
         return $this->seitenwerk($zeilen, $anzahl, $seite, $seiten);
@@ -1072,6 +1169,54 @@ final class Verwaltung
                 'summe_cent' => (int) $zeile['summe_cent'],
                 'buchungen' => (int) $zeile['buchungen'],
             ];
+        }
+
+        return $ergebnis;
+    }
+
+    /**
+     * Die unerledigten Meldegruende zu einer Handvoll Angeboten.
+     *
+     * In PHP gebuendelt statt per GROUP_CONCAT — dieselbe Begruendung wie bei
+     * faehigkeitenJeKonto(). Sortiert wird zweistufig: haeufigster Grund
+     * zuerst, bei Gleichstand alphabetisch. Die zweite Stufe kommt aus dem
+     * ORDER BY der Abfrage und ueberlebt arsort(), weil PHPs Sortierungen seit
+     * 8.0 stabil sind. Ohne diese Zusicherung waere die Reihenfolge bei
+     * Gleichstand beliebig — und damit auch der 'grund', den die Liste zeigt.
+     *
+     * @param list<int> $angebotIds
+     *
+     * @return array<int,array<string,int>> Angebotskennung => Grund => Anzahl
+     */
+    private function meldegruendeJeAngebot(array $angebotIds): array
+    {
+        if ($angebotIds === []) {
+            return [];
+        }
+
+        [$angebotPlatzhalter, $angebotWerte] = $this->inListe('a', $angebotIds);
+        [$statusPlatzhalter, $statusWerte] = $this->inListe('m', self::MELDUNG_UNERLEDIGT);
+
+        $zeilen = $this->db->alle(
+            'SELECT gegenstand_id, grund, COUNT(id) AS anzahl
+               FROM meldungen
+              WHERE gegenstand_art = :art
+                AND status IN (' . $statusPlatzhalter . ')
+                AND gegenstand_id IN (' . $angebotPlatzhalter . ')
+              GROUP BY gegenstand_id, grund
+              ORDER BY gegenstand_id ASC, grund ASC',
+            ['art' => self::GEGENSTAND_ANGEBOT] + $statusWerte + $angebotWerte
+        );
+
+        $ergebnis = [];
+
+        foreach ($zeilen as $zeile) {
+            $ergebnis[(int) $zeile['gegenstand_id']][(string) $zeile['grund']] = (int) $zeile['anzahl'];
+        }
+
+        foreach ($ergebnis as $angebotId => $gruende) {
+            arsort($gruende);
+            $ergebnis[$angebotId] = $gruende;
         }
 
         return $ergebnis;

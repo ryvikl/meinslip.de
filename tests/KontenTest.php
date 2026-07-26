@@ -41,17 +41,72 @@ final class KontenTest extends Testfall
     }
 
     /**
-     * Kern des Kontenmodells: Ein frisches Konto hat noch KEINE Faehigkeiten.
-     * Kaufen setzt die Altersverifikation voraus, Verkaufen zusaetzlich die
-     * Identitaetspruefung — beides laeuft ueber Verfahren, die noch fehlen.
+     * Kern des Kontenmodells: Ein frisches Konto bekommt GENAU 'verkaufen'
+     * und sonst nichts. Registrieren genuegt zum Einstellen; entzogen wird die
+     * Faehigkeit erst auf Meldung hin (Art. 16 DSA).
+     *
+     * Nichts wird stillschweigend mitvergeben: 'kaufen' setzt die
+     * Altersverifikation voraus (§ 4 Abs. 2 JMStV), 'verwalten' kommt
+     * ausschliesslich ueber bin/verwalter. Beides bleibt hier aus.
      */
-    public function testNeuesKontoHatKeineFaehigkeiten(): void
+    public function testNeuesKontoHatGenauDieVerkaufsfaehigkeit(): void
     {
         $id = $this->konten->registrieren('Nora', 'nora@beispiel.test', 'ein-langes-passwort');
 
-        self::assertSame([], $this->konten->faehigkeiten($id));
+        self::assertSame([Konten::FAEHIGKEIT_VERKAUFEN], $this->konten->faehigkeiten($id));
+        self::assertTrue($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERKAUFEN));
         self::assertFalse($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_KAUFEN));
-        self::assertFalse($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERKAUFEN));
+        self::assertFalse($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
+    }
+
+    /**
+     * Die Grundlage muss ablesbar bleiben: nur so laesst sich spaeter trennen,
+     * wer die Faehigkeit durch blosses Registrieren hat und wer durch eine
+     * echte Pruefung.
+     */
+    public function testVerkaufsfaehigkeitTraegtDieGrundlageRegistrierung(): void
+    {
+        $id = $this->konten->registrieren('Nadja', 'nadja@beispiel.test', 'ein-langes-passwort');
+
+        $zeile = $this->db->eine(
+            'SELECT * FROM benutzer_faehigkeiten WHERE benutzer_id = :b AND faehigkeit = :f',
+            ['b' => $id, 'f' => Konten::FAEHIGKEIT_VERKAUFEN]
+        );
+
+        self::assertNotNull($zeile);
+        self::assertSame(Konten::GRUNDLAGE_REGISTRIERUNG, $zeile['grundlage']);
+        self::assertNull($zeile['entzogen_am']);
+    }
+
+    /**
+     * Konto und Faehigkeit gehoeren in EINE Transaktion.
+     *
+     * Ohne die Klammer entstuende bei einem Abbruch ein Konto, das nicht
+     * verkaufen darf, ohne dass es jemand entschieden haette — und niemand
+     * merkt es, weil das Konto sich anmelden kann und erst beim Einstellen
+     * abgewiesen wird.
+     *
+     * Der Abbruch wird erzwungen, indem die Faehigkeitstabelle vorher entfernt
+     * wird: das ist der einzige Weg, den zweiten Schritt scheitern zu lassen,
+     * nachdem der erste bereits geschrieben hat. Danach darf die Kontotabelle
+     * keine Zeile mehr enthalten.
+     */
+    public function testAbbruchHinterlaesstKeinKontoOhneFaehigkeit(): void
+    {
+        $this->db->ddl('DROP TABLE benutzer_faehigkeiten');
+
+        try {
+            $this->konten->registrieren('Nelly', 'nelly@beispiel.test', 'ein-langes-passwort');
+            self::fail('Die Registrierung haette scheitern muessen.');
+        } catch (\Throwable) {
+            // Erwartet — entscheidend ist allein, was danach in der Datenbank steht.
+        }
+
+        self::assertSame(
+            0,
+            (int) $this->db->wert('SELECT COUNT(*) FROM benutzer WHERE email = :e', ['e' => 'nelly@beispiel.test']),
+            'Das Konto haette mit zurueckgerollt werden muessen.'
+        );
     }
 
     public function testFaehigkeitenKommenZumSelbenKontoHinzu(): void
@@ -74,7 +129,16 @@ final class KontenTest extends Testfall
         $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_KAUFEN, 'altersnachweis');
         $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_KAUFEN, 'altersnachweis');
 
-        self::assertCount(1, $this->konten->faehigkeiten($id));
+        // Gezaehlt wird jetzt je Faehigkeit statt insgesamt: seit der
+        // Registrierung traegt jedes Konto bereits 'verkaufen'.
+        self::assertSame(
+            1,
+            (int) $this->db->wert(
+                'SELECT COUNT(*) FROM benutzer_faehigkeiten WHERE benutzer_id = :b AND faehigkeit = :f',
+                ['b' => $id, 'f' => Konten::FAEHIGKEIT_KAUFEN]
+            )
+        );
+        self::assertCount(2, $this->konten->faehigkeiten($id));
     }
 
     /**
@@ -93,10 +157,18 @@ final class KontenTest extends Testfall
             self::assertSame('faehigkeit_unbekannt', $fehler->schluessel());
         }
 
-        // Und es darf auch keine Zeile zurueckgeblieben sein.
-        self::assertSame([], $this->konten->faehigkeiten($id));
+        // Und es darf auch keine Zeile zurueckgeblieben sein. Die eine Zeile,
+        // die zulaessig da ist, stammt aus der Registrierung.
+        self::assertSame([Konten::FAEHIGKEIT_VERKAUFEN], $this->konten->faehigkeiten($id));
         self::assertSame(
             0,
+            (int) $this->db->wert(
+                'SELECT COUNT(*) FROM benutzer_faehigkeiten WHERE benutzer_id = :b AND faehigkeit = :f',
+                ['b' => $id, 'f' => 'verwaltn']
+            )
+        );
+        self::assertSame(
+            1,
             (int) $this->db->wert('SELECT COUNT(*) FROM benutzer_faehigkeiten WHERE benutzer_id = :b', ['b' => $id])
         );
     }
@@ -152,7 +224,8 @@ final class KontenTest extends Testfall
         $this->konten->faehigkeitEntziehen($id, Konten::FAEHIGKEIT_VERWALTEN);
 
         self::assertFalse($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
-        self::assertSame([], $this->konten->faehigkeiten($id));
+        // Uebrig bleibt allein die Faehigkeit aus der Registrierung.
+        self::assertSame([Konten::FAEHIGKEIT_VERKAUFEN], $this->konten->faehigkeiten($id));
         self::assertSame([], $this->konten->mitFaehigkeit(Konten::FAEHIGKEIT_VERWALTEN));
     }
 
@@ -199,7 +272,7 @@ final class KontenTest extends Testfall
         $this->konten->faehigkeitFreischalten($id, Konten::FAEHIGKEIT_VERWALTEN, 'zweite-ernennung');
 
         self::assertTrue($this->konten->hatFaehigkeit($id, Konten::FAEHIGKEIT_VERWALTEN));
-        self::assertSame([Konten::FAEHIGKEIT_VERWALTEN], $this->konten->faehigkeiten($id));
+        self::assertContains(Konten::FAEHIGKEIT_VERWALTEN, $this->konten->faehigkeiten($id));
         self::assertCount(1, $this->konten->mitFaehigkeit(Konten::FAEHIGKEIT_VERWALTEN));
 
         // Weiterhin genau eine Zeile, jetzt mit der neuen Grundlage.

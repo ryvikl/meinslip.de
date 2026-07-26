@@ -13,8 +13,14 @@ use MeinSlip\Domain\Account\Konten;
  * Vier Dinge setzt diese Klasse durch:
  *
  *  1. VERKAUFEN IST EINE FAEHIGKEIT, KEIN KONTOTYP. Wer anlegt, braucht
- *     Konten::FAEHIGKEIT_VERKAUFEN — freigeschaltet erst nach der
- *     Identitaetspruefung. Ein frisches Konto hat sie nicht.
+ *     Konten::FAEHIGKEIT_VERKAUFEN. Sie wird seit dem Modellwechsel bereits
+ *     bei der Registrierung vergeben (Konten::registrieren(), grundlage
+ *     'registrierung') und ist damit KEIN Tor mehr, durch das die Verwaltung
+ *     erst jemanden hindurchlassen muesste — sondern der Sanktionsgriff:
+ *     Verwaltung::faehigkeitEntziehen() nimmt sie wieder weg, protokolliert
+ *     und stellt nach Art. 17 DSA zu. Das ist das mildere Mittel neben der
+ *     Kontosperre. Genau deshalb muss der Entzug ueberall wirken, wo Ware
+ *     oeffentlich sichtbar wird — siehe fuerKatalog().
  *
  *  2. KEIN ANGEBOT OHNE SPEZIFIKATIONSOPTION, DIE EINEN WERT DER KAEUFERIN
  *     AUFNIMMT. Ein angekreuztes Kaestchen genuegt ausdruecklich NICHT. Siehe
@@ -31,10 +37,10 @@ use MeinSlip\Domain\Account\Konten;
  *     Beschaffenheit, und die Spezifikation, auf die sich der
  *     Widerrufsausschluss stuetzt, waere nicht mehr die gezeigte.
  *
- * STATUSWERTE: entwurf | in_pruefung | aktiv | pausiert | entfernt.
- * 'in_pruefung' ist gegenueber dem Kommentar in database/migrations/
- * 004_katalog.php NEU hinzugekommen. Das ist bewusst und ohne
- * Schemaaenderung moeglich, weil die Spalte ein Schluesselwort-Feld
+ * STATUSWERTE: entwurf | in_pruefung | aktiv | pausiert | gesperrt | entfernt.
+ * 'in_pruefung' und 'gesperrt' sind gegenueber dem Kommentar in
+ * database/migrations/004_katalog.php NEU hinzugekommen. Das ist bewusst und
+ * ohne Schemaaenderung moeglich, weil die Spalte ein Schluesselwort-Feld
  * (VARCHAR) ohne Datenbank-ENUM ist — genau dafuer hat Ddl::schluesselwort()
  * auf ENUM verzichtet. Der Kommentar in der Migration ist damit unvollstaendig,
  * die Liste hier ist massgeblich.
@@ -45,6 +51,24 @@ final class Angebote
     public const STATUS_IN_PRUEFUNG = 'in_pruefung';
     public const STATUS_AKTIV = 'aktiv';
     public const STATUS_PAUSIERT = 'pausiert';
+
+    /**
+     * DAS IST DIE NACHMODERATION, NICHT 'in_pruefung 2.0'.
+     *
+     * Der Unterschied ist der Zeitpunkt und damit die ganze Rechtsfigur:
+     * 'in_pruefung' war ein Tor VOR der Sichtbarkeit — nichts kam durch, bevor
+     * ein Mensch es angesehen hatte. 'gesperrt' liegt DAHINTER: Das Angebot war
+     * oeffentlich, jemand hat es nach Art. 16 DSA gemeldet, die Verwaltung hat
+     * entschieden und es aus dem Verkehr gezogen. Wer diesen Status als
+     * Vorstufe wieder in den Anlageweg einbaut, stellt das abgebaute Tor
+     * wieder auf.
+     *
+     * Deshalb fuehrt hier auch kein Weg der Verkaeuferin hinein oder heraus:
+     * Hinein kommt ein Angebot nur ueber sperren(), heraus nur ueber
+     * entsperren() — beide mit Vier-Augen-Prinzip und Begruendung.
+     */
+    public const STATUS_GESPERRT = 'gesperrt';
+
     public const STATUS_ENTFERNT = 'entfernt';
 
     /** Alle Statuswerte in fachlicher Reihenfolge — fuer Filter und Anzeige. */
@@ -53,6 +77,7 @@ final class Angebote
         self::STATUS_IN_PRUEFUNG,
         self::STATUS_AKTIV,
         self::STATUS_PAUSIERT,
+        self::STATUS_GESPERRT,
         self::STATUS_ENTFERNT,
     ];
 
@@ -92,21 +117,86 @@ final class Angebote
     /**
      * Die vollstaendige Zustandsmaschine. Was hier nicht steht, ist verboten.
      *
+     * NEU: 'entwurf -> aktiv'. Das ist der Modellwechsel in einer Zeile. Bis
+     * hierher fuehrte der einzige Weg nach 'aktiv' ueber 'in_pruefung', also
+     * ueber einen Menschen in der Verwaltung. Kuenftig gilt Nachmoderation:
+     * veroeffentlichen() geht direkt, und eingegriffen wird erst auf eine
+     * Meldung hin (Art. 16 DSA).
+     *
+     * 'in_pruefung' bleibt vollstaendig erhalten, obwohl niemand mehr dorthin
+     * gelangen SOLL: Produktiv liegen Zeilen in diesem Status, und ein Status
+     * ohne Ausgang waere eine Sackgasse fuer echte Angebote.
+     *
+     * 'gesperrt -> aktiv' ist erlaubt und muss es sein: Art. 20 DSA verlangt
+     * ein internes Beschwerdeverfahren, das eine Sperre wieder aufheben kann.
+     * Eine Sperre, die nur die Loeschung als Ausgang haette, waere keine
+     * ueberpruefbare Entscheidung, sondern ein Urteil.
+     *
+     * Achtung, die Tabelle sagt WELCHER Wechsel zulaessig ist, nicht WER ihn
+     * ausloesen darf. Weil nach 'aktiv' jetzt vier Wege fuehren, tragen
+     * veroeffentlichen(), fortsetzen(), freigeben() und entsperren() je eine
+     * eigene Vorbedingung auf den Ausgangsstatus — sonst waere jede dieser
+     * Methoden ein Weg, die Sperre der Verwaltung aufzuheben.
+     *
      * 'entfernt' hat bewusst keine Folgen: Ein zurueckgezogenes Angebot kommt
      * nicht zurueck, sondern wird neu angelegt. Sonst koennte ein Angebot nach
      * dem Entfernen mit anderem Inhalt unter derselben Kennung wieder
      * auftauchen — und Bestellpositionen zeigen ueber angebot_id genau dorthin.
      */
     private const UEBERGAENGE = [
-        self::STATUS_ENTWURF => [self::STATUS_IN_PRUEFUNG, self::STATUS_ENTFERNT],
-        self::STATUS_IN_PRUEFUNG => [self::STATUS_AKTIV, self::STATUS_ENTWURF, self::STATUS_ENTFERNT],
-        self::STATUS_AKTIV => [self::STATUS_PAUSIERT, self::STATUS_ENTFERNT],
-        self::STATUS_PAUSIERT => [self::STATUS_AKTIV, self::STATUS_ENTFERNT],
+        self::STATUS_ENTWURF => [
+            self::STATUS_AKTIV,
+            self::STATUS_IN_PRUEFUNG,
+            self::STATUS_GESPERRT,
+            self::STATUS_ENTFERNT,
+        ],
+        self::STATUS_IN_PRUEFUNG => [
+            self::STATUS_AKTIV,
+            self::STATUS_ENTWURF,
+            self::STATUS_GESPERRT,
+            self::STATUS_ENTFERNT,
+        ],
+        self::STATUS_AKTIV => [self::STATUS_PAUSIERT, self::STATUS_GESPERRT, self::STATUS_ENTFERNT],
+        self::STATUS_PAUSIERT => [self::STATUS_AKTIV, self::STATUS_GESPERRT, self::STATUS_ENTFERNT],
+        self::STATUS_GESPERRT => [self::STATUS_AKTIV, self::STATUS_ENTFERNT],
         self::STATUS_ENTFERNT => [],
     ];
 
     /** Status, in denen die Verkaeuferin Stammdaten und Optionen aendern darf. */
     private const VERAENDERBAR = [self::STATUS_ENTWURF, self::STATUS_PAUSIERT];
+
+    /**
+     * Semi-Join: Das Konto hinter a.verkaeufer_id darf derzeit verkaufen.
+     *
+     * Gehoert in JEDE oeffentliche Liste. Warum das erst jetzt traegt und
+     * vorher nicht: Bis zum Modellwechsel gab es ZWEI Verkaufsverbote — die
+     * fehlende Faehigkeit und die fehlende Freigabe des einzelnen Angebots.
+     * Der Katalog prueft nur die zweite (a.status = 'aktiv'), und solange die
+     * Verwaltung jedes Angebot einzeln freigab, fiel das kaum auf. Mit dem
+     * Torabbau faellt die Freigabe weg, und der Faehigkeitsentzug ist das
+     * EINZIGE verbliebene Verkaufsverbot. Er muss deshalb ab jetzt allein
+     * tragen, was vorher zwei Bedingungen zusammen trugen.
+     *
+     * Die Luecke war schon vorher eine: Nach einem Entzug stand das Angebot
+     * weiter in der Kategorieliste, /angebot/{id} lieferte aber 404
+     * (MarktRouten::angebotSeite() prueft die Faehigkeit seit jeher). Der
+     * Katalog war also LAXER als die Einzelseite — genau umgekehrt zu der
+     * Zusicherung im Klassenkommentar von app/Http/MarktRouten.php:49-51.
+     *
+     * EXISTS und nicht IN (SELECT ...): Beides liefe auf SQLite, aber MySQL 8
+     * optimiert ein IN mit Unterabfrage je nach Fassung als abhaengige
+     * Unterabfrage je Zeile. EXISTS ist die Form, die beide Systeme als
+     * Semi-Join verstehen — und sie bricht bei der ersten Treffzeile ab.
+     *
+     * Der Platzhalter :faehigkeit wird gebunden; der Alias 'a' muss in der
+     * umgebenden Abfrage fuer 'angebote' stehen.
+     */
+    private const VERKAUFSFAEHIG = 'EXISTS (
+                    SELECT 1 FROM benutzer_faehigkeiten f
+                     WHERE f.benutzer_id = a.verkaeufer_id
+                       AND f.faehigkeit = :faehigkeit
+                       AND f.entzogen_am IS NULL
+                  )';
 
     /** Felder, die bearbeiten() entgegennimmt. Alles andere wird abgewiesen. */
     private const BEARBEITBARE_FELDER = [
@@ -119,6 +209,15 @@ final class Angebote
         'uebergabe_region',
         'bearbeitungstage',
     ];
+
+    /**
+     * Angebote je Profilseite.
+     *
+     * Eigene Zahl statt eines Vorgabewerts am Parameter: vonVerkaeufer() hat
+     * laut Bauplan genau zwei Parameter, damit die Aufrufstellen im
+     * Creator-Profil die Seitengroesse nicht je Seite anders raten.
+     */
+    private const PROFIL_PRO_SEITE = 24;
 
     private const TITEL_MAXLAENGE = 190;
     private const REGION_MAXLAENGE = 40;
@@ -138,8 +237,16 @@ final class Angebote
     /**
      * Legt ein Angebot im Status 'entwurf' an.
      *
-     * Entwurf und nicht sofort sichtbar: Ein Angebot muss erst durch die
-     * Pruefung, siehe zurPruefungEinreichen().
+     * Entwurf und nicht sofort 'aktiv' — und das ist nach dem Torabbau KEINE
+     * Pruefung mehr, sondern reine Reihenfolge: An ein Angebot, das es noch
+     * nicht gibt, laesst sich kein Bild haengen und keine Option setzen. Der
+     * Entwurf ist der Zustand, in dem das alles entsteht; sichtbar wird er mit
+     * veroeffentlichen(), ohne Zutun der Verwaltung.
+     *
+     * Die Faehigkeitspruefung unten bleibt wortgleich stehen. Sie ist kein Tor
+     * mehr, weil Konten::registrieren() die Faehigkeit sofort vergibt — sie ist
+     * der Griff, mit dem die Verwaltung sie einer auffaelligen Person wieder
+     * wegnimmt.
      *
      * @throws AngebotFehler
      */
@@ -386,7 +493,50 @@ final class Angebote
     }
 
     /**
+     * Stellt ein Angebot oeffentlich: entwurf -> aktiv.
+     *
+     * DER HAUPTWEG NACH DEM TORABBAU. Geprueft werden genau zwei Dinge:
+     * Eigentum und der Ausgangsstatus. Sonst nichts.
+     *
+     * KEINE SPEZIFIKATIONSPRUEFUNG — das ist Absicht und keine Vergesslichkeit.
+     * Die Spezifikationspflicht aus § 312g Abs. 2 Nr. 1 BGB haengt an der
+     * BESTELLBARKEIT, nicht an der Sichtbarkeit. Sie steht bereits zweimal im
+     * Bestellpfad (Bestellungen::anlegen(), MarktRouten) und ist hier ueber
+     * istBestellbar() abfragbar. Sie ins Veroeffentlichen zu ziehen hiesse: wer
+     * eine Ware zeigen will, muss sie erst verkaufsfertig konfigurieren — und
+     * das waere ein neues Tor an der Stelle, an der wir gerade eines abgebaut
+     * haben.
+     *
+     * Die Vorbedingung 'von === entwurf' ist dagegen tragend. UEBERGAENGE
+     * erlaubt nach dem Modellwechsel vier Wege nach 'aktiv'; ohne diese Zeile
+     * waere veroeffentlichen() auch der Weg von 'gesperrt' nach 'aktiv'. Die
+     * Verkaeuferin koennte damit eine Sperre der Verwaltung selbst aufheben,
+     * und die gesamte Nachmoderation waere ein Knopfdruck wert. Dasselbe
+     * Argument steht in freigeben(), fortsetzen() und entsperren().
+     *
+     * @throws AngebotFehler
+     */
+    public function veroeffentlichen(int $angebotId, int $verkaeuferId): void
+    {
+        $angebot = $this->eigenesAngebot($angebotId, $verkaeuferId);
+        $von = (string) $angebot['status'];
+
+        if ($von !== self::STATUS_ENTWURF) {
+            throw AngebotFehler::unerlaubterWechsel($von, self::STATUS_AKTIV);
+        }
+
+        $this->statusWechseln($angebot, self::STATUS_AKTIV);
+    }
+
+    /**
      * Reicht das Angebot zur Pruefung ein: entwurf -> in_pruefung.
+     *
+     * NICHT MEHR DER NORMALWEG — der heisst veroeffentlichen(). Diese Methode
+     * und der Status 'in_pruefung' bleiben unveraendert bestehen, weil
+     * produktiv Zeilen darin liegen und weil eine Verkaeuferin, die eine
+     * Vorabdurchsicht ausdruecklich will, sie behalten soll. Ihre
+     * Spezifikationspruefung bleibt wortgleich: Sie steht hier seit jeher und
+     * ist die Grenze des Widerrufsausschlusses, nicht ein Freigabetor.
      *
      * HIER SITZT DIE GRENZE DES WIDERRUFSAUSSCHLUSSES. Zwei Bedingungen, und
      * die zweite ist die schaerfere:
@@ -451,6 +601,14 @@ final class Angebote
      *
      * Ruft der Verwaltungsbereich auf.
      *
+     * BLEIBT NACH DEM TORABBAU WOERTLICH BESTEHEN, aus zwei Gruenden. Erstens
+     * liegen produktiv Zeilen in 'in_pruefung'; ohne diese Methode haetten sie
+     * keinen Ausgang mehr ausser der Loeschung. Zweitens kann sie kein neues
+     * Tor werden: Sie erzwingt unten von === in_pruefung, und in diesen Status
+     * gelangt nur noch, wer zurPruefungEinreichen() von sich aus aufruft.
+     * Niemand wird mehr dorthin geleitet, also wartet auch niemand mehr auf
+     * eine Freigabe.
+     *
      * @throws AngebotFehler
      */
     public function freigeben(int $angebotId, int $pruefendeId): void
@@ -490,6 +648,13 @@ final class Angebote
      * Zurueck in den Entwurf und nicht auf 'entfernt': Die Verkaeuferin soll
      * nachbessern koennen, ohne alles neu zu erfassen.
      *
+     * BLEIBT EBENFALLS WOERTLICH BESTEHEN. Sie ist der zweite Ausgang aus
+     * 'in_pruefung' und braucht keine eigene Vorbedingung: 'entwurf' ist nur
+     * von 'in_pruefung' aus erreichbar, die Uebergangstabelle allein genuegt
+     * hier also. Die Sperre auf Meldung hin heisst nicht ablehnen(), sondern
+     * sperren() — eine Ablehnung schickt zurueck an die Verkaeuferin, eine
+     * Sperre nimmt vom Markt.
+     *
      * @throws AngebotFehler
      */
     public function ablehnen(int $angebotId, int $pruefendeId, string $grund): void
@@ -506,6 +671,82 @@ final class Angebote
         $this->statusWechseln($angebot, self::STATUS_ENTWURF);
     }
 
+    /**
+     * Nimmt ein Angebot auf Meldung hin vom Markt: * -> gesperrt.
+     *
+     * DAS IST DIE ABHILFEMASSNAHME NACH ART. 16 ABS. 6 DSA. Sie ist der Preis
+     * dafuer, dass die Vorabpruefung entfaellt: Ohne einen Griff, der ein
+     * gemeldetes Angebot binnen kurzer Zeit unsichtbar macht, waere der
+     * Verzicht auf das Tor nicht verteidigbar.
+     *
+     * Aus jedem Status ausser 'entfernt' — auch aus 'entwurf' und
+     * 'in_pruefung'. Das ist bewusst: Ein gemeldetes Angebot kann zwischen
+     * Meldung und Entscheidung pausiert oder in den Entwurf zurueckgegangen
+     * sein, und dann muss die Entscheidung trotzdem greifen. Sonst waere
+     * "kurz pausieren" die Umgehung der Sperre — das Angebot laege danach in
+     * einem Status, aus dem die Verkaeuferin es jederzeit wieder aktiviert.
+     *
+     * Vier-Augen-Prinzip und Begruendungszwang wie bei ablehnen(): Der Grund
+     * ist nach Art. 17 DSA Teil der Begruendungspflicht gegenueber der
+     * betroffenen Person und die Grundlage ihrer Beschwerde nach Art. 20 DSA.
+     * Gespeichert wird er hier so wenig wie bei ablehnen() — die Zustellung
+     * und ihre Protokollierung liegen im Verwaltungsbereich, der die Meldung
+     * fuehrt. Diese Klasse erzwingt nur, dass es ihn ueberhaupt gibt.
+     *
+     * @throws AngebotFehler
+     */
+    public function sperren(int $angebotId, int $verwalterId, string $grund): void
+    {
+        $angebot = $this->angebotZeile($angebotId);
+        $this->pruefeVierAugen($angebot, $verwalterId);
+
+        if (trim($grund) === '') {
+            throw new AngebotFehler('sperrgrund_fehlt');
+        }
+
+        $this->statusWechseln($angebot, self::STATUS_GESPERRT);
+    }
+
+    /**
+     * Hebt eine Sperre auf: gesperrt -> aktiv.
+     *
+     * DER RUECKWEG IST ART. 20 DSA. Ein internes Beschwerdeverfahren, das die
+     * Entscheidung nicht aendern kann, ist keines. Deshalb steht diese Methode
+     * hier und nicht in einer spaeteren Ausbaustufe.
+     *
+     * Die Vorbedingung 'von === gesperrt' ist tragend, nicht kosmetisch: Nach
+     * 'aktiv' fuehren seit dem Modellwechsel vier Wege. Ohne sie waere
+     * entsperren() auch der Weg von 'entwurf' nach 'aktiv' und wuerde einen
+     * halbfertigen fremden Entwurf veroeffentlichen — mitten in der
+     * Bearbeitung, in der die Verkaeuferin ihn gerade zurechtruecken will. Ein
+     * veraltetes Listenfenster der Verwaltung reicht dafuer aus. Dasselbe
+     * Argument steht ausfuehrlich in freigeben().
+     *
+     * Ein entsperrtes Angebot geht nach 'aktiv' und nicht dorthin zurueck, wo
+     * es herkam: Die Herkunft steht nirgends, und eine erfolgreiche Beschwerde
+     * bedeutet, dass die Sperre unrichtig war — also gehoert das Angebot auf
+     * den Markt. Wer es doch nicht zeigen will, pausiert es.
+     *
+     * @throws AngebotFehler
+     */
+    public function entsperren(int $angebotId, int $verwalterId, string $grund): void
+    {
+        $angebot = $this->angebotZeile($angebotId);
+        $this->pruefeVierAugen($angebot, $verwalterId);
+
+        if (trim($grund) === '') {
+            throw new AngebotFehler('entsperrgrund_fehlt');
+        }
+
+        $von = (string) $angebot['status'];
+
+        if ($von !== self::STATUS_GESPERRT) {
+            throw AngebotFehler::unerlaubterWechsel($von, self::STATUS_AKTIV);
+        }
+
+        $this->statusWechseln($angebot, self::STATUS_AKTIV);
+    }
+
     /** Nimmt ein aktives Angebot vom Markt: aktiv -> pausiert. */
     public function pausieren(int $angebotId, int $verkaeuferId): void
     {
@@ -518,10 +759,28 @@ final class Angebote
      * Ohne erneute Pruefung, weil eine Pause nichts am Inhalt aendert. Wer in
      * der Pause bearbeitet, aendert nur Stammdaten und Optionen — die Pruefung
      * hat den Verkaeufer freigegeben, nicht jede einzelne Formulierung.
+     *
+     * Die Vorbedingung 'von === pausiert' ist mit dem Status 'gesperrt'
+     * notwendig geworden. Vorher trug die Uebergangstabelle sie allein: Nach
+     * 'aktiv' fuehrte nur der Weg aus der Pause. Seit 'gesperrt -> aktiv'
+     * erlaubt ist (Art. 20 DSA), waere fortsetzen() ohne diese Zeile der Knopf,
+     * mit dem die Verkaeuferin ihre eigene Sperre aufhebt — und die
+     * Nachmoderation, auf der der ganze Torabbau ruht, waere wertlos.
+     * Aufgehoben wird eine Sperre nur ueber entsperren(), mit Vier-Augen-
+     * Prinzip und Begruendung.
+     *
+     * @throws AngebotFehler
      */
     public function fortsetzen(int $angebotId, int $verkaeuferId): void
     {
-        $this->statusWechseln($this->eigenesAngebot($angebotId, $verkaeuferId), self::STATUS_AKTIV);
+        $angebot = $this->eigenesAngebot($angebotId, $verkaeuferId);
+        $von = (string) $angebot['status'];
+
+        if ($von !== self::STATUS_PAUSIERT) {
+            throw AngebotFehler::unerlaubterWechsel($von, self::STATUS_AKTIV);
+        }
+
+        $this->statusWechseln($angebot, self::STATUS_AKTIV);
     }
 
     /**
@@ -537,6 +796,13 @@ final class Angebote
 
     /**
      * Aktive Angebote einer Kategorie, seitenweise, mit Verkaeufer-Pseudonym.
+     *
+     * Drei Bedingungen, und die dritte ist neu: Das Angebot ist aktiv, das
+     * Konto ist aktiv, UND das Konto darf verkaufen (self::VERKAUFSFAEHIG,
+     * dort steht die ausfuehrliche Begruendung). Damit zeigt der Katalog
+     * dasselbe wie die Einzelseite in MarktRouten::angebotSeite() — bis hierher
+     * war er laxer, ein Angebot nach Faehigkeitsentzug stand weiter in der
+     * Liste und lief auf /angebot/{id} in ein 404.
      *
      * @return list<array<string,mixed>>
      */
@@ -555,24 +821,103 @@ final class Angebote
                FROM angebote a
                JOIN benutzer b ON b.id = a.verkaeufer_id
               WHERE a.kategorie_id = :k AND a.status = :s AND b.status = :bs
+                AND ' . self::VERKAUFSFAEHIG . '
               ORDER BY a.angelegt_am DESC, a.id DESC
               LIMIT ' . $proSeite . ' OFFSET ' . $versatz,
-            ['k' => $kategorieId, 's' => self::STATUS_AKTIV, 'bs' => 'aktiv']
+            [
+                'k' => $kategorieId,
+                's' => self::STATUS_AKTIV,
+                'bs' => 'aktiv',
+                'faehigkeit' => Konten::FAEHIGKEIT_VERKAUFEN,
+            ]
         );
 
         return array_values($zeilen);
     }
 
-    /** Zahl der aktiven Angebote einer Kategorie — fuer die Blaetterleiste. */
+    /**
+     * Zahl der aktiven Angebote einer Kategorie — fuer die Blaetterleiste.
+     *
+     * Muss Zeile fuer Zeile dieselbe Bedingung tragen wie fuerKatalog():
+     * Weicht die Zahl von der Liste ab, zeigt die Blaetterleiste eine Seite an,
+     * die leer ist.
+     */
     public function anzahlImKatalog(int $kategorieId): int
     {
         return (int) $this->db->wert(
             'SELECT COUNT(*)
                FROM angebote a
                JOIN benutzer b ON b.id = a.verkaeufer_id
-              WHERE a.kategorie_id = :k AND a.status = :s AND b.status = :bs',
-            ['k' => $kategorieId, 's' => self::STATUS_AKTIV, 'bs' => 'aktiv']
+              WHERE a.kategorie_id = :k AND a.status = :s AND b.status = :bs
+                AND ' . self::VERKAUFSFAEHIG,
+            [
+                'k' => $kategorieId,
+                's' => self::STATUS_AKTIV,
+                'bs' => 'aktiv',
+                'faehigkeit' => Konten::FAEHIGKEIT_VERKAUFEN,
+            ]
         );
+    }
+
+    /**
+     * Aktive Angebote einer Verkaeuferin, seitenweise — fuer das Creator-Profil.
+     *
+     * Bewusst dieselben Bedingungen wie fuerKatalog(): Ein oeffentliches Profil
+     * ist eine oeffentliche Liste. Waere sie laxer, entstuende genau die
+     * Luecke wieder, die der Semi-Join gerade schliesst — nur eben unter
+     * /p/{pseudonym} statt unter /kategorie/{pfad}.
+     *
+     * Ohne Pseudonymspalte im Ergebnis: Wer diese Liste anzeigt, kennt die
+     * Person bereits, deren Profil er gerade rendert.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function vonVerkaeufer(int $verkaeuferId, int $seite = 1): array
+    {
+        $seite = max(1, $seite);
+        $versatz = ($seite - 1) * self::PROFIL_PRO_SEITE;
+
+        // LIMIT/OFFSET eingesetzt statt gebunden, aus demselben Grund wie in
+        // fuerKatalog(); beide Werte sind hier ganze Zahlen aus einer
+        // Klassenkonstanten und einer nach unten begrenzten Seitenzahl.
+        $zeilen = $this->db->alle(
+            'SELECT a.*
+               FROM angebote a
+               JOIN benutzer b ON b.id = a.verkaeufer_id
+              WHERE a.verkaeufer_id = :v AND a.status = :s AND b.status = :bs
+                AND ' . self::VERKAUFSFAEHIG . '
+              ORDER BY a.angelegt_am DESC, a.id DESC
+              LIMIT ' . self::PROFIL_PRO_SEITE . ' OFFSET ' . $versatz,
+            [
+                'v' => $verkaeuferId,
+                's' => self::STATUS_AKTIV,
+                'bs' => 'aktiv',
+                'faehigkeit' => Konten::FAEHIGKEIT_VERKAUFEN,
+            ]
+        );
+
+        return array_values($zeilen);
+    }
+
+    /**
+     * Traegt dieses Angebot eine Bestellung? Beide Pruefungen aus § 312g
+     * Abs. 2 Nr. 1 BGB, oeffentlich abfragbar.
+     *
+     * Die Bedingung ist unveraendert dieselbe wie in zurPruefungEinreichen();
+     * neu ist nur, dass sie von aussen lesbar ist. Nach dem Torabbau wird sie
+     * gebraucht: Ein Angebot darf sichtbar sein, ohne bestellbar zu sein, und
+     * die Oberflaeche muss den Unterschied zeigen koennen, statt die Kaeuferin
+     * erst in Bestellungen::anlegen() auflaufen zu lassen.
+     *
+     * ANTWORTET NICHT AUF DIE FRAGE NACH DEM STATUS. Ein entfernter oder
+     * gesperrter Entwurf mit tragender Spezifikation ist hier 'true'. Wer
+     * wissen will, ob JETZT bestellt werden darf, prueft zusaetzlich
+     * status === STATUS_AKTIV — genau so wie MarktRouten es bereits tut.
+     */
+    public function istBestellbar(int $angebotId): bool
+    {
+        return $this->hatSpezifikationsoption($angebotId)
+            && $this->hatTragendeSpezifikationsoption($angebotId);
     }
 
     /**

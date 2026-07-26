@@ -11,9 +11,22 @@ use MeinSlip\Core\Database;
  *
  * Grundsatz aus docs/08-architektur.md: EINE Registrierung, alle Rollen.
  * Es gibt keine getrennten Kaeufer- und Verkaeuferkonten. Wer sich
- * registriert, bekommt ein Konto; Kaufen und Verkaufen sind Faehigkeiten,
- * die durch Pruefungen freigeschaltet werden — dieselbe Person, dasselbe
- * Konto, zusaetzliche Berechtigungen.
+ * registriert, bekommt ein Konto; die Berechtigungen haengen als Faehigkeiten
+ * daran — dieselbe Person, dasselbe Konto, zusaetzliche Rechte.
+ *
+ * Die drei Faehigkeiten entstehen auf drei verschiedenen Wegen:
+ *
+ * - 'verkaufen' kommt mit der Registrierung. Frueher war sie das Tor, das die
+ *   Verwaltung erst aufstossen musste; das war ein Modell fuer eine Plattform
+ *   mit Personal. Aus dem Tor ist ein Sanktionsgriff geworden: entzogen wird
+ *   sie ueber Verwaltung::faehigkeitEntziehen(), das die Entscheidung
+ *   protokolliert und der betroffenen Person nach Art. 17 DSA zustellt. Das
+ *   ist das mildere Mittel neben der Kontosperre — und es wirkt erst auf
+ *   Meldung hin (Art. 16 DSA), nicht vorab gegen alle.
+ * - 'kaufen' wird NICHT mitvergeben. Sie steht fuer die Altersverifikation
+ *   nach § 4 Abs. 2 JMStV, deren lizenziertes Verfahren noch nicht angebunden
+ *   ist (docs/11-offene-fragen.md, Punkt 4).
+ * - 'verwalten' erst recht nicht — siehe die Konstante weiter unten.
  */
 final class Konten
 {
@@ -45,6 +58,17 @@ final class Konten
         self::FAEHIGKEIT_VERWALTEN,
     ];
 
+    /**
+     * Grundlage der bei der Registrierung vergebenen Verkaufsfaehigkeit.
+     *
+     * Die Spalte benutzer_faehigkeiten.grundlage ist ein schluesselwort ohne
+     * Datenbank-Enum, ein neuer Wert braucht also keine Migration. Als
+     * Konstante steht er trotzdem an genau einer Stelle: nur so laesst sich
+     * spaeter aufzaehlen, welche Konten die Faehigkeit allein durch das
+     * Registrieren haben — und welche durch eine echte Pruefung.
+     */
+    public const GRUNDLAGE_REGISTRIERUNG = 'registrierung';
+
     private const PSEUDONYM_MUSTER = '/^[\p{L}\p{N}_-]{3,30}$/u';
 
     public function __construct(private readonly Database $db)
@@ -52,12 +76,17 @@ final class Konten
     }
 
     /**
-     * Legt ein Konto an.
+     * Legt ein Konto an und schaltet die Verkaufsfaehigkeit frei.
      *
-     * Das Konto bekommt bewusst NOCH KEINE Faehigkeiten. Kaufen setzt die
-     * Altersverifikation voraus (§ 4 Abs. 2 JMStV), Verkaufen zusaetzlich die
-     * Identitaetspruefung. Beides laeuft ueber lizenzierte Verfahren, die noch
-     * nicht angebunden sind — siehe docs/11-offene-fragen.md, Punkt 4.
+     * Registrieren genuegt: das Konto darf sofort einstellen und wird sofort
+     * gesehen. Bewusst NICHT mitvergeben werden 'kaufen' (Altersverifikation,
+     * § 4 Abs. 2 JMStV, Verfahren noch nicht angebunden) und 'verwalten'.
+     *
+     * Beides — Kontozeile und Faehigkeit — laeuft in EINER Transaktion. Bricht
+     * der zweite Schritt ab, darf der erste nicht stehen bleiben: sonst
+     * entstuende ein Konto, das nicht verkaufen darf, ohne dass es jemals
+     * jemand entschieden haette. Der Fehler waere unsichtbar, weil das Konto
+     * sich anmelden kann und erst beim Einstellen abgewiesen wird.
      *
      * @throws KontoFehler
      */
@@ -89,18 +118,24 @@ final class Konten
             throw new KontoFehler('pseudonym_vergeben');
         }
 
-        return $this->db->einfuegen('benutzer', [
-            'pseudonym' => $pseudonym,
-            'email' => $email,
-            'passwort_hash' => password_hash($passwort, PASSWORD_DEFAULT),
-            'status' => 'aktiv',
-            'sprache' => 'de-DE',
-            'land' => 'DE',
-            'homescreen_name' => null,
-            'push_vorschau' => 0,
-            'angelegt_am' => gmdate('Y-m-d H:i:s'),
-            'zuletzt_aktiv_am' => null,
-        ]);
+        return $this->db->transaktion(function () use ($pseudonym, $email, $passwort): int {
+            $id = $this->db->einfuegen('benutzer', [
+                'pseudonym' => $pseudonym,
+                'email' => $email,
+                'passwort_hash' => password_hash($passwort, PASSWORD_DEFAULT),
+                'status' => 'aktiv',
+                'sprache' => 'de-DE',
+                'land' => 'DE',
+                'homescreen_name' => null,
+                'push_vorschau' => 0,
+                'angelegt_am' => gmdate('Y-m-d H:i:s'),
+                'zuletzt_aktiv_am' => null,
+            ]);
+
+            $this->faehigkeitFreischalten($id, self::FAEHIGKEIT_VERKAUFEN, self::GRUNDLAGE_REGISTRIERUNG);
+
+            return $id;
+        });
     }
 
     /**

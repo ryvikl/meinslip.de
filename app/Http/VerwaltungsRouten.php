@@ -50,6 +50,13 @@ final class VerwaltungsRouten
      * Handlungen fuer das Protokoll, die es in Verwaltung nicht als Konstante
      * gibt: Die Freigabe eines Angebots macht Angebote, protokolliert wird sie
      * hier.
+     *
+     * Die Nachmoderation ist bewusst NICHT so gebaut: Ihre beiden Handlungen
+     * stehen als Verwaltung::HANDLUNG_ANGEBOT_GESPERRT/_ENTSPERRT in der
+     * Fachklasse, weil tests/ProfilTest die HANDLUNG_-Konstanten von
+     * Verwaltung einsammelt und fuer jede einen Text unter 'profil.art.<wert>'
+     * verlangt. Eine Konstante hier faende der Test nicht — 'angebot_abgelehnt'
+     * traegt er deshalb von Hand nach.
      */
     private const HANDLUNG_ANGEBOT_FREIGEGEBEN = 'angebot_freigegeben';
     private const HANDLUNG_ANGEBOT_ABGELEHNT = 'angebot_abgelehnt';
@@ -69,6 +76,8 @@ final class VerwaltungsRouten
         'konto_entsperrt',
         'angebot_freigegeben',
         'angebot_abgelehnt',
+        'angebot_gesperrt',
+        'angebot_entsperrt',
         'meldung_bearbeitet',
     ];
 
@@ -96,6 +105,8 @@ final class VerwaltungsRouten
         'zeitpunkt_ungueltig',
         'angebot_unbekannt',
         'ablehnungsgrund_fehlt',
+        'sperrgrund_fehlt',
+        'entsperrgrund_fehlt',
         'eigenpruefung_unzulaessig',
         'statuswechsel_unzulaessig',
         'status_unbekannt',
@@ -286,16 +297,39 @@ final class VerwaltungsRouten
     private function angebote(Router $router): void
     {
         $router->get(self::WURZEL . '/angebote', $this->geschuetzt(
-            fn (Request $a, array $p, array $z): Response => $this->rendern(
-                $z,
-                'verwaltung.angebote',
-                'verwaltung.angebote_titel',
-                [
+            function (Request $a, array $p, array $z): Response {
+                $verwaltung = new Verwaltung($z['db']);
+
+                return $this->rendern($z, 'verwaltung.angebote', 'verwaltung.angebote_titel', [
                     'aktiv' => self::WURZEL . '/angebote',
-                    'liste' => (new Verwaltung($z['db']))->offeneAngebote($this->seite($a)),
+
+                    // Seit dem Modellwechsel ist die Meldeliste die Arbeitsliste
+                    // dieser Seite; die Vorabpruefung steht darunter und laeuft
+                    // aus. Beide werden getrennt geblaettert: Ein gemeinsames
+                    // '?seite=' liesse Zeilen der einen Liste unerreichbar,
+                    // sobald die andere kuerzer ist.
+                    'gemeldet' => $verwaltung->gemeldeteAngebote($this->seite($a)),
+                    'liste' => $verwaltung->offeneAngebote($this->seite($a, 'altseite')),
                     'verwalterId' => $z['verwalter_id'],
-                ] + $this->rueckmeldung($a)
-            )
+
+                    // Der Vergleichszeitpunkt kommt aus der Route, nicht aus der
+                    // Vorlage: gemeldeteAngebote() liefert die frueheste
+                    // zugesagte Frist, aber kein Kennzeichen dafuer, ob sie
+                    // gerissen ist. Alle Zeitangaben stehen als 'Y-m-d H:i:s' in
+                    // UTC — ein Zeichenkettenvergleich ordnet sie deshalb
+                    // richtig, genau wie Verwaltung::meldungen() es tut.
+                    'jetzt' => gmdate('Y-m-d H:i:s'),
+
+                    // Welche Handlung an einem Angebot ueberhaupt moeglich ist
+                    // und ob es oeffentlich abrufbar waere, haengt am Status.
+                    // Die Werte kommen als Konstanten in die Vorlage, damit
+                    // dort keine Zeichenkette steht, die bei einer Umbenennung
+                    // stumm falsch wuerde.
+                    'statusAktiv' => Angebote::STATUS_AKTIV,
+                    'statusGesperrt' => Angebote::STATUS_GESPERRT,
+                    'statusEntfernt' => Angebote::STATUS_ENTFERNT,
+                ] + $this->rueckmeldung($a));
+            }
         ));
 
         $this->schreibroute(
@@ -309,6 +343,20 @@ final class VerwaltungsRouten
             $router,
             self::WURZEL . '/angebote/{id}/ablehnen',
             fn (Request $a, array $p, array $z): Response => $this->angebotEntscheiden($a, $p, $z, false),
+            static fn (array $p): string => self::WURZEL . '/angebote'
+        );
+
+        $this->schreibroute(
+            $router,
+            self::WURZEL . '/angebote/{id}/sperren',
+            fn (Request $a, array $p, array $z): Response => $this->angebotNachmoderieren($a, $p, $z, true),
+            static fn (array $p): string => self::WURZEL . '/angebote'
+        );
+
+        $this->schreibroute(
+            $router,
+            self::WURZEL . '/angebote/{id}/entsperren',
+            fn (Request $a, array $p, array $z): Response => $this->angebotNachmoderieren($a, $p, $z, false),
             static fn (array $p): string => self::WURZEL . '/angebote'
         );
     }
@@ -424,6 +472,111 @@ final class VerwaltungsRouten
         }
 
         return $this->zurueck($ziel, 'erfolg', $freigeben ? 'angebot_freigegeben' : 'angebot_abgelehnt');
+    }
+
+    /**
+     * Die Nachmoderation: ein gemeldetes Angebot sperren oder wieder freigeben.
+     *
+     * DAS IST DIE ABHILFE NACH ART. 16 ABS. 6 DSA und der Preis dafuer, dass es
+     * keine Vorabpruefung mehr gibt. angebotEntscheiden() daneben gehoert zur
+     * auslaufenden Vorabpruefung; die beiden bleiben getrennt, weil sie
+     * verschiedene Wirkungen ausloesen (Angebote::sperren() nimmt vom Markt,
+     * ablehnen() schickt in den Entwurf zurueck) und weil eine gemeinsame
+     * Methode mit zwei Schaltern schwerer zu lesen waere als zwei mit einem.
+     *
+     * Der Transaktionsrahmen ist woertlich der von angebotEntscheiden(): Erst
+     * das Angebot laden, damit die Empfaengerin der Begruendung feststeht, dann
+     * Wirkung, Protokoll und — nur beim Sperren — Zustellung. Faellt eines aus,
+     * faellt alles aus.
+     *
+     * @param array<string,string>                                                 $parameter
+     * @param array{db: Database, sitzung: array<string,mixed>, verwalter_id: int} $zugang
+     */
+    private function angebotNachmoderieren(Request $anfrage, array $parameter, array $zugang, bool $sperren): Response
+    {
+        $id = $this->kennung($parameter);
+
+        if ($id === null) {
+            return $this->nichtGefunden();
+        }
+
+        $ziel = self::WURZEL . '/angebote';
+
+        if (!Formularschutz::gueltig($anfrage)) {
+            return Response::weiterleitung($ziel);
+        }
+
+        // Pflichtangabe in beide Richtungen. Angebote::sperren() und
+        // entsperren() weisen einen leeren Grund selbst ab
+        // ('sperrgrund_fehlt' / 'entsperrgrund_fehlt') — hier wird er nur
+        // eingesammelt, damit die Pruefung an genau einer Stelle sitzt.
+        $grund = $anfrage->eingabe('grund', '') ?? '';
+        $angebote = new Angebote($zugang['db']);
+
+        try {
+            $zugang['db']->transaktion(function () use ($angebote, $zugang, $id, $sperren, $grund): void {
+                // Vor dem Statuswechsel gelesen: Die Empfaengerin der
+                // Begruendung muss feststehen, bevor irgendetwas geschrieben
+                // wird. verkaeufer_id aendert sich durch die Sperre nicht.
+                $angebot = $angebote->laden($id);
+
+                if ($angebot === null) {
+                    throw new AngebotFehler('angebot_unbekannt');
+                }
+
+                if ($sperren) {
+                    $angebote->sperren($id, $zugang['verwalter_id'], $grund);
+                } else {
+                    $angebote->entsperren($id, $zugang['verwalter_id'], $grund);
+                }
+
+                $verwaltung = new Verwaltung($zugang['db']);
+
+                $ereignisId = $verwaltung->ereignisSchreiben(
+                    $zugang['verwalter_id'],
+                    $sperren
+                        ? Verwaltung::HANDLUNG_ANGEBOT_GESPERRT
+                        : Verwaltung::HANDLUNG_ANGEBOT_ENTSPERRT,
+                    Verwaltung::GEGENSTAND_ANGEBOT,
+                    $id,
+                    $grund
+                );
+
+                if (!$sperren) {
+                    // BITTE NICHT "VERVOLLSTAENDIGEN": Die Entsperrung wird
+                    // ABSICHTLICH nicht zugestellt. Art. 17 Abs. 1 DSA knuepft
+                    // die Begruendungspflicht an eine BESCHRAENKUNG. Das
+                    // Aufheben einer Sperre beschraenkt niemanden — es nimmt
+                    // eine Beschraenkung zurueck. Eine Zustellung waere hier
+                    // keine Begruendung, sondern eine Mitteilung, und sie
+                    // stuende auf /profil unter der Ueberschrift "Was wir
+                    // entschieden haben" zwischen lauter Einschraenkungen.
+                    // Protokolliert wird sie trotzdem: Wer eine Sperre
+                    // aufhebt, muss ebenso feststellbar sein wie wer sie
+                    // verhaengt hat.
+                    return;
+                }
+
+                // Art. 17 Abs. 1 DSA: Die Sperre ist eine Beschraenkung, also
+                // muss die Begruendung die Verkaeuferin ERREICHEN. Der
+                // Protokolleintrag oben ist der interne Nachweis; er wird
+                // ausschliesslich unter /verwaltung gelesen. Beides in DIESER
+                // Transaktion, sonst entstuende entweder eine Sperre ohne
+                // Begruendung oder eine Begruendung ohne Sperre.
+                $verwaltung->benachrichtigen(
+                    (int) $angebot['verkaeufer_id'],
+                    Verwaltung::HANDLUNG_ANGEBOT_GESPERRT,
+                    Verwaltung::GEGENSTAND_ANGEBOT,
+                    $id,
+                    $grund,
+                    $ereignisId
+                );
+            });
+        } catch (AngebotFehler | VerwaltungsFehler $fehler) {
+            return $this->zurueck($ziel, 'fehler', $fehler->schluessel());
+        }
+
+        return $this->zurueck($ziel, 'erfolg', $sperren ? 'angebot_gesperrt' : 'angebot_entsperrt');
     }
 
     // --- Meldungen -------------------------------------------------------
@@ -676,8 +829,16 @@ final class VerwaltungsRouten
         return $id > 0 ? $id : null;
     }
 
-    private function seite(Request $anfrage): int
+    /**
+     * Seitenzahl aus der Adresszeile.
+     *
+     * Der Name ist frei, weil auf /verwaltung/angebote ZWEI Listen stehen —
+     * die Meldeliste und die auslaufende Vorabpruefung. Mit einem gemeinsamen
+     * '?seite=' wuerde das Blaettern in der einen die andere mitziehen und
+     * deren Zeilen ab Seite 2 unerreichbar machen, sobald sie kuerzer ist.
+     */
+    private function seite(Request $anfrage, string $name = 'seite'): int
     {
-        return max(1, $anfrage->ganzzahl('seite', 1) ?? 1);
+        return max(1, $anfrage->ganzzahl($name, 1) ?? 1);
     }
 }

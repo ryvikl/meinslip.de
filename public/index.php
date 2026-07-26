@@ -21,6 +21,7 @@ use MeinSlip\Core\Response;
 use MeinSlip\Core\Router;
 use MeinSlip\Core\View;
 use MeinSlip\Http\MarktRouten;
+use MeinSlip\Http\MeldeRouten;
 use MeinSlip\Http\Routen;
 use MeinSlip\Http\VerwaltungsRouten;
 
@@ -44,15 +45,21 @@ error_reporting($debug ? E_ALL : E_ALL & ~E_DEPRECATED);
 $router = new Router();
 $ansicht = new View($wurzel . '/resources/views');
 
-// Drei Routenklassen statt einer: Grundseiten, Marktplatz, Verwaltung. Die
-// Trennung ist keine Kosmetik — sie haelt den Verwaltungsbereich in einer
-// eigenen Datei mit eigener Zugangspruefung, statt ihn zwischen oeffentliche
-// Routen zu mischen, wo eine vergessene Pruefung nicht auffiele.
+// Vier Routenklassen statt einer: Grundseiten, Marktplatz, Meldeweg,
+// Verwaltung. Die Trennung ist keine Kosmetik — sie haelt den
+// Verwaltungsbereich in einer eigenen Datei mit eigener Zugangspruefung,
+// statt ihn zwischen oeffentliche Routen zu mischen, wo eine vergessene
+// Pruefung nicht auffiele.
+//
+// Der Meldeweg steht bewusst daneben und nicht darin: Er ist die einzige
+// Rechtfertigung dafuer, dass Angebote ohne Vorabpruefung erscheinen
+// (Art. 16 DSA). Wer ihn ausbaut, muss die Vorabpruefung zurueckbauen.
 //
 // Die Reihenfolge ist unerheblich: Der Router vergleicht Muster der Reihe
-// nach, und die drei Klassen teilen sich keinen Pfad.
+// nach, und die vier Klassen teilen sich keinen Pfad.
 (new Routen($wurzel, $ansicht))->registrieren($router);
 (new MarktRouten($wurzel, $ansicht))->registrieren($router);
+(new MeldeRouten($wurzel, $ansicht))->registrieren($router);
 (new VerwaltungsRouten($wurzel, $ansicht))->registrieren($router);
 
 try {

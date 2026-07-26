@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MeinSlip\Domain\Order;
 
 use MeinSlip\Core\Database;
+use MeinSlip\Core\Env;
 use MeinSlip\Domain\Ledger\Hauptbuch;
 
 /**
@@ -28,6 +29,11 @@ use MeinSlip\Domain\Ledger\Hauptbuch;
  *
  *  4. FREIGABE ERST NACH ABLAUF DES EINSPRUCHSFENSTERS. Kein Ereignis — auch
  *     keine bestaetigte Uebergabe — gibt Geld sofort frei.
+ *
+ * Dazu kommt eine fuenfte, voruebergehende Zusicherung: DER BESTELLVORGANG
+ * IST VERRIEGELT, NICHT ABGESCHALTET. anlegen() wirft BestellvorgangGesperrt,
+ * solange BESTELLVORGANG_AKTIV nicht gesetzt ist. Der Code bleibt vollstaendig
+ * und vollstaendig getestet — es fehlt nur die Freigabe.
  */
 final class Bestellungen
 {
@@ -63,6 +69,8 @@ final class Bestellungen
         string $land = 'DE',
         string $waehrung = 'EUR'
     ): int {
+        $this->pruefeFreigabe();
+
         if ($kaeuferId === $verkaeuferId) {
             throw new BestellFehler('Geschaefte mit sich selbst sind nicht zulaessig.');
         }
@@ -480,6 +488,38 @@ final class Bestellungen
     }
 
     // --- intern ----------------------------------------------------------
+
+    /**
+     * Der Schalter.
+     *
+     * WARUM HIER UND NICHT IN DER ROUTE: In der Route allein waere der
+     * Schalter wertlos. Die erste neue Route, die eine Bestellung braucht,
+     * oeffnete die KWG-Frage aus Versehen wieder — niemand wuerde beim
+     * Schreiben eines Formulars daran denken, eine aufsichtsrechtliche Sperre
+     * mitzuziehen. In der Fachklasse kann keine Route daran vorbei: es gibt
+     * genau einen Weg zu einer Bestellung, und der beginnt hier.
+     *
+     * Bewusst als Ausnahme mit vollstaendiger Begruendung, genau wie
+     * Guthaben::pruefeFreigabe(): Wer diesen Fehler sieht, soll sofort wissen,
+     * warum — und nicht anfangen, ihn wegzuklicken.
+     */
+    private function pruefeFreigabe(): void
+    {
+        if (Env::bool('BESTELLVORGANG_AKTIV', false)) {
+            return;
+        }
+
+        throw new BestellvorgangGesperrt(
+            'Der Bestellvorgang ist verriegelt. Bezahlt wird ausschliesslich aus dem Guthaben, '
+            . 'und das ist gesperrt: Ein aufladbares, jederzeit rueckforderbares Guthaben kann ein '
+            . 'erlaubnispflichtiges Einlagengeschaeft nach § 1 Abs. 1 S. 2 Nr. 1 KWG sein, und '
+            . 'diese Einordnung ist offen. Ohne bezahlbare Bestellung waere eine angelegte '
+            . 'Bestellung eine Forderung, die niemand erfuellen kann — deshalb entsteht sie '
+            . 'erst gar nicht. Freigabe zusammen mit ZAHLUNG_GUTHABEN_AKTIV ueber '
+            . 'BESTELLVORGANG_AKTIV=true. Siehe docs/07-zahlungsverkehr.md und '
+            . 'docs/11-offene-fragen.md.'
+        );
+    }
 
     /** @return array<string,mixed> */
     public function laden(int $bestellungId): array

@@ -119,9 +119,39 @@ return [
     'meldungen_gegen_leer' => 'Keine offene Meldung.',
 
     // --- Angebote --------------------------------------------------------
-    'angebote_kicker' => 'Warten auf Entscheidung',
-    'angebote_titel' => 'Angebote in Prüfung',
-    'angebote_leer' => 'Zurzeit wartet kein Angebot auf eine Entscheidung.',
+    // Die Seite ist keine Prüfliste mehr. Es gibt keine Vorabprüfung: Ein
+    // Angebot ist sofort sichtbar, die Verwaltung greift auf Meldung hin ein.
+    // Die Texte sagen das, damit niemand hier auf Eingänge wartet, die nie
+    // kommen.
+    'angebote_kicker' => 'Nachmoderation auf Meldung',
+    'angebote_titel' => 'Gemeldete Angebote',
+    'angebote_erklaerung' => 'Angebote sind ohne Vorabprüfung sichtbar. Hier steht, was '
+        . 'gemeldet wurde — die knappste zugesagte Frist zuerst.',
+    'gemeldet_leer' => 'Zurzeit ist kein Angebot gemeldet.',
+    'meldung_eine' => 'Eine Meldung',
+    'meldungen_anzahl' => ':anzahl Meldungen',
+    'alle_meldegruende' => 'Alle Gründe',
+    // Zwei Platzhalter, von denen keiner Anfang des anderen ist: ':grund' und
+    // ':anzahl' wären ungefährlich, ':grund' und ':gruende' nicht — Lang::t
+    // ersetzt der Reihe nach per str_replace.
+    'meldegrund_zaehler' => ':grund (:wieoft)',
+    'angebot_ansehen' => 'Angebot ansehen',
+    'angebot_nicht_oeffentlich' => 'Öffentlich nicht abrufbar: Im Katalog steht nur, was aktiv ist.',
+    'angebot_ist_entfernt' => 'Dieses Angebot ist entfernt. Aus diesem Zustand führt kein Weg zurück.',
+
+    'angebot_sperren' => 'Angebot sperren',
+    'angebot_sperrgrund' => 'Begründung der Sperre',
+    'angebot_sperrgrund_hinweis' => 'Pflichtangabe. Die Sperre ist eine Beschränkung, die '
+        . 'Begründung geht deshalb an die Verkäuferin (Art. 17 Abs. 1 DSA) und ist die '
+        . 'Grundlage ihrer Beschwerde. Schreibe den Text an sie gerichtet.',
+    'angebot_sperren_ziel' => 'Eine Sperre nimmt das Angebot sofort vom Markt. Sie lässt sich '
+        . 'wieder aufheben — Art. 20 DSA verlangt, dass eine Beschwerde etwas ändern kann.',
+    'angebot_entsperren' => 'Sperre aufheben',
+    'angebot_entsperrgrund' => 'Begründung der Aufhebung',
+    'angebot_entsperrgrund_hinweis' => 'Pflichtangabe fürs Protokoll. Eine Aufhebung beschränkt '
+        . 'niemanden und wird deshalb nicht zugestellt — festgehalten wird sie trotzdem: Wer '
+        . 'eine Sperre aufhebt, muss so feststellbar sein wie wer sie verhängt hat.',
+
     'angebot_freigeben' => 'Freigeben',
     'angebot_ablehnen' => 'Ablehnen',
     'angebot_grund' => 'Grund der Ablehnung',
@@ -129,6 +159,11 @@ return [
         . 'Ohne Grund kann sie nur raten, was zu ändern ist.',
     'angebot_vier_augen' => 'Wer ein Angebot selbst eingereicht hat, darf nicht darüber entscheiden.',
     'angebot_abgelehnt_ziel' => 'Eine Ablehnung stellt das Angebot zurück auf Entwurf, sie löscht es nicht.',
+
+    'altliste_titel' => 'Angebote aus der Vorabprüfung',
+    'altliste_hinweis' => 'Diese Liste läuft aus. Sie enthält nur noch, was ausdrücklich zur '
+        . 'Prüfung eingereicht wurde; neue Angebote gehen nicht mehr durch dieses Tor. Ist sie '
+        . 'leer, verschwindet sie.',
 
     // --- Meldungen -------------------------------------------------------
     'meldungen_kicker' => 'Beschwerden nach Art. 16 DSA',
@@ -190,6 +225,7 @@ return [
     'spalte.beschreibung' => 'Beschreibung',
     'spalte.frist' => 'Zugesagt bis',
     'spalte.eingegangen' => 'Eingegangen',
+    'spalte.erste_meldung' => 'Erste Meldung',
     'spalte.zeit' => 'Zeitpunkt',
     'spalte.verwalter' => 'Entschieden von',
     'spalte.handlung' => 'Handlung',
@@ -211,7 +247,22 @@ return [
     'angebot_status.in_pruefung' => 'in Prüfung',
     'angebot_status.aktiv' => 'aktiv',
     'angebot_status.pausiert' => 'pausiert',
+    // Der Status der Nachmoderation. Er steht hier auch deshalb, weil die
+    // Übersicht jeden in der Datenbank vorgefundenen Wert anzeigt, selbst
+    // wenn Verwaltung::ANGEBOTSSTATUS ihn (noch) nicht führt.
+    'angebot_status.gesperrt' => 'gesperrt',
     'angebot_status.entfernt' => 'entfernt',
+
+    // Die Meldegründe aus MeinSlip\Domain\Trust\Meldungen::GRUENDE. Eigene
+    // Texte statt der öffentlichen: Vorne wird erklärt, hier eingeordnet.
+    // Reihenfolge wie in der Konstanten — das Dringendste zuerst.
+    'meldegrund.minderjaehrig' => 'Minderjährige Person',
+    'meldegrund.gestohlene_identitaet' => 'Gestohlene Identität',
+    'meldegrund.verbotene_ware' => 'Verbotene Ware',
+    'meldegrund.betrug' => 'Betrug',
+    'meldegrund.belaestigung' => 'Belästigung',
+    'meldegrund.urheberrecht' => 'Urheberrecht',
+    'meldegrund.sonstiges' => 'Sonstiges',
 
     'bestellzustand.entwurf' => 'Entwurf',
     'bestellzustand.zahlung_offen' => 'Zahlung offen',
@@ -248,6 +299,8 @@ return [
     'handlung.meldung_bearbeitet' => 'Meldung bearbeitet',
     'handlung.angebot_freigegeben' => 'Angebot freigegeben',
     'handlung.angebot_abgelehnt' => 'Angebot abgelehnt',
+    'handlung.angebot_gesperrt' => 'Angebot gesperrt',
+    'handlung.angebot_entsperrt' => 'Angebotssperre aufgehoben',
 
     'gegenstand.benutzer' => 'Konto',
     'gegenstand.angebot' => 'Angebot',
@@ -265,6 +318,12 @@ return [
     'erfolg.angebot_freigegeben' => 'Das Angebot ist freigegeben und protokolliert.',
     'erfolg.angebot_abgelehnt' => 'Das Angebot ist abgelehnt, die Begründung ist der '
         . 'einreichenden Person zugestellt und protokolliert.',
+    'erfolg.angebot_gesperrt' => 'Das Angebot ist vom Markt, die Begründung ist der '
+        . 'Verkäuferin zugestellt und protokolliert.',
+    // Ohne "zugestellt": Die Aufhebung wird ausdrücklich nur protokolliert.
+    // Der Text verspricht deshalb nichts, was nicht geschieht.
+    'erfolg.angebot_entsperrt' => 'Die Sperre ist aufgehoben, das Angebot ist wieder aktiv '
+        . 'und die Aufhebung ist protokolliert.',
     'erfolg.meldung_bearbeitet' => 'Die Meldung ist entschieden und protokolliert.',
 
     // Schlüssel aus VerwaltungsFehler::schluessel()
@@ -288,6 +347,10 @@ return [
     // Schlüssel aus AngebotFehler::schluessel(), soweit hier erreichbar
     'fehler.angebot_unbekannt' => 'Dieses Angebot gibt es nicht.',
     'fehler.ablehnungsgrund_fehlt' => 'Eine Ablehnung ohne Grund hilft niemandem.',
+    'fehler.sperrgrund_fehlt' => 'Eine Sperre ohne Begründung ist nach Art. 17 Abs. 1 DSA '
+        . 'nicht zulässig.',
+    'fehler.entsperrgrund_fehlt' => 'Auch die Aufhebung einer Sperre braucht einen Grund fürs '
+        . 'Protokoll.',
     'fehler.eigenpruefung_unzulaessig' => 'Wer ein Angebot eingereicht hat, darf nicht darüber entscheiden.',
     'fehler.statuswechsel_unzulaessig' => 'Aus diesem Status ist der Schritt nicht erlaubt — '
         . 'vermutlich hat jemand anderes das Angebot bereits entschieden.',

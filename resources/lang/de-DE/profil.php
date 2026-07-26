@@ -51,6 +51,23 @@ return [
     'art.angebot_abgelehnt' => 'Ein Angebot wurde abgelehnt',
     'art.meldung_bearbeitet' => 'Eine Meldung wurde bearbeitet',
 
+    // Die Nachmoderation. 'angebot_gesperrt' ist eine Beschraenkung und wird
+    // zugestellt — dieser Text steht dann als Ueberschrift ueber der
+    // Begruendung nach Art. 17 Abs. 1 DSA.
+    'art.angebot_gesperrt' => 'Ein Angebot wurde gesperrt',
+    // 'angebot_entsperrt' wird ABSICHTLICH nicht zugestellt: Das Aufheben
+    // einer Sperre beschraenkt niemanden. Der Text steht trotzdem hier, weil
+    // ProfilTest jede HANDLUNG_-Konstante aus Verwaltung prueft — und weil ein
+    // fehlender Text sonst erst dann auffiele, wenn doch einmal zugestellt
+    // wird und die betroffene Person '[[profil.art.angebot_entsperrt]]' liest.
+    'art.angebot_entsperrt' => 'Die Sperre eines Angebots wurde aufgehoben',
+
+    // Kein Verwaltungsvorgang, sondern die Empfangsbestaetigung nach Art. 16
+    // Abs. 4 DSA: Wer meldet, bekommt eine Zeile, die belegt, dass die Meldung
+    // angekommen ist. Sie steht in derselben Liste, weil sie ueber denselben
+    // Weg zugestellt wird.
+    'art.meldung_eingegangen' => 'Deine Meldung ist eingegangen',
+
     'konto_kicker' => 'Wege',
     'konto_titel' => 'Weiter zu',
     'weg_verkaufen' => 'Meine Angebote',

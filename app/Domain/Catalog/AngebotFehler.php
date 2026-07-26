@@ -31,6 +31,20 @@ final class AngebotFehler extends \RuntimeException
         return $this->schluessel;
     }
 
+    /**
+     * Der Wechsel war nicht erlaubt — gleich, ob die Uebergangstabelle ihn
+     * verbietet oder eine Methode ihren Ausgangsstatus zusaetzlich einengt.
+     *
+     * Vier Methoden in Angebote steuern 'aktiv' an und pruefen dafuer je eine
+     * eigene Vorbedingung: veroeffentlichen() nur aus 'entwurf', fortsetzen()
+     * nur aus 'pausiert', freigeben() nur aus 'in_pruefung', entsperren() nur
+     * aus 'gesperrt'. Sie alle melden bewusst DIESEN Schluessel und keinen
+     * eigenen: Der Fall IST fuer die aufrufende Person ein unerlaubter
+     * Wechsel, 'statuswechsel_unzulaessig' ist in der Oberflaeche uebersetzt,
+     * und die Zusicherung der Tests — jeder verbotene Uebergang meldet
+     * denselben Schluessel — bleibt damit erhalten. Die beteiligten Status
+     * stehen in der Meldung, also im Protokoll.
+     */
     public static function unerlaubterWechsel(string $von, string $nach): self
     {
         return new self('statuswechsel_unzulaessig', sprintf(

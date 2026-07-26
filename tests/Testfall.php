@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MeinSlip\Tests;
 
 use MeinSlip\Core\Database;
+use MeinSlip\Core\Env;
 use MeinSlip\Core\Migrator;
 use MeinSlip\Domain\Ledger\Hauptbuch;
 use MeinSlip\Domain\Order\Bestellungen;
@@ -30,6 +31,21 @@ abstract class Testfall extends TestCase
         (new Migrator($this->db, dirname(__DIR__) . '/database/migrations'))->hoch();
 
         $this->hauptbuch = new Hauptbuch($this->db);
+
+        // Der Bestellvorgang ist produktiv verriegelt (KWG, siehe
+        // Bestellungen::pruefeFreigabe). Hier laeuft er eingeschaltet: Damit
+        // faehrt die komplette bestehende Bestellsuite dauerhaft gegen den
+        // freigeschalteten Schalter, statt gegen den gesperrten. Der Tag der
+        // produktiven Freischaltung ist dadurch durch die gesamte Testsuite
+        // abgedeckt statt durch einen Kommentar — es wird an ihm nichts
+        // Ungetestetes in Betrieb genommen.
+        //
+        // Env haelt seine Werte statisch ueber alle Tests hinweg. Wer den
+        // gesperrten Zustand pruefen will, muss ihn deshalb ausdruecklich
+        // setzen (Env::setzen(..., 'false')) — sich auf das Fehlen des
+        // Schluessels zu verlassen, haengt von der Testreihenfolge ab.
+        // Genau das tut tests/BestellschalterTest.php.
+        Env::setzen('BESTELLVORGANG_AKTIV', 'true');
     }
 
     protected function bestellungen(int $provisionssatz = 1500): Bestellungen

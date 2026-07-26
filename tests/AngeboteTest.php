@@ -518,6 +518,274 @@ final class AngeboteTest extends Testfall
         self::assertSame(Angebote::STATUS_IN_PRUEFUNG, $this->statusVon($angebotId));
     }
 
+    // --- Veroeffentlichen und Nachmoderation -----------------------------
+
+    /**
+     * Der Kern des Modellwechsels: registrieren, einstellen, sichtbar — ohne
+     * einen einzigen Verwaltungseingriff.
+     *
+     * Der Test setzt bewusst KEINE Option. Waere die Spezifikationspruefung
+     * aus zurPruefungEinreichen() mit nach veroeffentlichen() gewandert,
+     * stuende hier ein 'keine_spezifikation' und das Tor waere nur verschoben:
+     * Wer eine Ware zeigen will, muesste sie erst verkaufsfertig
+     * konfigurieren. Sichtbarkeit und Bestellbarkeit sind zwei Fragen, und die
+     * zweite beantwortet istBestellbar().
+     */
+    public function testVeroeffentlichenGehtDirektVomEntwurfNachAktiv(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $kategorie = $this->kategorie();
+        $angebotId = $this->entwurf($verkaeufer, $kategorie);
+
+        $this->angebote->veroeffentlichen($angebotId, $verkaeufer);
+
+        self::assertSame(Angebote::STATUS_AKTIV, $this->statusVon($angebotId));
+        self::assertCount(1, $this->angebote->fuerKatalog($kategorie), 'Sofort im Katalog, ohne Freigabe.');
+        self::assertFalse(
+            $this->angebote->istBestellbar($angebotId),
+            'Sichtbar ist nicht dasselbe wie bestellbar — sonst waere das Tor nur verschoben.'
+        );
+    }
+
+    public function testFremderDarfNichtVeroeffentlichen(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $fremde = $this->verkaeufer('Mara');
+        $angebotId = $this->entwurf($verkaeufer);
+
+        try {
+            $this->angebote->veroeffentlichen($angebotId, $fremde);
+            self::fail('Nur die Eigentuemerin darf ihr Angebot veroeffentlichen.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('nicht_der_eigentuemer', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_ENTWURF, $this->statusVon($angebotId));
+    }
+
+    /**
+     * Die Abhilfemassnahme nach Art. 16 Abs. 6 DSA. Sie ist der Preis fuer die
+     * abgeschaffte Vorabpruefung: Ein gemeldetes Angebot muss binnen kurzer
+     * Zeit aus jeder oeffentlichen Liste verschwinden.
+     */
+    public function testSperrenNimmtDasAngebotVomMarkt(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $kategorie = $this->kategorie();
+        $angebotId = $this->veroeffentlicht($verkaeufer, $kategorie);
+
+        self::assertSame(1, $this->angebote->anzahlImKatalog($kategorie));
+
+        $this->angebote->sperren($angebotId, $this->pruefstelle(), 'Gemeldet: Das Bild zeigt fremde Ware.');
+
+        self::assertSame(Angebote::STATUS_GESPERRT, $this->statusVon($angebotId));
+        self::assertSame([], $this->angebote->fuerKatalog($kategorie));
+        self::assertSame(0, $this->angebote->anzahlImKatalog($kategorie));
+        self::assertSame([], $this->angebote->vonVerkaeufer($verkaeufer));
+    }
+
+    /**
+     * Ohne Grund keine Sperre: Der Grund ist nach Art. 17 DSA Teil der
+     * Begruendung gegenueber der betroffenen Person und die Grundlage ihrer
+     * Beschwerde nach Art. 20 DSA. Eine Sperre ohne ihn waere unanfechtbar.
+     */
+    public function testSperrenBrauchtEineBegruendung(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->veroeffentlicht($verkaeufer);
+
+        try {
+            $this->angebote->sperren($angebotId, $this->pruefstelle(), '   ');
+            self::fail('Es haette ein AngebotFehler geworfen werden muessen.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('sperrgrund_fehlt', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_AKTIV, $this->statusVon($angebotId));
+    }
+
+    /** Vier-Augen-Prinzip wie bei jeder anderen Entscheidung ueber fremde Ware. */
+    public function testNiemandSperrtDasEigeneAngebot(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->veroeffentlicht($verkaeufer);
+
+        try {
+            $this->angebote->sperren($angebotId, $verkaeufer, 'Aus dem Weg geraeumt.');
+            self::fail('Niemand darf ueber das eigene Angebot entscheiden.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('eigenpruefung_unzulaessig', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_AKTIV, $this->statusVon($angebotId));
+    }
+
+    /** Art. 20 DSA: Eine Beschwerde muss die Sperre heilen koennen. */
+    public function testEntsperrenStelltDasAngebotWiederHer(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $kategorie = $this->kategorie();
+        $angebotId = $this->veroeffentlicht($verkaeufer, $kategorie);
+        $this->angebote->sperren($angebotId, $this->pruefstelle(), 'Gemeldet: angeblich fremde Ware.');
+
+        $this->angebote->entsperren($angebotId, $this->pruefstelle(), 'Beschwerde begruendet, Ware ist eigene.');
+
+        self::assertSame(Angebote::STATUS_AKTIV, $this->statusVon($angebotId));
+        self::assertCount(1, $this->angebote->fuerKatalog($kategorie));
+    }
+
+    public function testEntsperrenBrauchtEineBegruendung(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->veroeffentlicht($verkaeufer);
+        $this->angebote->sperren($angebotId, $this->pruefstelle(), 'Gemeldet.');
+
+        try {
+            $this->angebote->entsperren($angebotId, $this->pruefstelle(), '');
+            self::fail('Es haette ein AngebotFehler geworfen werden muessen.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('entsperrgrund_fehlt', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_GESPERRT, $this->statusVon($angebotId));
+    }
+
+    public function testNiemandEntsperrtDasEigeneAngebot(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->veroeffentlicht($verkaeufer);
+        $this->angebote->sperren($angebotId, $this->pruefstelle(), 'Gemeldet.');
+
+        try {
+            $this->angebote->entsperren($angebotId, $verkaeufer, 'Ich sehe das anders.');
+            self::fail('Die Beschwerde entscheidet die Verwaltung, nicht die Betroffene.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('eigenpruefung_unzulaessig', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_GESPERRT, $this->statusVon($angebotId));
+    }
+
+    /**
+     * Die Nachmoderation traegt den gesamten Torabbau. Kann die Verkaeuferin
+     * ihre eigene Sperre aufheben, ist sie wertlos — und der Verzicht auf die
+     * Vorabpruefung nicht mehr verteidigbar.
+     *
+     * Die Uebergangstabelle allein reicht dafuer nicht: 'gesperrt -> aktiv'
+     * MUSS erlaubt sein (Art. 20 DSA), also haengt die Absicherung an den
+     * Vorbedingungen in veroeffentlichen() und fortsetzen().
+     */
+    public function testVerkaeuferinKannIhreSperreNichtSelbstAufheben(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->veroeffentlicht($verkaeufer);
+        $this->angebote->sperren($angebotId, $this->pruefstelle(), 'Gemeldet und geprueft.');
+
+        try {
+            $this->angebote->fortsetzen($angebotId, $verkaeufer);
+            self::fail('fortsetzen() darf keine Sperre aufheben.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('statuswechsel_unzulaessig', $fehler->schluessel());
+        }
+
+        try {
+            $this->angebote->veroeffentlichen($angebotId, $verkaeufer);
+            self::fail('veroeffentlichen() darf keine Sperre aufheben.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('statuswechsel_unzulaessig', $fehler->schluessel());
+        }
+
+        // Und umschreiben laesst sich ein gesperrtes Angebot auch nicht: Sonst
+        // bliebe die Sperre stehen und der Inhalt wechselte darunter.
+        try {
+            $this->angebote->bearbeiten($angebotId, $verkaeufer, ['titel' => 'Anderer Titel']);
+            self::fail('Ein gesperrtes Angebot ist nicht bearbeitbar.');
+        } catch (AngebotFehler $fehler) {
+            self::assertSame('nicht_bearbeitbar', $fehler->schluessel());
+        }
+
+        self::assertSame(Angebote::STATUS_GESPERRT, $this->statusVon($angebotId));
+    }
+
+    /**
+     * Vier Methoden steuern 'aktiv' an, seit der Modellwechsel die
+     * Uebergangstabelle geoeffnet hat. Die Tabelle sagt nur, WELCHER Wechsel
+     * zulaessig ist — nicht, WER ihn ausloesen darf. Deshalb prueft jede
+     * Methode ihren Ausgangsstatus selbst, und dieser Test haelt genau das
+     * fest: Ohne die Vorbedingungen waere jede von ihnen ein Weg, eine Sperre
+     * aufzuheben oder einen fremden Entwurf zu veroeffentlichen.
+     */
+    public function testJederWegNachAktivPruefstSeinenAusgangsstatus(): void
+    {
+        $erlaubterAusgang = [
+            'veroeffentlichen' => Angebote::STATUS_ENTWURF,
+            'fortsetzen' => Angebote::STATUS_PAUSIERT,
+            'freigeben' => Angebote::STATUS_IN_PRUEFUNG,
+            'entsperren' => Angebote::STATUS_GESPERRT,
+        ];
+
+        $verkaeufer = $this->verkaeufer('Lina');
+        $pruefende = $this->pruefstelle();
+        $angebotId = $this->entwurf($verkaeufer);
+
+        foreach ($erlaubterAusgang as $methode => $ausgang) {
+            foreach (Angebote::STATUSWERTE as $von) {
+                if ($von === $ausgang) {
+                    continue;
+                }
+
+                $this->statusSetzen($angebotId, $von);
+
+                try {
+                    match ($methode) {
+                        'veroeffentlichen' => $this->angebote->veroeffentlichen($angebotId, $verkaeufer),
+                        'fortsetzen' => $this->angebote->fortsetzen($angebotId, $verkaeufer),
+                        'freigeben' => $this->angebote->freigeben($angebotId, $pruefende),
+                        'entsperren' => $this->angebote->entsperren($angebotId, $pruefende, 'Beschwerde begruendet.'),
+                    };
+                    self::fail(sprintf('%s() haette aus "%s" nicht aktivieren duerfen.', $methode, $von));
+                } catch (AngebotFehler $fehler) {
+                    self::assertSame(
+                        'statuswechsel_unzulaessig',
+                        $fehler->schluessel(),
+                        $methode . '() aus "' . $von . '"'
+                    );
+                    self::assertSame($von, $this->statusVon($angebotId), 'Der Status darf sich nicht geaendert haben.');
+                }
+            }
+        }
+    }
+
+    /** @return iterable<string, array{?string,bool}> */
+    public static function bestellbarkeit(): iterable
+    {
+        yield 'ohne Option' => [null, false];
+        yield 'nur Ankreuzfeld' => [Angebote::ART_AUSWAHL, false];
+        yield 'Zahl' => [Angebote::ART_ZAHL, true];
+        yield 'Freitext' => [Angebote::ART_FREITEXT, true];
+    }
+
+    /**
+     * istBestellbar() legt die beiden Pruefungen aus § 312g Abs. 2 Nr. 1 BGB
+     * offen, die bisher nur privat in zurPruefungEinreichen() sassen. Nach dem
+     * Torabbau werden sie oeffentlich gebraucht: Ein Angebot darf sichtbar
+     * sein, ohne bestellbar zu sein, und die Oberflaeche muss den Unterschied
+     * zeigen koennen, statt die Kaeuferin erst in Bestellungen::anlegen()
+     * auflaufen zu lassen.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('bestellbarkeit')]
+    public function testIstBestellbarKenntDieGrenzeDesWiderrufsausschlusses(?string $art, bool $erwartet): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $angebotId = $this->entwurf($verkaeufer);
+
+        if ($art !== null) {
+            $this->angebote->optionSetzen($angebotId, $verkaeufer, 'tragedauer', 'Tragedauer', $art, 0, true);
+        }
+
+        self::assertSame($erwartet, $this->angebote->istBestellbar($angebotId));
+    }
+
     // --- Zustandsmaschine ------------------------------------------------
 
     public function testPausierenUndFortsetzen(): void
@@ -549,19 +817,48 @@ final class AngeboteTest extends Testfall
      * Der Test soll den Vertrag pruefen, nicht die Tabelle der Klasse
      * gegen sich selbst.
      *
+     * Mit dem Modellwechsel von 5x5 auf 6x6 gewachsen. Was hinzugekommen ist
+     * und warum:
+     *
+     *  - 'entwurf -> aktiv' ist der Torabbau selbst. Ohne diese Zeile im Test
+     *    wuerde ein spaeteres Zurueckdrehen der Uebergangstabelle als grosse
+     *    Zahl neuer roter Tests auffallen — genau das ist gewollt.
+     *  - 'gesperrt' ist aus jedem lebenden Status erreichbar: Eine Meldung
+     *    kommt, wann sie kommt, und ein kurz pausiertes Angebot darf sich
+     *    der Abhilfemassnahme nicht entziehen.
+     *  - 'gesperrt -> aktiv' muss erlaubt bleiben (Art. 20 DSA), 'gesperrt ->
+     *    pausiert' und 'gesperrt -> entwurf' dagegen nicht: Beide waeren
+     *    Zustaende, aus denen die Verkaeuferin ohne Verwaltung wieder
+     *    hochkaeme, die Sperre also selbst aufheben koennte.
+     *
      * @return iterable<string, array{string,string}>
      */
     public static function unerlaubteWechsel(): iterable
     {
         $erlaubt = [
-            Angebote::STATUS_ENTWURF => [Angebote::STATUS_IN_PRUEFUNG, Angebote::STATUS_ENTFERNT],
+            Angebote::STATUS_ENTWURF => [
+                Angebote::STATUS_AKTIV,
+                Angebote::STATUS_IN_PRUEFUNG,
+                Angebote::STATUS_GESPERRT,
+                Angebote::STATUS_ENTFERNT,
+            ],
             Angebote::STATUS_IN_PRUEFUNG => [
                 Angebote::STATUS_AKTIV,
                 Angebote::STATUS_ENTWURF,
+                Angebote::STATUS_GESPERRT,
                 Angebote::STATUS_ENTFERNT,
             ],
-            Angebote::STATUS_AKTIV => [Angebote::STATUS_PAUSIERT, Angebote::STATUS_ENTFERNT],
-            Angebote::STATUS_PAUSIERT => [Angebote::STATUS_AKTIV, Angebote::STATUS_ENTFERNT],
+            Angebote::STATUS_AKTIV => [
+                Angebote::STATUS_PAUSIERT,
+                Angebote::STATUS_GESPERRT,
+                Angebote::STATUS_ENTFERNT,
+            ],
+            Angebote::STATUS_PAUSIERT => [
+                Angebote::STATUS_AKTIV,
+                Angebote::STATUS_GESPERRT,
+                Angebote::STATUS_ENTFERNT,
+            ],
+            Angebote::STATUS_GESPERRT => [Angebote::STATUS_AKTIV, Angebote::STATUS_ENTFERNT],
             Angebote::STATUS_ENTFERNT => [],
         ];
 
@@ -661,6 +958,67 @@ final class AngeboteTest extends Testfall
         self::assertCount(1, $this->angebote->fuerKatalog($socken));
     }
 
+    /**
+     * Die Luecke, die der Modellwechsel schliessen muss.
+     *
+     * Bis hierher filterte der Katalog nur a.status = 'aktiv' und b.status =
+     * 'aktiv'. Nach einem Faehigkeitsentzug stand das Angebot also weiter in
+     * der Kategorieliste, waehrend /angebot/{id} bereits 404 lieferte — der
+     * Katalog war LAXER als die Einzelseite, genau umgekehrt zu der Zusage im
+     * Klassenkommentar von app/Http/MarktRouten.php:49-51.
+     *
+     * Mit dem Torabbau ist der Entzug das EINZIGE verbliebene Verkaufsverbot.
+     * Bliebe die Luecke, waere die Sanktion der Verwaltung wirkungslos: Die
+     * Ware bliebe dort sichtbar, wo Menschen sie tatsaechlich suchen.
+     */
+    public function testKatalogVerschweigtAngeboteNachFaehigkeitsentzug(): void
+    {
+        $verkaeufer = $this->verkaeufer('Lina');
+        $kategorie = $this->kategorie();
+        $angebotId = $this->veroeffentlicht($verkaeufer, $kategorie);
+
+        self::assertCount(1, $this->angebote->fuerKatalog($kategorie));
+        self::assertSame(1, $this->angebote->anzahlImKatalog($kategorie));
+
+        $this->konten->faehigkeitEntziehen($verkaeufer, Konten::FAEHIGKEIT_VERKAUFEN);
+
+        self::assertSame([], $this->angebote->fuerKatalog($kategorie));
+        self::assertSame(
+            0,
+            $this->angebote->anzahlImKatalog($kategorie),
+            'Sonst zeigt die Blaetterleiste eine Seite an, die leer ist.'
+        );
+        self::assertSame([], $this->angebote->vonVerkaeufer($verkaeufer), 'Das Profil ist genauso oeffentlich.');
+
+        // Der Status des Angebots bleibt unberuehrt: Die Sanktion trifft das
+        // Konto, nicht die einzelne Zeile. Wird die Faehigkeit
+        // wiederhergestellt, steht das Angebot ohne weiteres Zutun wieder da.
+        self::assertSame(Angebote::STATUS_AKTIV, $this->statusVon($angebotId));
+
+        $this->konten->faehigkeitFreischalten($verkaeufer, Konten::FAEHIGKEIT_VERKAUFEN, 'beschwerde');
+        self::assertCount(1, $this->angebote->fuerKatalog($kategorie));
+    }
+
+    /** Die Liste des spaeteren Creator-Profils: nur aktive Ware, nur die eigene. */
+    public function testVonVerkaeuferLiefertNurEigeneAktive(): void
+    {
+        $lina = $this->verkaeufer('Lina');
+        $mara = $this->verkaeufer('Mara');
+        $kategorie = $this->kategorie();
+
+        $sichtbar = $this->veroeffentlicht($lina, $kategorie, 'Sichtbar');
+        $this->entwurf($lina, $kategorie, 'Entwurf');
+        $pausiert = $this->veroeffentlicht($lina, $kategorie, 'Pausiert');
+        $this->angebote->pausieren($pausiert, $lina);
+        $this->veroeffentlicht($mara, $kategorie, 'Fremde Ware');
+
+        $liste = $this->angebote->vonVerkaeufer($lina);
+
+        self::assertCount(1, $liste);
+        self::assertSame($sichtbar, (int) $liste[0]['id']);
+        self::assertSame([], $this->angebote->vonVerkaeufer($lina, 2), 'Die zweite Seite ist leer.');
+    }
+
     public function testLadenLiefertNullFuerUnbekanntesAngebot(): void
     {
         self::assertNull($this->angebote->laden(999999));
@@ -719,6 +1077,22 @@ final class AngeboteTest extends Testfall
         );
     }
 
+    /**
+     * Der neue Normalweg: anlegen und sofort sichtbar machen.
+     *
+     * Bewusst ohne Option — genau darin unterscheidet er sich von
+     * aktivesAngebot(), das den alten Weg ueber die Pruefung geht und dafuer
+     * eine tragende Spezifikation braucht. Beide Wege muessen weiter
+     * funktionieren, deshalb bleiben beide Hilfen stehen.
+     */
+    private function veroeffentlicht(int $verkaeuferId, ?int $kategorieId = null, string $titel = 'Getragene Socken'): int
+    {
+        $angebotId = $this->entwurf($verkaeuferId, $kategorieId, $titel);
+        $this->angebote->veroeffentlichen($angebotId, $verkaeuferId);
+
+        return $angebotId;
+    }
+
     /** Fuehrt ein Angebot den vollstaendigen Weg bis 'aktiv'. */
     private function aktivesAngebot(int $verkaeuferId, ?int $kategorieId = null, string $titel = 'Getragene Socken'): int
     {
@@ -752,14 +1126,22 @@ final class AngeboteTest extends Testfall
         );
     }
 
-    /** Ruft die Methode auf, die genau diesen Zielstatus ansteuert. */
+    /**
+     * Ruft die Methode auf, die genau diesen Zielstatus ansteuert.
+     *
+     * Nach 'aktiv' fuehren seit dem Modellwechsel vier Methoden. Hier steht
+     * stellvertretend veroeffentlichen(), weil es der neue Normalweg ist; dass
+     * auch die drei anderen ihren Ausgangsstatus einzeln pruefen, sichert
+     * testJederWegNachAktivPruefstSeinenAusgangsstatus() ab.
+     */
     private function wechsleNach(int $angebotId, string $nach, int $verkaeuferId, int $pruefendeId): void
     {
         match ($nach) {
             Angebote::STATUS_ENTWURF => $this->angebote->ablehnen($angebotId, $pruefendeId, 'Begruendung'),
             Angebote::STATUS_IN_PRUEFUNG => $this->angebote->zurPruefungEinreichen($angebotId, $verkaeuferId),
-            Angebote::STATUS_AKTIV => $this->angebote->freigeben($angebotId, $pruefendeId),
+            Angebote::STATUS_AKTIV => $this->angebote->veroeffentlichen($angebotId, $verkaeuferId),
             Angebote::STATUS_PAUSIERT => $this->angebote->pausieren($angebotId, $verkaeuferId),
+            Angebote::STATUS_GESPERRT => $this->angebote->sperren($angebotId, $pruefendeId, 'Gemeldet und geprueft.'),
             Angebote::STATUS_ENTFERNT => $this->angebote->entfernen($angebotId, $verkaeuferId),
         };
     }
