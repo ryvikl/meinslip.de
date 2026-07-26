@@ -62,6 +62,18 @@ return [
     // wird und die betroffene Person '[[profil.art.angebot_entsperrt]]' liest.
     'art.angebot_entsperrt' => 'Die Sperre eines Angebots wurde aufgehoben',
 
+    // Die manuelle Identitätsprüfung. BEIDE Richtungen werden zugestellt, und
+    // zwar aus verschiedenen Gründen: Die Ablehnung ist eine Beschränkung, die
+    // Freigabe eine Auskunft über die eigenen Daten — mit der Entscheidung
+    // beginnt die Frist, nach der das eingereichte Foto gelöscht wird. Wer
+    // davon nichts erfährt, erfährt nie, dass sein Bild einmal da war.
+    //
+    // Kein Wort über das Alter: Anerkannt wird ein Identitätsbeleg. Wer hier
+    // „altersgeprüft" hinschreibt, macht aus einem handgeschriebenen Zettel
+    // eine Behauptung nach § 4 Abs. 2 JMStV, die er nicht trägt.
+    'art.beleg_freigegeben' => 'Dein Identitätsbeleg wurde anerkannt',
+    'art.beleg_abgelehnt' => 'Dein Identitätsbeleg wurde abgelehnt',
+
     // Kein Verwaltungsvorgang, sondern die Empfangsbestaetigung nach Art. 16
     // Abs. 4 DSA: Wer meldet, bekommt eine Zeile, die belegt, dass die Meldung
     // angekommen ist. Sie steht in derselben Liste, weil sie ueber denselben

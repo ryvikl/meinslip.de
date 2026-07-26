@@ -25,6 +25,7 @@ $bereiche = [
     ['/verwaltung/konten', 'verwaltung.nav.konten'],
     ['/verwaltung/angebote', 'verwaltung.nav.angebote'],
     ['/verwaltung/meldungen', 'verwaltung.nav.meldungen'],
+    ['/verwaltung/verifizierung', 'verwaltung.nav.verifizierung'],
     ['/verwaltung/protokoll', 'verwaltung.nav.protokoll'],
     ['/verwaltung/hauptbuch', 'verwaltung.nav.hauptbuch'],
 ];
@@ -49,8 +50,8 @@ $bereiche = [
      * Kopfleiste des Verwaltungsbereichs.
      *
      * Nocturnes .nav ist eine Zeile ohne Umbruch (nocturne.css). Diese Leiste
-     * hat neun Kinder — Marke, sechs Bereiche, "Zur Website", Pseudonym —, die
-     * zusammen rund 600 px brauchen. Auf einem 360-px-Telefon bleiben nach
+     * hat zehn Kinder — Marke, sieben Bereiche, "Zur Website", Pseudonym —, die
+     * zusammen deutlich über 600 px brauchen. Auf einem 360-px-Telefon bleiben nach
      * .ms-huelle und den Innenabstaenden 304 px. Flex-Kinder schrumpfen wegen
      * min-width:auto nicht unter ihr min-content, also ragte die Leiste ueber
      * den Rand hinaus und schob das ganze Dokument seitwaerts. Damit liefen

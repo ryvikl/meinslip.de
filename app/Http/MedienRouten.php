@@ -283,8 +283,19 @@ final class MedienRouten
         // Die zweite Zone. Sie liegt NACH der ersten und ersetzt sie nicht:
         // Ein explizites Bild an einem nicht oeffentlichen Angebot ist doppelt
         // verschlossen.
+        //
+        // Der dritte Wert ist die Selbsterklaerung dieser Sitzung
+        // (§ 4 Abs. 2 JMStV, zweite Stufe des AVS-Rasters, vermerkt von
+        // VerifizierungsRouten unter /altersschranke). Er wird hier
+        // ANGESCHLOSSEN und oeffnet trotzdem nichts: explizitSichtbar()
+        // verlangt zusaetzlich Medien::altersschrankeGebunden(), und das ist
+        // hart false. Die Erklaerung ist eine Schaltflaeche, keine
+        // geschlossene Benutzergruppe — sie darf kein einziges Bild
+        // freischalten, solange kein lizenziertes Verfahren gebunden ist.
+        $selbsterklaerung = $sitzung !== null && (new Sitzungen($db))->gateGilt($sitzung);
+
         if ($zeile['explizit'] === true
-            && !$medien->explizitSichtbar((int) $zeile['angebot_id'], $betrachterId)) {
+            && !$medien->explizitSichtbar((int) $zeile['angebot_id'], $betrachterId, $selbsterklaerung)) {
             return $this->nichtGefunden();
         }
 

@@ -40,6 +40,7 @@ return [
     'art.angebot' => 'Angebot',
     'art.benutzer' => 'Profil',
     'art.bestellung' => 'Bestellung',
+    'art.nachricht' => 'Nachricht',
 
     'feld_grund' => 'Worum geht es?',
     'auswahl_bitte_waehlen' => 'Bitte wählen',

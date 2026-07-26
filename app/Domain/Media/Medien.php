@@ -352,8 +352,30 @@ final class Medien
      * koennen, was sie eingestellt hat) und die Verwaltung (sie muss eine
      * Meldung bearbeiten koennen, ohne dass ihr der Gegenstand vorenthalten
      * wird).
+     *
+     * $selbsterklaerungGilt IST DIE DRITTE TUER, UND SIE IST HEUTE ZU.
+     *
+     * Der Wert kommt aus Sitzungen::gateGilt() — der Authentifizierung je
+     * Nutzungsvorgang, die das AVS-Raster der KJM als zweite Stufe verlangt
+     * (§ 4 Abs. 2 JMStV). Er allein oeffnet NICHTS und kann es auch nicht:
+     * Die Bedingung unten verlangt zusaetzlich altersschrankeGebunden(), und
+     * das ist hart false. Eine Selbsterklaerung ist keine geschlossene
+     * Benutzergruppe, sondern eine Schaltflaeche — der BGH hat 2007
+     * (I ZR 102/05) sogar Ausweisdaten plus Kontoueberweisung verworfen.
+     *
+     * Der Parameter steht trotzdem hier und nicht erst dann, wenn ein
+     * Verfahren angebunden wird. Zwei Gruende, beide praktisch: Erstens ist
+     * die Stelle damit greppbar und die spaetere Anbindung ein umgedrehtes
+     * false statt einer Suche quer durch die Schicht. Zweitens — und das ist
+     * der wichtigere — steht die REIHENFOLGE der beiden Bedingungen jetzt
+     * schon fest und ist getestet: Identifizierung UND Authentifizierung, nie
+     * eines allein. Wer sie spaeter unter Zeitdruck zusammenbaut, ist genau
+     * die Person, die nur die zweite prueft.
+     *
+     * Vorgabewert false, damit ein Aufrufer, der die Sitzung gar nicht kennt,
+     * nichts oeffnet, indem er das Argument vergisst.
      */
-    public function explizitSichtbar(int $angebotId, int $betrachterId): bool
+    public function explizitSichtbar(int $angebotId, int $betrachterId, bool $selbsterklaerungGilt = false): bool
     {
         if ($betrachterId <= 0) {
             return false;
@@ -372,7 +394,16 @@ final class Medien
             return true;
         }
 
-        return (new Konten($this->db))->hatFaehigkeit($betrachterId, Konten::FAEHIGKEIT_VERWALTEN);
+        if ((new Konten($this->db))->hatFaehigkeit($betrachterId, Konten::FAEHIGKEIT_VERWALTEN)) {
+            return true;
+        }
+
+        // Die dritte Tuer. Beide Bedingungen zusammen oder gar nicht: das
+        // gebundene Verfahren (Identifizierung) UND die gueltige Erklaerung
+        // dieser Sitzung (Authentifizierung je Nutzungsvorgang). Solange
+        // altersschrankeGebunden() false meldet, ist der ganze Ausdruck false
+        // — und genau das ist heute der Fall.
+        return self::altersschrankeGebunden() && $selbsterklaerungGilt;
     }
 
     /**

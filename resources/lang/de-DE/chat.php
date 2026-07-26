@@ -127,6 +127,13 @@ return [
     'erfolg.deklaration_gesetzt' => 'Deine Angabe ist gespeichert.',
     'erfolg.sperre_gesetzt' => 'Die Person ist gesperrt. Ihr könnt einander nicht mehr schreiben.',
     'erfolg.sperre_aufgehoben' => 'Die Sperre ist aufgehoben.',
+    // NachrichtenRouten::ausListe() zieht einen unbekannten Wert auf
+    // 'unbekannt' — bei Fehlern UND bei Erfolgen. Für Fehler gibt es den Text
+    // längst, für Erfolge fehlte er: '/nachrichten?erfolg=quatsch' zeigte
+    // '[[chat.erfolg.unbekannt]]'. Sichtbar wird das nur über eine von Hand
+    // gebaute Adresse, aber ein Platzhalter im Klartext ist die Art von Fehler,
+    // die Vertrauen kostet, ohne je in einem Protokoll aufzutauchen.
+    'erfolg.unbekannt' => 'Erledigt.',
 
     // --- Fehler -------------------------------------------------------------
     // Die ersten neun sind wörtlich die Schlüssel von ChatFehler, danach zwei

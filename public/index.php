@@ -25,6 +25,8 @@ use MeinSlip\Http\MedienRouten;
 use MeinSlip\Http\MeldeRouten;
 use MeinSlip\Http\NachrichtenRouten;
 use MeinSlip\Http\Routen;
+use MeinSlip\Http\TerminRouten;
+use MeinSlip\Http\VerifizierungsRouten;
 use MeinSlip\Http\VerwaltungsRouten;
 
 $wurzel = dirname(__DIR__);
@@ -47,11 +49,11 @@ error_reporting($debug ? E_ALL : E_ALL & ~E_DEPRECATED);
 $router = new Router();
 $ansicht = new View($wurzel . '/resources/views');
 
-// Sechs Routenklassen statt einer: Grundseiten, Marktplatz, Nachrichten,
-// Medien, Meldeweg, Verwaltung. Die Trennung ist keine Kosmetik — sie haelt
-// den Verwaltungsbereich in einer eigenen Datei mit eigener Zugangspruefung,
-// statt ihn zwischen oeffentliche Routen zu mischen, wo eine vergessene
-// Pruefung nicht auffiele.
+// Acht Routenklassen statt einer: Grundseiten, Marktplatz, Nachrichten,
+// Termine, Medien, Verifizierung, Meldeweg, Verwaltung. Die Trennung ist keine
+// Kosmetik — sie haelt den Verwaltungsbereich in einer eigenen Datei mit
+// eigener Zugangspruefung, statt ihn zwischen oeffentliche Routen zu mischen,
+// wo eine vergessene Pruefung nicht auffiele.
 //
 // Der Meldeweg steht bewusst daneben und nicht darin: Er ist die einzige
 // Rechtfertigung dafuer, dass Angebote ohne Vorabpruefung erscheinen
@@ -64,7 +66,14 @@ $ansicht = new View($wurzel . '/resources/views');
 (new Routen($wurzel, $ansicht))->registrieren($router);
 (new MarktRouten($wurzel, $ansicht))->registrieren($router);
 (new NachrichtenRouten($wurzel, $ansicht))->registrieren($router);
+// Termine haengen an einer Unterhaltung und stehen deshalb direkt hinter dem
+// Chat. Eigene Wurzel '/termine', keine Ueberschneidung mit einer anderen
+// Klasse — die Reihenfolge ist hier also frei und nur der Lesbarkeit geschuldet.
+(new TerminRouten($wurzel, $ansicht))->registrieren($router);
 (new MedienRouten($wurzel, $ansicht))->registrieren($router);
+// Verifizierung und Altersschranke. Sie steht vor der Verwaltung, weil sie die
+// nutzerseitige Haelfte ist — die Entscheidung darueber faellt drinnen.
+(new VerifizierungsRouten($wurzel, $ansicht))->registrieren($router);
 (new MeldeRouten($wurzel, $ansicht))->registrieren($router);
 (new VerwaltungsRouten($wurzel, $ansicht))->registrieren($router);
 

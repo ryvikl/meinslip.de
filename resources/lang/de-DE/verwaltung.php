@@ -21,6 +21,7 @@ return [
     'nav.konten' => 'Konten',
     'nav.angebote' => 'Angebote',
     'nav.meldungen' => 'Meldungen',
+    'nav.verifizierung' => 'Prüfbelege',
     'nav.protokoll' => 'Protokoll',
     'nav.hauptbuch' => 'Hauptbuch',
     'nav.website' => 'Zur Website',
@@ -60,6 +61,9 @@ return [
     'kennzahl_meldungen_offen' => 'Offene Meldungen',
     'kennzahl_meldungen_frist' => 'Meldungen über der Frist',
     'kennzahl_pruefungen_offen' => 'Offene Prüfungen',
+    // Die einzige Kennzahl mit einer Verfallsfrist: Was hier stehen bleibt,
+    // wird gelöscht, nicht aufgeschoben.
+    'kennzahl_belege_offen' => 'Prüfbelege mit Frist',
 
     'uebersicht_angebote' => 'Angebote nach Status',
     'uebersicht_bestellungen' => 'Bestellungen nach Zustand',
@@ -165,6 +169,54 @@ return [
         . 'Prüfung eingereicht wurde; neue Angebote gehen nicht mehr durch dieses Tor. Ist sie '
         . 'leer, verschwindet sie.',
 
+    // --- Prüfbelege ------------------------------------------------------
+    // Der Ton ist hier noch knapper als sonst: Auf dieser Seite liegt das
+    // Gesicht einer Nutzerin. Jeder Satz, der nicht bei der Entscheidung
+    // hilft, hält jemanden länger davor auf, als nötig ist.
+    'belege_kicker' => 'Identität, von Hand geprüft',
+    'belege_titel' => 'Prüfbelege',
+    'belege_erklaerung' => 'Ein Selfie mit unserem Code und dem Datum auf einem '
+        . 'handgeschriebenen Zettel. Älteste zuerst. Diese Liste hat als einzige eine Frist: '
+        . 'Nach :tage Tagen ohne Bearbeitung wird der Beleg gelöscht, nach der Entscheidung '
+        . 'nach :entscheidungstage Tagen — was zuerst eintritt.',
+    'belege_kein_ausweis' => 'Wir nehmen keine Ausweisdokumente entgegen und speichern keine. '
+        . 'Wer nach einem Ausweis gefragt wird, wird nicht von uns gefragt.',
+    'belege_leer' => 'Zurzeit wartet kein Beleg auf eine Entscheidung.',
+    'tabelle_belege' => 'Liste der Prüfbelege, waagerecht scrollbar',
+    'beleg_ansehen' => 'Ansehen',
+
+    'beleg_kicker' => 'Einzelner Prüfbeleg',
+    'beleg_vergleich' => 'Zu vergleichen sind genau zwei Angaben: der Code auf dem Zettel '
+        . 'gegen den Code hier, und das Datum auf dem Zettel gegen den Ausgabezeitpunkt. Nur '
+        . 'diese beiden binden das Foto an diesen Vorgang und diesen Zeitraum.',
+    'beleg_kein_alter' => 'Geprüft wird die Identität, nicht das Alter. Eine Freigabe sagt: '
+        . 'Ein Mensch hat sich mit unserem Code gezeigt. Sie sagt nichts über ein '
+        . 'Geburtsdatum, und sie schaltet keine Inhalte frei.',
+    'beleg_bild_titel' => 'Der Beleg',
+    'beleg_bild_alt' => 'Eingereichtes Foto mit handgeschriebenem Zettel',
+    'beleg_ohne_bild' => 'Zu diesem Vorgang liegt noch kein Foto vor.',
+
+    'beleg_entscheiden_titel' => 'Entscheiden',
+    'beleg_schon_entschieden' => 'Über diesen Beleg ist bereits entschieden.',
+    'beleg_frist_hinweis' => 'Mit der Entscheidung beginnt die kurze Frist: Das Foto ist '
+        . ':entscheidungstage Tage später gelöscht. Danach gibt es nur noch das Ergebnis.',
+    'beleg_grund_freigabe' => 'Vermerk zur Freigabe',
+    'beleg_grund_freigabe_hinweis' => 'Pflichtangabe. Der Text geht an die betroffene Person '
+        . 'und ist die einzige Spur, die das Foto überlebt. Halte fest, was du gesehen hast — '
+        . 'Code und Datum stimmten, das Gesicht war erkennbar.',
+    'beleg_grund_ablehnung' => 'Begründung der Ablehnung',
+    'beleg_grund_ablehnung_hinweis' => 'Pflichtangabe. Ohne sie kann die Person nur raten, '
+        . 'was am Foto nicht stimmte, und macht denselben Fehler noch einmal. Schreibe den '
+        . 'Text an sie gerichtet.',
+    'beleg_freigeben' => 'Freigeben',
+    'beleg_ablehnen' => 'Ablehnen',
+    'beleg_zurueck' => 'Zurück zur Liste',
+
+    'beleg_status.offen' => 'Code vergeben',
+    'beleg_status.eingereicht' => 'wartet auf Entscheidung',
+    'beleg_status.freigegeben' => 'freigegeben',
+    'beleg_status.abgelehnt' => 'abgelehnt',
+
     // --- Meldungen -------------------------------------------------------
     'meldungen_kicker' => 'Beschwerden nach Art. 16 DSA',
     'meldungen_titel' => 'Meldungen',
@@ -230,6 +282,9 @@ return [
     'spalte.verwalter' => 'Entschieden von',
     'spalte.handlung' => 'Handlung',
     'spalte.begruendung' => 'Begründung',
+    'spalte.code' => 'Code',
+    'spalte.code_ausgegeben' => 'Code vergeben am',
+    'spalte.loeschen_ab' => 'Löschung ab',
     'spalte.vorgang' => 'Vorgang',
     'spalte.bezug' => 'Bezug',
     'spalte.buchungen' => 'Buchungen',
@@ -301,6 +356,9 @@ return [
     'handlung.angebot_abgelehnt' => 'Angebot abgelehnt',
     'handlung.angebot_gesperrt' => 'Angebot gesperrt',
     'handlung.angebot_entsperrt' => 'Angebotssperre aufgehoben',
+    // Bewusst ohne das Wort „Alter": Freigegeben wird ein Identitätsbeleg.
+    'handlung.beleg_freigegeben' => 'Identitätsbeleg anerkannt',
+    'handlung.beleg_abgelehnt' => 'Identitätsbeleg abgelehnt',
 
     'gegenstand.benutzer' => 'Konto',
     'gegenstand.angebot' => 'Angebot',
@@ -309,6 +367,7 @@ return [
     'gegenstand.faehigkeit_kaufen' => 'Fähigkeit kaufen',
     'gegenstand.faehigkeit_verkaufen' => 'Fähigkeit verkaufen',
     'gegenstand.faehigkeit_verwalten' => 'Fähigkeit verwalten',
+    'gegenstand.pruefbeleg' => 'Prüfbeleg',
 
     // --- Rückmeldungen ---------------------------------------------------
     'erfolg.faehigkeit_freigeschaltet' => 'Die Fähigkeit ist freigeschaltet und protokolliert.',
@@ -325,6 +384,10 @@ return [
     'erfolg.angebot_entsperrt' => 'Die Sperre ist aufgehoben, das Angebot ist wieder aktiv '
         . 'und die Aufhebung ist protokolliert.',
     'erfolg.meldung_bearbeitet' => 'Die Meldung ist entschieden und protokolliert.',
+    'erfolg.beleg_freigegeben' => 'Der Beleg ist anerkannt, das Ergebnis ist gespeichert und '
+        . 'die Entscheidung zugestellt. Das Foto wird nach Frist gelöscht.',
+    'erfolg.beleg_abgelehnt' => 'Der Beleg ist abgelehnt, die Begründung ist der betroffenen '
+        . 'Person zugestellt und protokolliert. Das Foto wird nach Frist gelöscht.',
 
     // Schlüssel aus VerwaltungsFehler::schluessel()
     'fehler.begruendung_fehlt' => 'Ohne Begründung wird nichts entschieden.',
@@ -355,6 +418,12 @@ return [
     'fehler.statuswechsel_unzulaessig' => 'Aus diesem Status ist der Schritt nicht erlaubt — '
         . 'vermutlich hat jemand anderes das Angebot bereits entschieden.',
     'fehler.status_unbekannt' => 'Diesen Status gibt es nicht.',
+
+    // Schlüssel aus PruefbelegFehler, soweit hier erreichbar
+    'fehler.beleg_unbekannt' => 'Diesen Prüfbeleg gibt es nicht — möglicherweise ist er '
+        . 'inzwischen nach Frist gelöscht worden.',
+    'fehler.beleg_nicht_offen' => 'Über diesen Prüfbeleg ist bereits entschieden — vermutlich '
+        . 'von jemand anderem, während die Seite offen war.',
 
     'fehler.unbekannt' => 'Das hat nicht funktioniert.',
 ];

@@ -23,6 +23,9 @@ $zahlen = [
     ['verwaltung.kennzahl_meldungen_offen', (int) $kennzahlen['meldungen_offen']],
     ['verwaltung.kennzahl_meldungen_frist', (int) $kennzahlen['meldungen_frist_ueberschritten']],
     ['verwaltung.kennzahl_pruefungen_offen', (int) $kennzahlen['pruefungen_offen']],
+    // Die einzige Zahl dieser Übersicht, die von selbst kleiner wird: Ein
+    // Prüfbeleg, den niemand bearbeitet, wird gelöscht statt aufgeschoben.
+    ['verwaltung.kennzahl_belege_offen', (int) $kennzahlen['belege_offen']],
 ];
 ?>
 <section class="ms-abschnitt">

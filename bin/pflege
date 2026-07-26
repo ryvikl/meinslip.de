@@ -1,0 +1,119 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MeinSlip\Core\Database;
+use MeinSlip\Core\Env;
+use MeinSlip\Domain\Account\Sitzungen;
+use MeinSlip\Domain\Verification\Pruefbelege;
+
+/*
+ * Die Pflege: raeumt weg, was nach seiner Frist nicht mehr da sein darf.
+ *
+ * Gedacht als taeglicher Cronjob:
+ *
+ *   17 3 * * *  cd /pfad/zur/anwendung && php bin/pflege >> storage/logs/pflege.log 2>&1
+ *
+ * DAS IST DIE EINE VON ZWEI DURCHSETZUNGEN, NICHT DIE EINZIGE. Pruefbelege
+ * raeumt zusaetzlich bei jedem Aufruf der Pruefseite in der Verwaltung
+ * (VerwaltungsRouten::verifizierung). Der Grund steht im Kopf von
+ * app/Domain/Verification/Pruefbelege.php und ist kurz gesagt: Ein Cronjob,
+ * den niemand beobachtet, ist keine Sicherung. Er faellt still aus — ein
+ * vergessener Eintrag nach dem Serverumzug, ein abgelaufenes Zeitfenster beim
+ * Hoster, ein Tippfehler im Pfad —, und es geht dabei nichts kaputt. Es bleibt
+ * nur zu viel liegen, und genau das merkt niemand.
+ *
+ * Umgekehrt genuegt die opportunistische Raeumung allein auch nicht: Sie
+ * greift nur, wenn jemand hinsieht. Wird zwei Monate lang kein Beleg
+ * bearbeitet, sieht niemand hin — und dann muss der Cronjob geraeumt haben.
+ *
+ * WAS DIESES SKRIPT LOESCHT, LOESCHT ES ENDGUELTIG. Es gibt kein 'verborgen_am'
+ * wie bei Nachrichten und kein 'entzogen_am' wie bei Faehigkeiten: Ein
+ * Pruefbeleg ist ein Selfie, seine Aufbewahrung ist die Ausnahme und seine
+ * Loeschung der Regelzustand (Art. 5 Abs. 1 lit. c und lit. e DSGVO).
+ */
+
+// Derselbe Riegel wie in bin/verwalter: Liegt das Skript versehentlich unter
+// public/ oder wird es ueber einen falschen Alias ausgeliefert, waere es ein
+// Loeschknopf im Netz. PHP_SAPI ist die einzige Angabe, die der Aufrufer nicht
+// faelschen kann.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    echo "Nur ueber die Kommandozeile.\n";
+    exit(1);
+}
+
+$wurzel = dirname(__DIR__);
+
+require $wurzel . '/app/Core/Autoloader.php';
+MeinSlip\Core\Autoloader::starten($wurzel);
+
+Env::laden($wurzel . '/.env');
+
+try {
+    $db = Database::ausEnv();
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Datenbankverbindung fehlgeschlagen: {$fehler->getMessage()}\n");
+    fwrite(STDERR, "Pruefe die Werte in .env (Vorlage: .env.example).\n");
+    exit(1);
+}
+
+$jetzt = gmdate('Y-m-d H:i:s');
+$fehlerhaft = false;
+
+echo "Pflege {$jetzt} UTC\n";
+
+// --- Pruefbelege ----------------------------------------------------------
+// Zuerst, weil es der Schritt mit der Rechtspflicht ist. Faellt einer der
+// folgenden aus, ist der wichtigste bereits gelaufen.
+try {
+    $belege = new Pruefbelege($db, Pruefbelege::verzeichnis($wurzel));
+
+    $geloescht = $belege->faelligeLoeschen($jetzt);
+    echo "pruefungsbelege: {$geloescht} faellige Belege entfernt (Zeile und Dateien).\n";
+
+    // Der Hosentraeger: Verzeichnisse ohne Zeile. Sie entstehen, wenn ein
+    // Konto wirklich aus der Datenbank verschwindet — das ON DELETE CASCADE
+    // nimmt dann den Beleg mit und laesst die Dateien liegen.
+    //
+    // Dieser Schritt entscheidet ueber Dateien anhand der Datenbank, die
+    // gerade verbunden ist, und er kann nicht wissen, ob es die richtige ist.
+    // Deshalb fasst er nur an, was aelter ist als die Hoechstfrist eines
+    // Belegs — sonst raeumte ein Lauf mit einer frischen oder falschen
+    // Verbindung den gesamten Bestand weg, weil zu keinem Verzeichnis eine
+    // Zeile existiert. Die Begruendung steht ausfuehrlich bei
+    // Pruefbelege::verwaisteEntfernen().
+    $verwaist = $belege->verwaisteEntfernen();
+
+    if ($verwaist > 0) {
+        echo "pruefungsbelege: {$verwaist} verwaiste Belegverzeichnisse entfernt.\n";
+    }
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Pruefbelege fehlgeschlagen: {$fehler->getMessage()}\n");
+    $fehlerhaft = true;
+}
+
+// --- Sitzungen ------------------------------------------------------------
+// Sitzungen::abgelaufeneEntfernen() traegt seit 001_konten.php den Kommentar
+// "Aufruf durch den Cronjob" — den Cronjob gab es bis hierher nicht. Abgelaufene
+// Sitzungen sind fachlich schon tot (Sitzungen::laden filtert auf
+// laeuft_ab_am), aber sie tragen geraet_fingerabdruck und ip_hash: Personenbezug
+// ohne Zweck ist genau das, was Art. 5 Abs. 1 lit. e DSGVO nicht will.
+try {
+    $sitzungen = (new Sitzungen($db))->abgelaufeneEntfernen();
+    echo "sitzungen: {$sitzungen} abgelaufene Sitzungen entfernt.\n";
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Sitzungen fehlgeschlagen: {$fehler->getMessage()}\n");
+    $fehlerhaft = true;
+}
+
+if ($fehlerhaft) {
+    // Ausstieg mit 1, damit ein Cronjob-Wachhund anschlaegt. Eine Pflege, die
+    // scheitert und trotzdem 0 meldet, ist schlimmer als keine — sie
+    // behauptet, geloescht zu haben.
+    exit(1);
+}
+
+echo "Pflege abgeschlossen.\n";
+exit(0);

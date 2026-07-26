@@ -14,6 +14,7 @@ use MeinSlip\Domain\Account\KontoFehler;
 use MeinSlip\Domain\Account\Profile;
 use MeinSlip\Domain\Account\Sitzungen;
 use MeinSlip\Domain\Chat\ChatFehler;
+use MeinSlip\Domain\Chat\Termine;
 use MeinSlip\Domain\Chat\Unterhaltungen;
 
 /**
@@ -405,6 +406,16 @@ final class NachrichtenRouten
             'fehler' => $this->ausListe($fehler, self::FEHLER),
             'erfolg' => $this->ausListe($anfrage->eingabe('erfolg'), self::ERFOLGE),
             'textGrenze' => Unterhaltungen::TEXT_MAXLAENGE,
+            // Die Termine gehoeren in dieses Fenster — Begruendung im Kopf der
+            // Vorlage und in database/migrations/012_termine.php. Ihre
+            // Rueckmeldungen laufen unter EIGENEN Feldnamen und gegen die
+            // Weisslisten von TerminRouten: Sonst braeuchte jeder Terminfehler
+            // zusaetzlich einen Text unter 'chat.fehler.', und dieselbe Meldung
+            // stuende zweimal im Sprachverzeichnis.
+            'termine' => [],
+            'terminErfolg' => $this->ausListe($anfrage->eingabe('termin_erfolg'), TerminRouten::ERFOLGE),
+            'terminFehler' => $this->ausListe($anfrage->eingabe('termin_fehler'), TerminRouten::FEHLER),
+            'grundGrenze' => Termine::GRUND_MAXLAENGE,
         ];
 
         $db = $this->datenbank();
@@ -440,6 +451,16 @@ final class NachrichtenRouten
             $daten['unterhaltung'] = $unterhaltung;
             $daten['nachrichten'] = $chat->nachrichten($unterhaltungId, $ich);
             $daten['selbstGesperrt'] = $this->hatGesperrt($db, $ich, (int) $unterhaltung['partner_id']);
+
+            // Erst aufraeumen, dann lesen — sonst behauptet die Liste, ein
+            // Vorschlag von gestern sei noch offen. Es haengt keine
+            // Korrektheit daran: Termine::annehmen() weist einen vergangenen
+            // Zeitpunkt ohnehin ab. Der Verfallslauf ist idempotent und
+            // begrenzt sich auf diese eine Unterhaltung; ein Zeitplaner, der
+            // das sonst erledigen koennte, existiert in diesem Projekt nicht.
+            $termine = new Termine($db);
+            $termine->verfallenLassen($unterhaltungId);
+            $daten['termine'] = $termine->fuerUnterhaltung($unterhaltungId, $ich);
 
             if ($unterhaltung['angebot_id'] !== null) {
                 $titel = $this->angebotstitel($db, [$unterhaltung['angebot_id']]);

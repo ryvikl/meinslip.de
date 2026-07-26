@@ -12,6 +12,7 @@ use MeinSlip\Core\Router;
 use MeinSlip\Core\View;
 use MeinSlip\Domain\Account\Sitzungen;
 use MeinSlip\Domain\Admin\Verwaltung;
+use MeinSlip\Domain\Chat\Unterhaltungen;
 use MeinSlip\Domain\Trust\Meldungen;
 use MeinSlip\Domain\Trust\MeldungsFehler;
 
@@ -118,11 +119,32 @@ final class MeldeRouten
      * Bestellung beteiligt ist. Der Text 'melden.art.bestellung' liegt dafuer
      * bereits bereit.
      *
+     * 'nachricht' STEHT HIER, obwohl eine Nachricht so privat ist wie eine
+     * Bestellung. Der Unterschied ist der Weg dorthin: Der Melden-Knopf im
+     * Chatfenster prueft bereits, dass die meldende Person an der Unterhaltung
+     * beteiligt ist und die Nachricht zu ihr gehoert, und leitet erst dann auf
+     * '/melden?art=nachricht&id=N' weiter. Genau die Pruefung, die der
+     * Absatz oben fuer die Bestellseite verlangt, gibt es hier also schon.
+     *
+     * Bliebe die Zeile weg, liefe dieser Knopf in "kein Gegenstand gewaehlt" —
+     * und damit waere der einzige Meldeweg fuer Nachrichten tot. Das ist keine
+     * Unbequemlichkeit: Das funktionierende Melde- und Abhilfeverfahren nach
+     * Art. 16 DSA ist die Bedingung, unter der hier ueberhaupt ohne
+     * Vorabpruefung veroeffentlicht wird.
+     *
+     * Der Rest-Preis ist bekannt und klein: Wer die Adresse von Hand baut,
+     * kann ueber vollstaendig abgesendete Meldungen erraten, welche
+     * Nachrichtenkennungen existieren. Das ist derselbe Rest, den 'angebot'
+     * und 'benutzer' schon tragen, es braucht je Versuch eine abgesendete
+     * Meldung statt eines blossen Aufrufs, und eine Kennung verraet weder
+     * Inhalt noch Beteiligte.
+     *
      * @var list<string>
      */
     private const ARTEN = [
         Verwaltung::GEGENSTAND_ANGEBOT,
         Verwaltung::GEGENSTAND_BENUTZER,
+        Unterhaltungen::GEGENSTAND_NACHRICHT,
     ];
 
     /**

@@ -36,6 +36,12 @@ sftp-config.json
 # Unwiderruflich: Ein Bild aus der Git-Historie zu entfernen heißt, jede
 # Kopie des Repositories neu zu schreiben.
 /storage/medien/
+# Die Prüfbelege (Pruefbelege::verzeichnis()). Ein Selfie mit einem
+# handgeschriebenen Zettel ist das Empfindlichste, was diese Anwendung je
+# entgegennimmt — und das einzige, dem die Datenbank ein Löschdatum aufzwingt.
+# In der Git-Historie wäre dieses Löschdatum wirkungslos: Ein Bild aus der
+# Historie zu entfernen heißt, jede Kopie des Repositories neu zu schreiben.
+/storage/belege/
 /public/uploads/
 
 # === Datenbank-Abzüge ===

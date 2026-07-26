@@ -6,7 +6,9 @@ namespace MeinSlip\Tests;
 
 use MeinSlip\Core\Lang;
 use MeinSlip\Domain\Account\Konten;
+use MeinSlip\Domain\Account\Profile;
 use MeinSlip\Domain\Admin\Verwaltung;
+use MeinSlip\Domain\Chat\Unterhaltungen;
 use MeinSlip\Domain\Trust\Meldungen;
 use MeinSlip\Domain\Trust\MeldungsFehler;
 
@@ -273,9 +275,14 @@ final class MeldungenTest extends Testfall
     {
         $melder = $this->benutzer('Melderin');
 
-        // 'nachricht' steht zwar im Schema, hat aber bis zum Chat (P2) keine
-        // Tabelle — und darf deshalb nicht durchgehen.
-        foreach (['nachricht', 'angebote', '', 'BENUTZER'] as $art) {
+        // 'nachricht' stand hier, solange der Chat fehlte und die Tabelle
+        // 'nachrichten' nicht existierte. Beides ist da; die Art ist jetzt
+        // zugelassen und wird von
+        // testEineNachrichtLaesstSichMeldenSeitDerChatSteht geprueft.
+        //
+        // 'angebote' bleibt: der Tabellenname statt der Art — der Tippfehler,
+        // der ohne Weissliste in den SQL-Text geriete.
+        foreach (['angebote', 'nachrichten', '', 'BENUTZER'] as $art) {
             try {
                 $this->meldungen->melden($melder, $art, 1, Meldungen::GRUND_BETRUG, 'Erlaeuterung.');
                 self::fail('Die Gegenstandsart "' . $art . '" haette abgewiesen werden muessen.');
@@ -285,6 +292,65 @@ final class MeldungenTest extends Testfall
         }
 
         self::assertSame(0, (int) $this->db->wert('SELECT COUNT(*) FROM meldungen'));
+    }
+
+    /**
+     * Eine Nachricht ist meldbar, seit es Nachrichten gibt.
+     *
+     * Diese Pruefung schliesst eine Luecke, die zwischen zwei Paketen lag: Der
+     * Melden-Knopf im Chatfenster leitet auf '/melden?art=nachricht' weiter,
+     * aber weder Meldungen::GEGENSTAENDE noch MeldeRouten::ARTEN kannten die
+     * Art. Der Knopf lief damit in "kein Gegenstand gewaehlt" — der einzige
+     * Meldeweg fuer Nachrichten war tot, und mit ihm die Voraussetzung, unter
+     * der diese Plattform ohne Vorabpruefung veroeffentlicht (Art. 16 DSA).
+     *
+     * Beide Kommentare hatten die fehlende Zeile woertlich vorgesehen. Genau
+     * deshalb steht hier jetzt ein Test und kein weiterer Kommentar.
+     */
+    public function testEineNachrichtLaesstSichMeldenSeitDerChatSteht(): void
+    {
+        $melder = $this->benutzer('Melderin');
+        $absender = $this->benutzer('Absender');
+        $nachrichtId = $this->nachricht($absender, $melder);
+
+        $meldungId = $this->meldungen->melden(
+            $melder,
+            Unterhaltungen::GEGENSTAND_NACHRICHT,
+            $nachrichtId,
+            Meldungen::GRUND_BELAESTIGUNG,
+            'Die Person schreibt mich nach der Sperre weiter an.'
+        );
+
+        $meldung = $this->db->eine('SELECT * FROM meldungen WHERE id = :id', ['id' => $meldungId]);
+
+        self::assertNotNull($meldung);
+        self::assertSame(Unterhaltungen::GEGENSTAND_NACHRICHT, $meldung['gegenstand_art']);
+        self::assertSame($nachrichtId, (int) $meldung['gegenstand_id']);
+    }
+
+    /**
+     * Eine Nachrichtenkennung, die es nicht gibt, wird abgewiesen.
+     *
+     * Die Existenzpruefung kommt mit der Weissliste geschenkt — aber nur, wenn
+     * der Tabellenname dort richtig steht. Ein Zahlendreher in 'nachrichten'
+     * faellt sonst erst auf, wenn jemand meldet.
+     */
+    public function testEineUnbekannteNachrichtWirdAbgewiesen(): void
+    {
+        $melder = $this->benutzer('Melderin');
+
+        try {
+            $this->meldungen->melden(
+                $melder,
+                Unterhaltungen::GEGENSTAND_NACHRICHT,
+                987654,
+                Meldungen::GRUND_BELAESTIGUNG,
+                'Erlaeuterung.'
+            );
+            self::fail('Eine unbekannte Nachrichtenkennung haette abgewiesen werden muessen.');
+        } catch (MeldungsFehler $fehler) {
+            self::assertSame('gegenstand_unbekannt', $fehler->schluessel());
+        }
     }
 
     public function testUnbekannterGrundWirdAbgewiesen(): void
@@ -641,5 +707,27 @@ final class MeldungenTest extends Testfall
             'angelegt_am' => gmdate('Y-m-d H:i:s'),
             'geaendert_am' => null,
         ]);
+    }
+
+    /**
+     * Eine Unterhaltung mit einer Nachricht darin, und deren Kennung.
+     *
+     * Bewusst ueber Unterhaltungen und nicht ueber zwei INSERTs von Hand: Der
+     * kontext_schluessel entsteht dort und nirgends sonst. Ein von Hand
+     * zusammengesetzter Schluessel waere eine zweite Fassung derselben Regel
+     * und ginge beim naechsten Umbau auseinander.
+     */
+    private function nachricht(int $absenderId, int $empfaengerId): int
+    {
+        $unterhaltungen = new Unterhaltungen($this->db);
+
+        // Beide Seiten brauchen eine Deklaration, bevor sie schreiben duerfen.
+        $profile = new Profile($this->db);
+        $profile->deklarationSetzen($absenderId, Profile::DEKLARATION_PERSON);
+        $profile->deklarationSetzen($empfaengerId, Profile::DEKLARATION_PERSON);
+
+        $unterhaltungId = $unterhaltungen->eroeffnen($absenderId, $empfaengerId);
+
+        return $unterhaltungen->senden($unterhaltungId, $absenderId, 'Hallo, bist du noch da?');
     }
 }

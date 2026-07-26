@@ -6,6 +6,7 @@ namespace MeinSlip\Domain\Trust;
 
 use MeinSlip\Core\Database;
 use MeinSlip\Domain\Admin\Verwaltung;
+use MeinSlip\Domain\Chat\Unterhaltungen;
 
 /**
  * Der nutzerseitige Meldeweg nach Art. 16 DSA.
@@ -117,15 +118,23 @@ final class Meldungen
      * vorher abgewiesen. Damit ist die Einsetzung strukturell sicher statt
      * gefiltert.
      *
-     * 'nachricht' fehlt bewusst: Die Tabelle 'nachrichten' entsteht erst mit
-     * dem Chat (P2). Ein Eintrag ohne Tabelle liesse die Existenzpruefung mit
-     * einem SQL-Fehler statt mit einer Absage scheitern. Wer den Chat baut,
-     * ergaenzt hier eine Zeile — und bekommt die Pruefung geschenkt.
+     * 'nachricht' stand hier zunaechst nicht, weil die Tabelle 'nachrichten'
+     * erst mit dem Chat entstand (P2) und ein Eintrag ohne Tabelle die
+     * Existenzpruefung mit einem SQL-Fehler statt mit einer Absage scheitern
+     * liesse. Der Chat steht jetzt, die Zeile ist nachgetragen.
+     *
+     * SIE ZU VERGESSEN WAR TEURER ALS SIE AUSSIEHT: Der Melden-Knopf im
+     * Chatfenster leitet auf '/melden?art=nachricht' weiter, und ohne diesen
+     * Eintrag lief er in "kein Gegenstand gewaehlt". Damit war der einzige
+     * Meldeweg fuer Nachrichten tot — und ein funktionierendes Melde- und
+     * Abhilfeverfahren ist die Bedingung, unter der diese Plattform ueberhaupt
+     * ohne Vorabpruefung veroeffentlicht (Art. 16 DSA).
      */
     private const GEGENSTAENDE = [
         Verwaltung::GEGENSTAND_ANGEBOT => 'angebote',
         Verwaltung::GEGENSTAND_BENUTZER => 'benutzer',
         Verwaltung::GEGENSTAND_BESTELLUNG => 'bestellungen',
+        Unterhaltungen::GEGENSTAND_NACHRICHT => 'nachrichten',
     ];
 
     /** Spaltenbreite von meldungen.grund laut database/migrations/006_vertrauen.php. */

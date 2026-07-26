@@ -8,6 +8,7 @@ use MeinSlip\Core\Database;
 use MeinSlip\Domain\Account\Konten;
 use MeinSlip\Domain\Ledger\Hauptbuch;
 use MeinSlip\Domain\Order\Bestellzustand;
+use MeinSlip\Domain\Verification\Pruefbelege;
 
 /**
  * Fachlogik des Verwaltungsbereichs.
@@ -123,11 +124,48 @@ final class Verwaltung
     public const HANDLUNG_ANGEBOT_GESPERRT = 'angebot_gesperrt';
     public const HANDLUNG_ANGEBOT_ENTSPERRT = 'angebot_entsperrt';
 
+    /**
+     * Die beiden Entscheidungen ueber einen Pruefbeleg.
+     *
+     * BEIDE werden zugestellt, obwohl nur eine davon eine Beschraenkung ist.
+     * Die Ablehnung ist eine — sie verweigert das Abzeichen, und ohne
+     * Begruendung koennte die Person nur raten, was am Foto nicht stimmte.
+     * Die Freigabe beschraenkt niemanden, wird aber trotzdem zugestellt, und
+     * zwar aus einem Grund, den es bei Angeboten nicht gibt: Mit der
+     * Entscheidung beginnt die Sieben-Tage-Frist, nach der das Selfie
+     * geloescht wird. Wer davon nichts erfaehrt, kann der Loeschung weder
+     * zustimmen noch widersprechen und erfaehrt nie, dass sein Bild einmal da
+     * war und wieder weg ist. Das ist eine Information ueber die eigene
+     * Datenverarbeitung, nicht ueber eine Sanktion.
+     *
+     * Sie stehen HIER und nicht in VerwaltungsRouten, obwohl die Wirkung dort
+     * ausgeloest wird (Pruefbelege haelt den Statuswechsel): tests/
+     * ProfilTest::testJedeHandlungsartHatEinenText sammelt alle Konstanten
+     * dieser Klasse ein, deren Name mit 'HANDLUNG_' beginnt, und verlangt fuer
+     * jede einen Text unter 'profil.art.<wert>'. Eine Konstante in der
+     * Routenklasse faende der Test nicht — und die betroffene Person laese
+     * '[[profil.art.beleg_abgelehnt]]' an genau der Stelle, an der die
+     * Begruendung stehen muss.
+     */
+    public const HANDLUNG_BELEG_FREIGEGEBEN = 'beleg_freigegeben';
+    public const HANDLUNG_BELEG_ABGELEHNT = 'beleg_abgelehnt';
+
     /** Gegenstandsarten, wie sie auch meldungen.gegenstand_art benutzt. */
     public const GEGENSTAND_BENUTZER = 'benutzer';
     public const GEGENSTAND_ANGEBOT = 'angebot';
     public const GEGENSTAND_BESTELLUNG = 'bestellung';
     public const GEGENSTAND_MELDUNG = 'meldung';
+
+    /**
+     * Der Pruefbeleg als Gegenstand einer Verwaltungshandlung.
+     *
+     * Die gegenstand_id zeigt auf pruefungsbelege.id — eine Kennung, die es in
+     * spaetestens sieben Tagen nicht mehr gibt. Das ist Absicht und kein
+     * Mangel: Das Journal haelt fest, DASS ueber diesen Vorgang entschieden
+     * wurde, nicht WAS auf dem Bild war. Das dauerhafte Ergebnis liegt in
+     * 'pruefungen'.
+     */
+    public const GEGENSTAND_PRUEFBELEG = 'pruefbeleg';
 
     /** Vorsilbe der Gegenstandsart bei Faehigkeiten: 'faehigkeit_kaufen'. */
     public const GEGENSTAND_FAEHIGKEIT = 'faehigkeit';
@@ -219,6 +257,15 @@ final class Verwaltung
             'pruefungen_offen' => $this->zahl(
                 'SELECT COUNT(*) FROM pruefungen WHERE status = :s',
                 ['s' => self::PRUEFUNG_OFFEN]
+            ),
+            // Eingereichte Pruefbelege sind Arbeit MIT FRIST: Nach
+            // Pruefbelege::FRIST_UNBEARBEITET_TAGE loescht bin/pflege sie
+            // ungesehen. Eine liegengebliebene Zahl hier heisst deshalb nicht
+            // "spaeter", sondern "die Person hat ihr Selfie umsonst
+            // hochgeladen".
+            'belege_offen' => $this->zahl(
+                'SELECT COUNT(*) FROM pruefungsbelege WHERE status = :s',
+                ['s' => Pruefbelege::STATUS_EINGEREICHT]
             ),
             'hauptbuch_abweichung_cent' => $abweichung,
             'hauptbuch_in_ordnung' => $abweichung === 0,

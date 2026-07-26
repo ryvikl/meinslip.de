@@ -30,6 +30,26 @@ declare(strict_types=1);
  * einem gewoehnlichen Formular; die Sprungmarke am Ende ersetzt das
  * Herunterrollen per Skript.
  *
+ * DIE TERMINE STEHEN HIER UND NICHT AUF EINER EIGENEN SEITE. Ein Termin gehoert
+ * zu einer Unterhaltung — dort sind genau zwei Personen definiert, dort gilt die
+ * Sperre, und dort reden die beiden ohnehin miteinander. Eine eigene Seite waere
+ * ein zweiter Ort, an dem man nachsehen muesste. Nur das ANLEGEN hat eine eigene
+ * Seite (/termine/neu): Dort steht die Erklaerung zu jeder Treffpunktart und der
+ * Hinweis, dass keine Anschrift hineingehoert, und beides muss lesen, wer noch
+ * waehlt.
+ *
+ * WAS DIESE PERSON DARF, ENTSCHEIDET DIE FACHKLASSE. 'darf_annehmen',
+ * 'darf_ablehnen' und 'darf_quittieren' kommen fertig aus
+ * Termine::fuerUnterhaltung(). Diese Vorlage rechnet sie NICHT selbst aus —
+ * sonst stuenden die Regeln („annehmen darf nur das Gegenueber", „quittieren
+ * erst ab dem Zeitpunkt") ein zweites Mal hier, und die beiden Fassungen liefen
+ * auseinander. Ein sichtbarer Knopf ist eine Einladung, keine Erlaubnis: Die
+ * Fachklasse prueft jede Handlung noch einmal.
+ *
+ * KEIN STANDORT, KEINE KARTE. Diese Seite zeigt Art des Treffpunkts und grobe
+ * Region und sonst nichts zum Ort. Es gibt keinen Kartenausschnitt, keine
+ * Entfernungsangabe und keine Abfrage der Geraeteposition.
+ *
  * @var array<string,mixed>|null      $unterhaltung
  * @var list<array<string,mixed>>     $nachrichten
  * @var string|null                   $angebot        Titel des bezogenen Angebots
@@ -39,6 +59,10 @@ declare(strict_types=1);
  * @var string|null                   $erfolg
  * @var int                           $textGrenze
  * @var bool                          $gestoert
+ * @var list<array<string,mixed>>     $termine        aus Termine::fuerUnterhaltung()
+ * @var string|null                   $terminErfolg
+ * @var string|null                   $terminFehler
+ * @var int                           $grundGrenze    Termine::GRUND_MAXLAENGE
  */
 
 $unterhaltung ??= null;
@@ -50,6 +74,21 @@ $fehler ??= null;
 $erfolg ??= null;
 $textGrenze ??= 4000;
 $gestoert ??= false;
+$termine ??= [];
+$terminErfolg ??= null;
+$terminFehler ??= null;
+$grundGrenze ??= 200;
+
+/**
+ * Zeigt den Zeitpunkt auf die Minute genau.
+ *
+ * Die Sekunden fallen weg, weil sie an einer Verabredung nichts bedeuten. Die
+ * Schreibweise bleibt die des Schemas (UTC, 'Y-m-d H:i') und wird NICHT
+ * umgerechnet — dieselbe Ansage steht im Formular unter dem Datumsfeld. Eine
+ * stille Umrechnung nur an dieser einen Stelle waere schlimmer als eine
+ * sichtbare Angabe, weil dann zwei Zeitrechnungen nebeneinander stuenden.
+ */
+$aufDieMinute = static fn (string $zeitpunkt): string => substr($zeitpunkt, 0, 16);
 ?>
 <?php if ($gestoert): ?>
     <section class="ms-abschnitt">
@@ -118,6 +157,144 @@ $gestoert ??= false;
                 <?php endif; ?>
             </article>
         <?php endif; ?>
+    </section>
+
+    <?php /*
+           * DER TERMINABSCHNITT. Er steht VOR dem Verlauf und nicht darunter:
+           * Ein offener Vorschlag ist die Sache, die eine Antwort braucht, und
+           * er darf nicht hinter zweihundert Nachrichten verschwinden.
+           */ ?>
+    <section class="ms-abschnitt" id="termine" aria-labelledby="termine-ueberschrift">
+        <h2 id="termine-ueberschrift" style="font-size:clamp(1.25rem,3vw,1.75rem)">
+            <?= te('termin.abschnitt_titel') ?>
+        </h2>
+
+        <?php if ($terminErfolg !== null): ?>
+            <p class="hinweis text-muted" role="status"><?= te('termin.erfolg.' . $terminErfolg) ?></p>
+        <?php endif; ?>
+
+        <?php if ($terminFehler !== null): ?>
+            <p class="ms-fehler" role="alert"><?= te('termin.fehler.' . $terminFehler) ?></p>
+        <?php endif; ?>
+
+        <?php if ($termine === []): ?>
+            <p class="text-muted"><?= te('termin.abschnitt_leer') ?></p>
+        <?php endif; ?>
+
+        <?php foreach ($termine as $termin): ?>
+            <?php
+            $terminId = (int) $termin['id'];
+            $status = (string) $termin['status'];
+            ?>
+            <article class="card elev-sm">
+                <p class="card-kicker"><?= te('termin.status.' . $status) ?></p>
+
+                <?php // Die Ueberschrift traegt den Zeitpunkt: Er ist die
+                      // Angabe, wegen der jemand auf die Karte sieht. ?>
+                <h3 class="card-title">
+                    <?= te('termin.karte_wann') ?>: <?= e($aufDieMinute((string) $termin['zeitpunkt'])) ?>
+                </h3>
+
+                <?php // Art und Region als Marken nebeneinander. Mehr steht zum
+                      // Ort nicht in der Datenbank — und mehr soll da auch nicht
+                      // stehen. ?>
+                <p class="card-meta" style="flex-wrap:wrap">
+                    <span class="tag tag-neutral"><?= te('termin.treffpunkt.' . (string) $termin['treffpunkt_art']) ?></span>
+                    <span class="tag tag-outline" style="overflow-wrap:anywhere"><?= e((string) $termin['region']) ?></span>
+                    <span class="tag tag-neutral">
+                        <?= $termin['eigener_vorschlag']
+                            ? te('termin.karte_von_dir')
+                            : te('termin.karte_von_gegenueber') ?>
+                    </span>
+                </p>
+
+                <p class="card-body"><?= te('termin.status_erklaerung.' . $status) ?></p>
+
+                <?php if ($termin['grund'] !== null): ?>
+                    <p class="card-body text-muted" style="overflow-wrap:anywhere">
+                        <?= te('termin.karte_grund', ['grund' => (string) $termin['grund']]) ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php /*
+                       * DIE BEIDEN QUITTUNGEN STEHEN EINZELN. Eine gemeinsame
+                       * Anzeige („quittiert") wuerde genau das verwischen, was
+                       * dieses Paket zusichert: Eine einseitige Quittung genuegt
+                       * nicht. Wer nur seine eigene sieht, muss erkennen koennen,
+                       * dass die andere noch fehlt.
+                       */ ?>
+                <?php if ($termin['eigene_quittung'] !== null || $termin['fremde_quittung'] !== null): ?>
+                    <p class="card-meta" style="flex-wrap:wrap">
+                        <?php if ($termin['eigene_quittung'] !== null): ?>
+                            <span class="tag tag-accent"><?= te('termin.karte_deine_quittung') ?></span>
+                        <?php endif; ?>
+                        <?php if ($termin['fremde_quittung'] !== null): ?>
+                            <span class="tag tag-accent"><?= te('termin.karte_fremde_quittung') ?></span>
+                        <?php endif; ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php if ($status === \MeinSlip\Domain\Chat\Termine::STATUS_ANGENOMMEN && $termin['eigene_quittung'] !== null && $termin['fremde_quittung'] === null): ?>
+                    <p class="card-body text-muted"><?= te('termin.karte_wartet_auf_gegenueber') ?></p>
+                <?php endif; ?>
+
+                <?php if ($status === \MeinSlip\Domain\Chat\Termine::STATUS_ANGENOMMEN && $termin['eigene_quittung'] === null && $termin['fremde_quittung'] !== null): ?>
+                    <p class="card-body text-muted"><?= te('termin.karte_wartet_auf_dich') ?></p>
+                <?php endif; ?>
+
+                <?php if ($status === \MeinSlip\Domain\Chat\Termine::STATUS_ANGENOMMEN && !$termin['zeitpunkt_erreicht']): ?>
+                    <p class="card-body text-muted"><?= te('termin.karte_noch_zu_frueh') ?></p>
+                <?php endif; ?>
+
+                <?php if ($status === \MeinSlip\Domain\Chat\Termine::STATUS_VORGESCHLAGEN && $termin['eigener_vorschlag']): ?>
+                    <?php // Der eigene Vorschlag bekommt keinen Knopf, sondern
+                          // einen Satz. Ein ausgegrauter Knopf sagt nicht,
+                          // WARUM er nicht geht. ?>
+                    <p class="card-body text-muted"><?= te('termin.karte_eigener_vorschlag') ?></p>
+                <?php endif; ?>
+
+                <?php if ($termin['darf_annehmen']): ?>
+                    <form method="post" action="/termine/<?= $terminId ?>/annehmen" style="margin:0">
+                        <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                        <button class="btn btn-primary btn-block" type="submit"><?= te('termin.knopf_annehmen') ?></button>
+                    </form>
+                <?php endif; ?>
+
+                <?php if ($termin['darf_ablehnen']): ?>
+                    <form method="post" action="/termine/<?= $terminId ?>/ablehnen" style="margin:0">
+                        <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                        <div class="field">
+                            <label for="grund-<?= $terminId ?>"><?= te('termin.feld_grund') ?></label>
+                            <?php // maxlength spiegelt Termine::GRUND_MAXLAENGE;
+                                  // massgeblich ist die Fachklasse. Kein
+                                  // 'required': Wer einen Termin nicht will, muss
+                                  // das niemandem erklaeren. ?>
+                            <input class="input" type="text" id="grund-<?= $terminId ?>" name="grund"
+                                   maxlength="<?= $grundGrenze ?>">
+                            <span class="hinweis"><?= te('termin.hinweis_grund', ['zeichen' => $grundGrenze]) ?></span>
+                        </div>
+                        <button class="btn btn-secondary btn-block" type="submit"><?= te('termin.knopf_ablehnen') ?></button>
+                    </form>
+                <?php endif; ?>
+
+                <?php if ($termin['darf_quittieren']): ?>
+                    <form method="post" action="/termine/<?= $terminId ?>/quittieren" style="margin:0">
+                        <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                        <button class="btn btn-primary btn-block" type="submit"><?= te('termin.knopf_quittieren') ?></button>
+                    </form>
+                <?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+
+        <?php // Der Hinweis steht unter der Liste und ueber dem Knopf: Wer
+              // gleich einen Termin vorschlaegt, liest ihn auf dem Weg dorthin. ?>
+        <p class="hinweis text-muted"><?= te('termin.abschnitt_erklaerung') ?></p>
+
+        <p>
+            <a class="btn btn-secondary" href="/termine/neu?unterhaltung=<?= $kennung ?>">
+                <?= te('termin.abschnitt_neu') ?>
+            </a>
+        </p>
     </section>
 
     <section class="ms-abschnitt" aria-labelledby="verlauf">

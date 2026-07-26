@@ -17,6 +17,8 @@ use MeinSlip\Domain\Admin\VerwaltungsFehler;
 use MeinSlip\Domain\Catalog\AngebotFehler;
 use MeinSlip\Domain\Catalog\Angebote;
 use MeinSlip\Domain\Ledger\Hauptbuch;
+use MeinSlip\Domain\Verification\Pruefbelege;
+use MeinSlip\Domain\Verification\PruefbelegFehler;
 
 /**
  * Alle Routen des Verwaltungsbereichs.
@@ -79,6 +81,8 @@ final class VerwaltungsRouten
         'angebot_gesperrt',
         'angebot_entsperrt',
         'meldung_bearbeitet',
+        'beleg_freigegeben',
+        'beleg_abgelehnt',
     ];
 
     /**
@@ -110,12 +114,16 @@ final class VerwaltungsRouten
         'eigenpruefung_unzulaessig',
         'statuswechsel_unzulaessig',
         'status_unbekannt',
+        'beleg_unbekannt',
+        'beleg_nicht_offen',
         'unbekannt',
     ];
 
     public function __construct(
-        // $wurzel wird hier nicht gebraucht, die Signatur bleibt trotzdem die
-        // von Routen: Der Einstiegspunkt haengt beide gleich ein.
+        // Die Wurzel zeigt auf den Projektstamm. Sie wurde hier lange nicht
+        // gebraucht und stand nur da, damit der Einstiegspunkt alle
+        // Routenklassen gleich einhaengt; seit der Belegpruefung zeigt sie auf
+        // das Belegverzeichnis (Pruefbelege::verzeichnis()).
         private readonly string $wurzel,
         private readonly View $ansicht,
     ) {
@@ -127,6 +135,7 @@ final class VerwaltungsRouten
         $this->konten($router);
         $this->angebote($router);
         $this->meldungen($router);
+        $this->verifizierung($router);
         $this->nachweise($router);
     }
 
@@ -632,6 +641,224 @@ final class VerwaltungsRouten
             },
             static fn (array $p): string => self::WURZEL . '/meldungen'
         );
+    }
+
+    // --- Pruefbelege -----------------------------------------------------
+
+    /**
+     * Die manuelle Identitaetspruefung.
+     *
+     * WAS DIESE SEITE ZEIGT UND WAS SIE DAMIT ANRICHTET: Sie legt ein Selfie
+     * einer Nutzerin auf den Bildschirm einer verwaltenden Person. Das ist der
+     * eingriffsintensivste Bildschirm des ganzen Bereichs, und er ist trotzdem
+     * noetig — ohne den Beleg kann niemand entscheiden. Drei Dinge folgen
+     * daraus, und alle drei stehen hier im Code und nicht nur im Konzept:
+     *
+     *  1. DAS BILD WIRD NIE ZWISCHENGESPEICHERT. Die Auslieferung setzt
+     *     'private, no-store'. Ein Proxy oder ein Browsercache, der es
+     *     aufhebt, gaebe es beim naechsten Abruf ohne Anmeldung wieder heraus.
+     *
+     *  2. JEDER AUFRUF RAEUMT AUF. Vor der Liste und vor jeder Einzelansicht
+     *     laeuft Pruefbelege::faelligeLoeschen(). Das ist die zweite der
+     *     beiden Durchsetzungen der Loeschfrist — bin/pflege ist die erste,
+     *     und ein Cronjob, den niemand beobachtet, ist keine Sicherung. Der
+     *     Aufruf steht ABSICHTLICH ohne try/catch: Scheitert er, scheitert er
+     *     an der Datenbank, und dann ist die Seite ohnehin unbrauchbar. Eine
+     *     verschluckte Loeschung waere schlimmer als eine kaputte Seite.
+     *
+     *  3. NIEMAND PRUEFT SICH SELBST. Dieselbe Zusicherung wie bei jeder
+     *     anderen Entscheidung ueber ein Konto (Verwaltung, Grundsatz 3). Wer
+     *     sich selbst freigeben duerfte, braeuchte den ganzen Vorgang nicht.
+     */
+    private function verifizierung(Router $router): void
+    {
+        // Statisches Muster vor dem Platzhalter. '{id}' wird zu ([^/]+) und
+        // frisst keinen Schraegstrich, eine Kollision ist damit ohnehin
+        // ausgeschlossen — die Reihenfolge steht trotzdem so da.
+        $router->get(self::WURZEL . '/verifizierung', $this->geschuetzt(
+            function (Request $a, array $p, array $z): Response {
+                $belege = $this->belege($z['db']);
+                $belege->faelligeLoeschen();
+
+                return $this->rendern($z, 'verwaltung.verifizierung', 'verwaltung.belege_titel', [
+                    'aktiv' => self::WURZEL . '/verifizierung',
+                    'liste' => $belege->offeneBelege($this->seite($a)),
+                    'tage' => Pruefbelege::FRIST_UNBEARBEITET_TAGE,
+                    'entscheidungstage' => Pruefbelege::FRIST_ENTSCHIEDEN_TAGE,
+                ] + $this->rueckmeldung($a));
+            }
+        ));
+
+        // Die Bytes des Belegs. Eigene Route statt eines eingebetteten
+        // Datenstroms in der Seite: Ein data:-URI landet im HTML, und das HTML
+        // landet im Verlauf, im Ausdruck und in jeder Bildschirmaufnahme.
+        $router->get(self::WURZEL . '/verifizierung/{id}/bild', $this->geschuetzt(
+            fn (Request $a, array $p, array $z): Response => $this->belegBild($p, $z)
+        ));
+
+        $router->get(self::WURZEL . '/verifizierung/{id}', $this->geschuetzt(
+            function (Request $a, array $p, array $z): Response {
+                $id = $this->kennung($p);
+
+                if ($id === null) {
+                    return $this->nichtGefunden();
+                }
+
+                $belege = $this->belege($z['db']);
+                $belege->faelligeLoeschen();
+
+                $beleg = $belege->beleg($id);
+
+                if ($beleg === null) {
+                    return $this->nichtGefunden();
+                }
+
+                return $this->rendern($z, 'verwaltung.beleg', 'verwaltung.belege_titel', [
+                    'aktiv' => self::WURZEL . '/verifizierung',
+                    'beleg' => $beleg,
+                    'eigenesKonto' => (int) $beleg['benutzer_id'] === $z['verwalter_id'],
+                    'statusEingereicht' => Pruefbelege::STATUS_EINGEREICHT,
+                    'entscheidungstage' => Pruefbelege::FRIST_ENTSCHIEDEN_TAGE,
+                ] + $this->rueckmeldung($a));
+            }
+        ));
+
+        $this->schreibroute(
+            $router,
+            self::WURZEL . '/verifizierung/{id}/freigeben',
+            fn (Request $a, array $p, array $z): Response => $this->belegEntscheiden($a, $p, $z, true),
+            static fn (array $p): string => self::WURZEL . '/verifizierung'
+        );
+
+        $this->schreibroute(
+            $router,
+            self::WURZEL . '/verifizierung/{id}/ablehnen',
+            fn (Request $a, array $p, array $z): Response => $this->belegEntscheiden($a, $p, $z, false),
+            static fn (array $p): string => self::WURZEL . '/verifizierung'
+        );
+    }
+
+    /**
+     * Liefert das Selfie aus — oder 404.
+     *
+     * Jede Ablehnung ist dieselbe 404, ohne Rumpf, wie in MedienRouten. Es
+     * gibt hier bewusst keine 403: Der ganze Bereich antwortet mit 404, und
+     * eine abweichende Antwort waere ein Fingerabdruck.
+     *
+     * @param array<string,string>                                                 $parameter
+     * @param array{db: Database, sitzung: array<string,mixed>, verwalter_id: int} $zugang
+     */
+    private function belegBild(array $parameter, array $zugang): Response
+    {
+        $id = $this->kennung($parameter);
+
+        if ($id === null) {
+            return $this->nichtGefunden();
+        }
+
+        $belege = $this->belege($zugang['db']);
+        $beleg = $belege->beleg($id);
+
+        if ($beleg === null) {
+            return $this->nichtGefunden();
+        }
+
+        $datei = $belege->datei(is_string($beleg['pfad']) ? $beleg['pfad'] : null);
+
+        if ($datei === null) {
+            return $this->nichtGefunden();
+        }
+
+        // Nach der Neukodierung in Bilder IST jede gespeicherte Datei ein
+        // JPEG. Der Typ wird deshalb nicht geraten, sondern behauptet — er ist
+        // eine Tatsache der Pipeline.
+        return Response::datei($datei, 'image/jpeg', ['Cache-Control' => 'private, no-store']);
+    }
+
+    /**
+     * Freigabe und Ablehnung eines Belegs.
+     *
+     * Wirkung, Ergebniszeile, Protokolleintrag und Zustellung in EINER
+     * Transaktion — woertlich der Rahmen von angebotEntscheiden(). Faellt
+     * eines aus, faellt alles aus: Eine Entscheidung ohne Zustellung waere
+     * eine Loeschfrist, von der die betroffene Person nichts erfaehrt, und
+     * eine Zustellung ohne Entscheidung eine Behauptung.
+     *
+     * BEIDE Richtungen werden zugestellt. Warum auch die Freigabe, steht bei
+     * Verwaltung::HANDLUNG_BELEG_FREIGEGEBEN: Mit der Entscheidung beginnt die
+     * Frist, nach der das Selfie geloescht wird.
+     *
+     * @param array<string,string>                                                 $parameter
+     * @param array{db: Database, sitzung: array<string,mixed>, verwalter_id: int} $zugang
+     */
+    private function belegEntscheiden(Request $anfrage, array $parameter, array $zugang, bool $freigeben): Response
+    {
+        $id = $this->kennung($parameter);
+
+        if ($id === null) {
+            return $this->nichtGefunden();
+        }
+
+        $ziel = self::WURZEL . '/verifizierung';
+
+        if (!Formularschutz::gueltig($anfrage)) {
+            return Response::weiterleitung($ziel);
+        }
+
+        $grund = $anfrage->eingabe('grund', '') ?? '';
+        $belege = $this->belege($zugang['db']);
+        $beleg = $belege->beleg($id);
+
+        if ($beleg === null) {
+            return $this->zurueck($ziel, 'fehler', 'beleg_unbekannt');
+        }
+
+        // Grundsatz 3 aus Verwaltung: Niemand entscheidet ueber das eigene
+        // Konto. Die Fachklasse Pruefbelege prueft das nicht — sie kennt die
+        // entscheidende Person nur als Zahl. Der Schluessel ist derselbe wie
+        // bei Sperre und Faehigkeit, weil sein Text den ganzen Fall traegt.
+        if ((int) $beleg['benutzer_id'] === $zugang['verwalter_id']) {
+            return $this->zurueck($ziel, 'fehler', 'selbstsperre_unzulaessig');
+        }
+
+        $handlung = $freigeben
+            ? Verwaltung::HANDLUNG_BELEG_FREIGEGEBEN
+            : Verwaltung::HANDLUNG_BELEG_ABGELEHNT;
+
+        try {
+            $zugang['db']->transaktion(function () use ($belege, $zugang, $id, $freigeben, $grund, $handlung): void {
+                $entschieden = $belege->entscheiden($id, $zugang['verwalter_id'], $freigeben, $grund);
+
+                $verwaltung = new Verwaltung($zugang['db']);
+
+                $ereignisId = $verwaltung->ereignisSchreiben(
+                    $zugang['verwalter_id'],
+                    $handlung,
+                    Verwaltung::GEGENSTAND_PRUEFBELEG,
+                    $id,
+                    $grund
+                );
+
+                $verwaltung->benachrichtigen(
+                    (int) $entschieden['benutzer_id'],
+                    $handlung,
+                    Verwaltung::GEGENSTAND_PRUEFBELEG,
+                    $id,
+                    $grund,
+                    $ereignisId
+                );
+            });
+        } catch (PruefbelegFehler | VerwaltungsFehler $fehler) {
+            return $this->zurueck($ziel, 'fehler', $fehler->schluessel());
+        }
+
+        return $this->zurueck($ziel, 'erfolg', $freigeben ? 'beleg_freigegeben' : 'beleg_abgelehnt');
+    }
+
+    /** Die Fachschicht der Pruefbelege, an das Belegverzeichnis gebunden. */
+    private function belege(Database $db): Pruefbelege
+    {
+        return new Pruefbelege($db, Pruefbelege::verzeichnis($this->wurzel));
     }
 
     // --- Protokoll und Hauptbuch -----------------------------------------
