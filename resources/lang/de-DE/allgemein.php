@@ -35,6 +35,13 @@ return [
     'nav_bereiche' => 'Hauptbereiche',
     'nav_verkaufen' => 'Verkaufen',
     'nav_verwaltung' => 'Verwaltung',
+    // Eigener, kürzerer Text nur für die untere Leiste. Dort hat jeder der
+    // fünf Plätze auf einem 360-px-Telefon rund 68 px; 'Konto erstellen' aus
+    // nav_registrieren bräuchte etwa das Anderthalbfache und bräche um.
+    'nav_registrieren_kurz' => 'Konto',
+    // Nur für Sprachausgaben. Sie liest die Ziffer im Abzeichen nicht mit,
+    // weil '3' neben 'Nachrichten' als zwei zusammenhanglose Wörter ankäme.
+    'nav_ungelesen' => ':anzahl ungelesen',
 
     // Merkmale
     'merkmal_geprueft' => 'Geprüfte Identitäten',

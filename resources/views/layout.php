@@ -124,33 +124,67 @@ $symbol = static function (string $name): string {
 
 <nav class="ms-untennav" aria-label="<?= te('allgemein.nav_bereiche') ?>">
     <?php
-    // Der letzte Platz führt abgemeldet zur Anmeldung: Auf dem Telefon
-    // blendet die Kopfzeile ihren Anmeldeknopf aus, damit sie auf 360 px
-    // passt — der Weg dorthin darf deshalb hier nicht fehlen.
-    // Der dritte Platz trägt angemeldet das Verkaufen statt der Nachrichten.
-    // Grund: Unterhalb von 860 px ist die Kopfnavigation ausgeblendet, die
-    // untere Leiste ist dann der einzige Weg. Nachrichten ist bis heute eine
-    // Platzhalterseite ohne Funktion, /verkaufen dagegen die vollständige
-    // Verkäuferstrecke — ein arbeitendes Ziel schlägt ein angekündigtes.
-    // Sobald Nachrichten steht, gehört der Platz zurückgetauscht und beide
-    // brauchen dann eigene Plätze.
-    $bereiche = [
-        ['/', 'allgemein.nav_start', 'home'],
-        ['/entdecken', 'allgemein.nav_entdecken', 'entdecken'],
-        $angemeldet
-            ? ['/verkaufen', 'allgemein.nav_verkaufen', 'verkaufen']
-            : ['/nachrichten', 'allgemein.nav_nachrichten', 'nachrichten'],
-        ['/guthaben', 'allgemein.nav_wallet', 'guthaben'],
-        $angemeldet
-            ? ['/profil', 'allgemein.nav_profil', 'profil']
-            : ['/anmelden', 'allgemein.nav_anmelden', 'profil'],
-    ];
-    foreach ($bereiche as [$ziel, $schluessel, $zeichen]):
+    /*
+     * FÜNF PLÄTZE, UND JEDER MUSS SICH SEINEN VERDIENEN.
+     *
+     * Unterhalb von 860 px ist die Kopfnavigation ausgeblendet — diese Leiste
+     * ist dann der einzige Weg durch die Anwendung. Ein Platz, der auf eine
+     * gesperrte Funktion zeigt, ist deshalb nicht bloß unschön, er kostet ein
+     * Fünftel der knappsten Fläche der ganzen Anwendung.
+     *
+     * Guthaben ist genau so ein Platz und verlässt die Leiste. Es ist aus
+     * Aufsichtsgründen gesperrt (§ 1 Abs. 1 S. 2 Nr. 1 KWG, siehe
+     * docs/11-offene-fragen.md) und bleibt es auf Monate. Route und Seite
+     * bleiben bestehen, erreichbar über /profil — nur der Dauerplatz geht.
+     *
+     * Nachrichten bekommt den frei gewordenen Platz zurück. Der Kommentar, der
+     * hier vorher stand, hatte ihn ausdrücklich nur geliehen: „ein arbeitendes
+     * Ziel schlägt ein angekündigtes" — der Chat arbeitet jetzt.
+     *
+     * Abgemeldet zeigt die Leiste keinen einzigen Eintrag, der zur Anmeldung
+     * zwingt, außer denen, die es sollen: Sicherheit steht dort, weil es die
+     * eine Seite ist, die jemand in Eile finden muss, ohne vorher ein Konto
+     * anzulegen.
+     */
+    $abzeichen = $angemeldet ? \MeinSlip\Http\Navigation::abzeichen($sitzung) : null;
+
+    $bereiche = $angemeldet
+        ? [
+            ['/', 'allgemein.nav_start', 'home', null],
+            ['/entdecken', 'allgemein.nav_entdecken', 'entdecken', null],
+            ['/nachrichten', 'allgemein.nav_nachrichten', 'nachrichten', $abzeichen],
+            ['/verkaufen', 'allgemein.nav_verkaufen', 'verkaufen', null],
+            ['/profil', 'allgemein.nav_profil', 'profil', null],
+        ]
+        : [
+            ['/', 'allgemein.nav_start', 'home', null],
+            ['/entdecken', 'allgemein.nav_entdecken', 'entdecken', null],
+            ['/anmelden', 'allgemein.nav_anmelden', 'profil', null],
+            ['/registrieren', 'allgemein.nav_registrieren_kurz', 'verkaufen', null],
+            ['/sicherheit', 'allgemein.nav_sicherheit', 'guthaben', null],
+        ];
+
+    foreach ($bereiche as [$ziel, $schluessel, $zeichen, $zahl]):
         ?>
         <a class="ms-untennav__eintrag" href="<?= e($ziel) ?>"
            <?= $aktiv === $ziel ? 'aria-current="page"' : '' ?>>
-            <?= $symbol($zeichen) ?>
+            <span class="ms-untennav__symbol">
+                <?= $symbol($zeichen) ?>
+                <?php if ($zahl !== null): ?>
+                    <span class="ms-untennav__abzeichen" aria-hidden="true"><?= e($zahl) ?></span>
+                <?php endif; ?>
+            </span>
+
+            <?php // Sichtbar bleibt das kurze Wort — die Leiste hat auf 360 px
+                  // rund 68 px je Platz, ein längerer Text bricht sie um.
+                  // Die Zahl steht daneben nur als Ziffer und ist für eine
+                  // Sprachausgabe ausgeblendet; sie bekommt stattdessen den
+                  // ausgeschriebenen Satz, sonst läse sie „3 Nachrichten“ als
+                  // zwei zusammenhanglose Wörter vor. ?>
             <span><?= te($schluessel) ?></span>
+            <?php if ($zahl !== null): ?>
+                <span class="ms-nur-vorlesen"><?= te('allgemein.nav_ungelesen', ['anzahl' => $zahl]) ?></span>
+            <?php endif; ?>
         </a>
     <?php endforeach; ?>
 </nav>

@@ -196,15 +196,65 @@ final class BilderTest extends TestCase
         $this->assertAbgewiesen('kein_bild', $this->upload($inhalt));
     }
 
+    /**
+     * SVG kommt nicht durch — auf welchem Weg, haengt von der PHP-Version ab.
+     *
+     * SVG ist ein XML-Dokument mit <script>-Unterstuetzung und kein Bild, das
+     * sich neu kodieren liesse. Abgewiesen wird es immer, aber an zwei
+     * verschiedenen Stellen:
+     *
+     *  - Bis PHP 8.4 erkennt getimagesize() SVG ueberhaupt nicht und gibt
+     *    false zurueck  ->  'kein_bild'.
+     *  - Seit PHP 8.5 kennt getimagesize() SVG (IMAGETYPE_SVG). Die Datei
+     *    kommt damit bis zur Weissliste, die nur JPEG, PNG und WebP
+     *    enthaelt  ->  'format_nicht_erlaubt'.
+     *
+     * Genau daran ist dieser Test in der Prüfstrecke zerbrochen: gruen auf 8.2
+     * und 8.4, rot auf 8.5 — und 8.5 ist die Version, die auf dem Server
+     * laeuft. Er behauptete den WEG statt des ERGEBNISSES.
+     *
+     * Geprueft wird deshalb, was tatsaechlich zugesichert ist: SVG wird
+     * abgewiesen und hinterlaesst nichts. Die Weissliste bleibt die Sicherung;
+     * dass sie nur die drei Rasterformate enthaelt, prueft
+     * testNurDreiFormateSindZugelassen().
+     */
     public function testEineSvgDateiWirdAbgewiesen(): void
     {
-        // SVG ist ein XML-Dokument mit <script>-Unterstuetzung und kein Bild,
-        // das sich neu kodieren liesse. getimagesize() weist es ab — der Test
-        // haelt fest, dass niemand es spaeter "nachtraegt".
         $svg = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">'
             . '<script>alert(1)</script></svg>';
 
-        $this->assertAbgewiesen('kein_bild', $this->upload($svg));
+        $this->assertAbgewiesenMitEinem(['kein_bild', 'format_nicht_erlaubt'], $this->upload($svg));
+    }
+
+    /**
+     * Genau drei Formate sind zugelassen, und das haengt an keiner PHP-Version.
+     *
+     * Diese Pruefung ist erst entstanden, als getimagesize() in PHP 8.5 gelernt
+     * hat, SVG zu erkennen. Bis dahin scheiterte SVG schon davor; seither ist
+     * DIESE WEISSLISTE die Stelle, die es aufhaelt. Damit traegt sie eine
+     * Zusicherung, die vorher woanders lag — und eine Zusicherung, die nur ein
+     * Kommentar behauptet, ist keine.
+     *
+     * Sie liest die Konstante ueber Reflexion, weil sie privat ist und es
+     * bleiben soll: Ein oeffentliches Feld waere eine Einladung, die Liste von
+     * aussen zu erweitern.
+     */
+    public function testNurDreiFormateSindZugelassen(): void
+    {
+        $erlaubt = (new \ReflectionClass(Bilder::class))->getConstant('ERLAUBT');
+
+        self::assertIsArray($erlaubt);
+        self::assertSame(
+            [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP],
+            array_keys($erlaubt),
+            'Ein weiteres Format ist eine Sicherheitsentscheidung und keine Kleinigkeit.'
+        );
+
+        // SVG darf niemals hineingeraten. Die Konstante gibt es erst ab
+        // PHP 8.5, deshalb die Abfrage statt der direkten Verwendung.
+        if (defined('IMAGETYPE_SVG')) {
+            self::assertArrayNotHasKey(IMAGETYPE_SVG, $erlaubt);
+        }
     }
 
     public function testEinGifWirdAbgewiesen(): void
@@ -446,11 +496,32 @@ final class BilderTest extends TestCase
      */
     private function assertAbgewiesen(string $schluessel, array $datei): void
     {
+        $this->assertAbgewiesenMitEinem([$schluessel], $datei);
+    }
+
+    /**
+     * Wie assertAbgewiesen(), laesst aber mehrere Gruende zu.
+     *
+     * NUR fuer die Faelle, in denen die PHP-Version entscheidet, an welcher
+     * Stelle eine Datei haengen bleibt — siehe testEineSvgDateiWirdAbgewiesen().
+     * Ueberall sonst gehoert genau ein Schluessel behauptet: Eine Liste von
+     * erlaubten Gruenden ist eine Einladung, einen Test gruen zu bekommen,
+     * indem man einen weiteren Grund hinzufuegt.
+     *
+     * @param list<string>        $schluessel
+     * @param array<string,mixed> $datei
+     */
+    private function assertAbgewiesenMitEinem(array $schluessel, array $datei): void
+    {
         try {
             $this->bilder->annehmen($datei, $this->verzeichnis);
-            self::fail('Erwartet war die Abweisung mit dem Schluessel "' . $schluessel . '".');
+            self::fail('Erwartet war die Abweisung mit einem von: ' . implode(', ', $schluessel) . '.');
         } catch (MedienFehler $fehler) {
-            self::assertSame($schluessel, $fehler->schluessel(), 'Meldung: ' . $fehler->getMessage());
+            self::assertContains(
+                $fehler->schluessel(),
+                $schluessel,
+                'Meldung: ' . $fehler->getMessage() . ' (PHP ' . PHP_VERSION . ')'
+            );
         }
 
         self::assertSame([], glob($this->verzeichnis . '/*.jpg') ?: [], 'Eine abgewiesene Datei darf nichts hinterlassen.');
