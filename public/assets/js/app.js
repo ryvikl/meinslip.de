@@ -102,9 +102,19 @@
 
   if (konfigurator) {
     const grundpreis = Number(konfigurator.dataset.grundpreis || 0);
-    const anzeige = konfigurator.querySelector("[data-summe]");
+    // Der Betrag steht zweimal: in der Übersichtskarte und in der
+    // Summenleiste neben dem Knopf. Beide zeigen immer dieselbe Zahl.
+    const anzeigen = konfigurator.querySelectorAll("[data-summe]");
+    const beschriftungen = konfigurator.querySelectorAll("[data-summe-beschriftung]");
     const absenden = konfigurator.querySelector("[data-absenden]");
     const warnung = konfigurator.querySelector("[data-spezifikation-warnung]");
+
+    // Sobald dieses Skript rechnet, ist der Betrag exakt — die Beschriftung
+    // darf von "Vorläufiger Gesamtbetrag" auf "Gesamtbetrag" wechseln. Der
+    // Text kommt aus dem data-Attribut und damit aus der Sprachdatei.
+    beschriftungen.forEach((feld) => {
+      if (feld.dataset.gesamt) feld.textContent = feld.dataset.gesamt;
+    });
 
     function neuBerechnen() {
       let summe = grundpreis;
@@ -118,12 +128,12 @@
         if (feld.dataset.spezifikation === "ja") spezifikationen += 1;
       });
 
-      if (anzeige) {
+      anzeigen.forEach((anzeige) => {
         anzeige.textContent = (summe / 100).toLocaleString("de-DE", {
           style: "currency",
           currency: "EUR",
         });
-      }
+      });
 
       const gueltig = spezifikationen > 0;
       if (absenden) absenden.disabled = !gueltig;

@@ -66,6 +66,15 @@ SCHRIFT = {
     'neutral-300': '#cfd3e5',
     'neutral-400': '#b2b6ca',
     'neutral-500': '#9397ab',
+    # Statusfarben — laut Design-Vorlage nur fuer Verifiziert/Erfolg, Warnung
+    # und SOS. Sie stehen auch als kleine Schrift ("online", "bestaetigt"),
+    # deshalb gilt fuer sie die Textschwelle, nicht die 3:1 der
+    # Bedienelemente. Das Rot ist NICHT das #ef4444 der Comps: das erreicht
+    # auf der Kartenflaeche nur 4.04:1. Herleitung des Ersatzes in
+    # docs/09-design-system.md, Korrektur 1.
+    'ok': '#22c55e',
+    'warnung': '#f59e0b',
+    'gefahr': '#f35b5b',
 }
 
 # Diese Ramp-Stufen sind fuer Flaechen und Tints gedacht, nicht fuer Schrift.

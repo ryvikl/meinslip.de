@@ -33,6 +33,50 @@ Nocturne ist dunkel, ruhig und farbarm — genau die Richtung, die die Designide
 
 Beide sind durch Tests abgesichert: `HuelleTest::testKeineSchriftVonFremdenServern` und die Kontrastprüfung.
 
+### Statusfarben — Ergänzung aus der Vorlage
+
+Die Design-Vorlage (`design/MeinSlip App.dc.html`, Kopfnotiz) legt fest: **„Statusfarben nur für
+Verifiziert, Warnung, SOS"**. Die Comps setzen sie als Punkt, Linie und kleine Schrift ein — nie als
+Fläche. Seit der Design-Überarbeitung stehen sie als Tokens in `nocturne.css`:
+
+| Token | Wert | auf `#161826` | auf `#232532` | Rolle |
+| :--- | :--- | ---: | ---: | :--- |
+| `--color-ok` | `#22c55e` | 7,73:1 | 6,67:1 | online, bestätigt, quittiert |
+| `--color-warnung` | `#f59e0b` | 8,20:1 | 7,07:1 | Bewertung, Hinweis |
+| `--color-gefahr` | `#f35b5b` | 5,41:1 | 4,67:1 | Fehler, SOS |
+
+Das Rot der Comps (`#ef4444`) erreicht auf der Kartenfläche nur **4,04:1** und fällt als Schrift
+durch; es wurde durch den in Korrektur 1 hergeleiteten schrifttauglichen Alarmton `#f35b5b`
+ersetzt. Alle drei Werte prüft `kontrast-pruefung.py` gegen die Textschwelle 4,5:1, weil sie auch
+als kleine Schrift („online", „bestätigt") stehen.
+
+### Die Bausteine der Vorlage in der Anwendung
+
+Die Comps sind maßgeblich, `app.css` setzt ihre wiederkehrenden Bausteine tokenbasiert um —
+kein Hexwert außerhalb von `nocturne.css`:
+
+- **Hairline-Band** (`.ms-band`): Zellen auf Seitengrund, getrennt durch 1-px-Fugen — das
+  Versprechen- und Sicherheitsband der Landing.
+- **Kontokarte** (`.ms-kontokarte`): der Indigo-Verlauf (`--color-section` → Fläche) mit
+  Akzent-Radialschein — der eine Ort, an dem Sättigung Fläche werden darf.
+- **Bereichskarte** (`.ms-bereichskarte`): Symbolchip, Marken, Hebe-Zustand mit Akzentring
+  und weichem Schein beim Zeigen.
+- **Kacheln** (`.ms-raster--kacheln`, `.ms-kachel`): bildgeführte Katalogkarten, zwei Spalten
+  schon auf dem Telefon, der Preis als größte Zahl der Karte.
+- **Chips** (`.ms-chip`), **Statuspunkte** (`.ms-status`), **Ring-Symbole** (`.ms-ringsymbol`),
+  **Fortschritt** (`.ms-fortschritt`), **Zeilenliste** (`.ms-zeilen`), **Hinweisbox**
+  (`.ms-hinweisbox`).
+- **Konfigurator** (`.ms-option`, `.ms-summenleiste`): Optionskarten mit Aufpreis rechts und
+  eingelegtem Akzentring; die Summenleiste hält Betrag und Bestellknopf beim Rollen zusammen.
+- **Chat** (`.ms-verlauf`, `.ms-blase`): eigene Blasen rechts auf `--color-accent-800` mit
+  `--color-accent-100`, fremde links auf der Kartenfläche, Schwanz an der Ecke zur eigenen Seite.
+- **Telefonvorschau** (`.ms-telefon`): die Hero-Illustration der Landing, rein HTML/CSS und
+  dekorativ (`aria-hidden`).
+
+Zwei Zwischenflächen der Comps (`#1c1f2e`, `#1b1d2b`) sind keine Tokens, sondern werden in
+`app.css` als `color-mix()` aus `--color-bg` und `--color-surface` gebildet — sie wandern bei
+jeder Token-Änderung mit.
+
 ### Gemessene Werte
 
 Alle Angaben aus `docs/kontrast-pruefung.py`, nicht abgeschrieben.
