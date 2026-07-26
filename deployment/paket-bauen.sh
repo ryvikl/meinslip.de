@@ -41,12 +41,22 @@ cp .htaccess "$ZIEL/" 2>/dev/null || true
 
 # Leere Verzeichnisse, die zur Laufzeit gebraucht werden.
 #
-# storage/medien muss dabei sein, obwohl Medien::verzeichnis() es zur Not
-# selbst anlegt: Auf geteiltem Webhosting darf der PHP-Benutzer nicht überall
-# Verzeichnisse erzeugen, und der erste Upload scheiterte dann mit
+# storage/medien und storage/belege müssen dabei sein, obwohl der Code sie zur
+# Not selbst anlegt: Auf geteiltem Webhosting darf der PHP-Benutzer nicht
+# überall Verzeichnisse erzeugen, und der erste Upload scheiterte dann mit
 # 'ziel_unbrauchbar' — sichtbar erst, wenn die erste Verkäuferin ihr erstes
 # Foto hochlädt. Ein leeres Verzeichnis im Paket kostet nichts.
-mkdir -p "$ZIEL/storage/logs" "$ZIEL/storage/uploads" "$ZIEL/storage/medien"
+#
+# storage/belege fehlte hier, nachdem die Verifizierung dazukam: In .gitignore
+# war es eingetragen, im Paket nicht. Der Fehler wäre erst beim ersten Selfie
+# aufgefallen — also bei genau der Person, die gerade Vertrauen fassen soll.
+# Wer ein weiteres Ablageverzeichnis einführt, trägt es HIER ein und nicht nur
+# dort.
+mkdir -p \
+    "$ZIEL/storage/logs" \
+    "$ZIEL/storage/uploads" \
+    "$ZIEL/storage/medien" \
+    "$ZIEL/storage/belege"
 touch "$ZIEL/storage/.htaccess"
 cat > "$ZIEL/storage/.htaccess" <<'HTACCESS'
 # storage/ enthält Protokolle und hochgeladene Dateien und darf niemals
