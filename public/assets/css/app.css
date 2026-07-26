@@ -5,9 +5,27 @@
  *
  * Regel aus dem Systemhandbuch: Farben, Abstände, Radien und Schatten kommen
  * ausschließlich aus den Tokens — hier steht kein einziger Hexwert und keine
- * Zahl, die ein Token schon trägt. Ergänzt wird nur, was das System nicht
- * abdeckt: Kopfleiste, untere Navigation, Hero und der Diskretions-Vorhang.
+ * Zahl, die ein Token schon trägt. Ergänzt wird, was das System nicht
+ * abdeckt, und zwar GENAU SO, wie die Design-Vorlage es zeichnet
+ * (design/MeinSlip Landing.dc.html und design/MeinSlip App.dc.html):
+ * Kopfleiste, untere Navigation, der geteilte Hero mit Telefonvorschau,
+ * Hairline-Bänder, Bereichskarten mit Hebe-Zustand, die Indigo-Kontokarte,
+ * Chips, Statuspunkte, Ring-Symbole, Kachelraster, Options- und
+ * Summenbausteine des Konfigurators, Chat-Blasen und der
+ * Diskretions-Vorhang.
+ *
+ * Zwei Zwischenflächen der Vorlage sind keine Tokens, sondern Mischungen der
+ * beiden Grundflächen (#1c1f2e und #1b1d2b in den Comps). Sie werden hier als
+ * abgeleitete Werte aus --color-bg und --color-surface gebildet — damit
+ * wandern sie bei jeder Token-Änderung mit, statt zu verwaisen.
  */
+
+:root {
+  /* Hinweisflaeche der Comps (#1c1f2e): 52 % Grund auf Karte. */
+  --ms-zwischenflaeche: color-mix(in srgb, var(--color-bg) 52%, var(--color-surface));
+  /* Leistenflaeche der Comps (#1b1d2b): 62 % Grund auf Karte. */
+  --ms-leistenflaeche: color-mix(in srgb, var(--color-bg) 62%, var(--color-surface));
+}
 
 *,
 *::before,
@@ -17,6 +35,12 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+
+  /* Die treibenden Hintergrundflächen der Startseite ragen absichtlich über
+     den Seitenrand (.ms-vollbreit unten). clip statt hidden: es schneidet ab,
+     ohne einen Rollcontainer zu erzeugen — sticky-Kopf und -Summenleiste
+     bleiben unberührt. */
+  overflow-x: clip;
 
   /*
    * Doppeltipp-Zoom abschalten — aber NICHT über user-scalable=no oder
@@ -50,7 +74,7 @@ body {
 
 /* Nocturne: Hierarchie über Größe und Raum, Überschriften nie fetter als 500. */
 h1 { font-size: clamp(2rem, 6vw, 3.75rem); line-height: 1.04; letter-spacing: -0.03em; margin: 0; }
-h2 { font-size: clamp(1.5rem, 4vw, 2.25rem); line-height: 1.1; letter-spacing: -0.02em; margin: 0; }
+h2 { font-size: clamp(1.5rem, 4vw, 2.375rem); line-height: 1.1; letter-spacing: -0.025em; margin: 0; }
 h3 { font-size: 1.0625rem; letter-spacing: -0.01em; margin: 0; }
 
 p { margin: 0; }
@@ -66,6 +90,31 @@ a { color: var(--color-accent-300); text-underline-offset: 3px; }
 
 img { max-width: 100%; height: auto; display: block; }
 
+/* --- Bewegung -----------------------------------------------------------
+ *
+ * Drei Bewegungen aus der Vorlage: der atmende Punkt, das langsame Treiben
+ * der Hintergrundflächen, das Aufsteigen neuer Inhalte. Alle rein
+ * dekorativ — unter prefers-reduced-motion stehen sie still, ohne dass
+ * Information verloren geht.
+ */
+
+@keyframes ms-puls {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.6); }
+}
+
+@keyframes ms-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-3%, 2%, 0) scale(1.08); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-hero__punkt,
+  .ms-status__punkt,
+  .ms-glow { animation: none !important; }
+}
+
 /* --- Aufbau ------------------------------------------------------------ */
 
 .ms-huelle {
@@ -76,12 +125,12 @@ img { max-width: 100%; height: auto; display: block; }
 .ms-inhalt {
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: calc(var(--space-8) * 2);
   padding-block: var(--space-8) calc(var(--space-8) * 3 + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 860px) {
-  .ms-inhalt { padding-bottom: var(--space-8); }
+  .ms-inhalt { padding-bottom: calc(var(--space-8) * 2); }
 }
 
 .ms-nur-vorlesen {
@@ -109,15 +158,56 @@ img { max-width: 100%; height: auto; display: block; }
 
 .ms-sprungmarke:focus { top: var(--space-6); }
 
+/* Ein Abschnitt, dessen Fläche bis an die Bildschirmränder reicht, während
+   sein Inhalt in der 1120-px-Spalte bleibt. Für den Hero und den Abschluss
+   der Startseite — alle anderen Seiten bleiben in der Spalte. */
+.ms-vollbreit {
+  margin-inline: calc(50% - 50vw);
+  padding-inline: max(var(--space-6), calc(50vw - 560px));
+}
+
+/* Treibende Hintergrundflächen der Landing-Vorlage: tiefes Indigo links
+   oben, Akzenthauch rechts — Sättigung als Präsenz, nie als Fläche unter
+   Text. Sie liegen hinter dem Inhalt und fangen keine Zeiger. */
+.ms-glowfeld { position: relative; }
+
+.ms-glowfeld > * { position: relative; }
+
+.ms-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: ms-drift 26s ease-in-out infinite;
+}
+
+.ms-glow--indigo {
+  top: -260px; left: -120px;
+  width: 820px; height: 820px;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--color-section) 85%, transparent) 0%,
+    color-mix(in srgb, var(--color-section) 25%, transparent) 45%,
+    transparent 70%);
+}
+
+.ms-glow--akzent {
+  top: 60px; right: -180px;
+  width: 640px; height: 640px;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--color-accent) 22%, transparent) 0%,
+    transparent 68%);
+  animation-duration: 34s;
+  animation-direction: reverse;
+}
+
 /* --- Kopfleiste -------------------------------------------------------- */
 
 .ms-kopf {
   position: sticky;
   top: 0;
   z-index: 20;
-  backdrop-filter: blur(12px);
-  background: color-mix(in srgb, var(--color-bg) 84%, transparent);
-  border-bottom: 1px solid var(--color-divider);
+  backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
 }
 
 .ms-kopf__reihe {
@@ -141,7 +231,7 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
 .ms-marke img { width: 34px; height: 34px; border-radius: 9px; }
-.ms-marke__endung { color: var(--color-neutral-500); }
+.ms-marke__endung { color: var(--color-neutral-600); }
 
 .ms-kopf__nav { display: none; align-items: center; gap: var(--space-8); }
 
@@ -191,16 +281,36 @@ img { max-width: 100%; height: auto; display: block; }
 
 .ms-hero { display: flex; flex-direction: column; gap: var(--space-8); }
 
+/* Auf der Startseite steht der Hero neben der Telefonvorschau — das
+   asymmetrische Duett der Landing-Vorlage. Unterhalb 960 px trägt der Text
+   allein; die Vorschau ist Illustration und darf weichen. */
+.ms-hero--geteilt {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(var(--space-8) * 2);
+  align-items: center;
+  padding-block: var(--space-8);
+}
+
+@media (min-width: 960px) {
+  .ms-hero--geteilt {
+    grid-template-columns: 1.05fr 0.95fr;
+    padding-block: calc(var(--space-8) * 2);
+  }
+}
+
+.ms-hero__text { display: flex; flex-direction: column; gap: var(--space-8); }
+
 .ms-hero__marke {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   align-self: flex-start;
   padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-divider);
-  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  border-radius: 20px;
   font-size: 0.75rem;
-  color: var(--color-neutral-300);
+  color: var(--color-accent-300);
 }
 
 /* Der Akzent als Marke, nicht als Fläche — Nocturne-Grundregel. */
@@ -208,42 +318,347 @@ img { max-width: 100%; height: auto; display: block; }
   width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--color-accent);
-  box-shadow: 0 0 10px var(--color-accent);
+  animation: ms-puls 2.6s ease-in-out infinite;
 }
 
 .ms-hero__unterzeile {
-  color: var(--color-neutral-300);
-  font-size: 1.0625rem;
-  max-width: 52ch;
+  color: var(--color-neutral-400);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  max-width: 47ch;
+  text-wrap: pretty;
 }
 
 .ms-hero__knoepfe { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 
 /* Bewusst über --tippziel: der Hero ist die erste Entscheidung der Seite,
    die beiden Knöpfe dürfen dafür größer sein als das Mindestmaß. */
-.ms-hero__knoepfe .btn { min-height: 48px; padding-inline: var(--space-8); font-size: 1rem; }
+.ms-hero__knoepfe .btn { min-height: 52px; padding-inline: var(--space-8); font-size: 1rem; }
 
+/* Vier Zusicherungen im Zweierraster, wie in der Vorlage — nicht als
+   Fließzeile. */
 .ms-merkmale {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4) var(--space-8);
   padding: 0;
   margin: 0;
   list-style: none;
   font-size: 0.8125rem;
   color: var(--color-neutral-300);
+  max-width: 470px;
 }
 
-.ms-merkmale li { display: flex; align-items: center; gap: var(--space-2); }
+.ms-merkmale li { display: flex; align-items: center; gap: var(--space-3); }
 .ms-merkmale svg { color: var(--color-accent); flex: none; }
+
+/* --- Telefonvorschau ----------------------------------------------------
+ *
+ * Die Landing-Vorlage stellt neben den Hero ein Telefon mit der App darin.
+ * Hier als reine HTML/CSS-Illustration: dekorativ (aria-hidden im Markup),
+ * ohne Skript, ohne Bilder. Die Miniatur zitiert die App-Bausteine —
+ * Kontokarte, Empfehlungskacheln, Nachrichtenzeile, Terminzeile, untere
+ * Leiste — in verkleinerter Schrift.
+ */
+
+.ms-telefon__buehne {
+  position: relative;
+  display: none;
+  justify-content: center;
+}
+
+@media (min-width: 960px) { .ms-telefon__buehne { display: flex; } }
+
+.ms-telefon__schein {
+  position: absolute;
+  bottom: -40px;
+  width: 340px; height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse,
+    color-mix(in srgb, var(--color-accent) 22%, transparent),
+    transparent 70%);
+  filter: blur(10px);
+}
+
+.ms-telefon {
+  position: relative;
+  width: 340px;
+  border-radius: 46px;
+  padding: 10px;
+  background: var(--ms-leistenflaeche);
+  box-shadow: 0 0 0 1px var(--color-neutral-800),
+    0 24px 60px color-mix(in srgb, var(--color-bg) 50%, transparent);
+}
+
+.ms-telefon__schirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-radius: 37px;
+  overflow: hidden;
+  background: var(--color-bg);
+  padding: var(--space-8) var(--space-4) 0;
+  min-height: 600px;
+}
+
+.ms-telefon .ms-kontokarte { padding: var(--space-4); gap: var(--space-3); }
+.ms-telefon .ms-kontokarte .ms-zahl { font-size: 1.875rem; }
+
+.ms-telefon__gruss {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ms-telefon__gruss > div { display: flex; flex-direction: column; flex: 1; }
+.ms-telefon__gruss small { font-size: 0.625rem; color: var(--color-neutral-600); }
+.ms-telefon__gruss strong { font-size: 0.9375rem; font-weight: 500; }
+
+.ms-telefon__kacheln { display: flex; gap: var(--space-3); }
+
+.ms-telefon__kachel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border-radius: 11px;
+  padding: var(--space-2);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.6875rem;
+}
+
+.ms-telefon__bildflaeche {
+  height: 74px;
+  border-radius: 8px;
+  background: linear-gradient(150deg,
+    var(--color-neutral-900),
+    var(--ms-zwischenflaeche) 60%,
+    var(--color-accent-900));
+}
+
+.ms-telefon__zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.75rem;
+}
+
+.ms-telefon__zeile > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ms-telefon__zeile small {
+  font-size: 0.625rem;
+  color: var(--color-neutral-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-telefon__zeile--ruhig { background: var(--ms-zwischenflaeche); box-shadow: none; }
+
+.ms-telefon__leiste {
+  margin-top: auto;
+  margin-inline: calc(-1 * var(--space-4));
+  display: flex;
+  gap: 2px;
+  padding: var(--space-3) var(--space-2) var(--space-6);
+  background: var(--ms-leistenflaeche);
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+
+.ms-telefon__leiste span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.625rem;
+  color: var(--color-neutral-600);
+}
+
+.ms-telefon__leiste span::before {
+  content: "";
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  background: var(--color-neutral-900);
+}
+
+.ms-telefon__leiste span:first-child { color: var(--color-accent-400); }
+.ms-telefon__leiste span:first-child::before {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+/* --- Abschnitte --------------------------------------------------------- */
+
+.ms-abschnitt { display: flex; flex-direction: column; gap: var(--space-8); }
+
+.ms-kicker {
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+
+.ms-kicker--akzent { color: var(--color-accent); }
+
+/* Abschnittskopf der Vorlage: Überschrift flattert links, eine gedämpfte
+   Begleitzeile sitzt rechts auf der Grundlinie. Auf schmalen Schirmen
+   stapeln beide. */
+.ms-kopfzeile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (min-width: 760px) {
+  .ms-kopfzeile {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: calc(var(--space-8) * 2);
+  }
+}
+
+.ms-kopfzeile h2 { max-width: 24ch; }
+
+.ms-kopfzeile__neben {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--color-neutral-600);
+  max-width: 340px;
+  flex: none;
+}
+
+/* Statuszeile mit atmendem Punkt — "Alle Systeme aktiv". */
+.ms-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-ok);
+}
+
+.ms-status__punkt {
+  width: 6px; height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  animation: ms-puls 2.6s ease-in-out infinite;
+}
+
+.ms-status--neutral { color: var(--color-neutral-600); }
+.ms-status--klein { font-size: 0.625rem; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* --- Hairline-Band ------------------------------------------------------
+ *
+ * Das Band der Landing-Vorlage: Zellen auf Seitengrund, getrennt durch
+ * 1-px-Fugen, in denen der Trennerton durchscheint. Kein Kartenraster —
+ * die Fläche bleibt ruhig, nur die Fugen zeichnen.
+ */
+
+.ms-band {
+  display: grid;
+  gap: 1px;
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.ms-band > * {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: calc(var(--space-8) * 1.4) calc(var(--space-8) * 1.3);
+  background: var(--color-bg);
+  transition: background 0.3s ease;
+}
+
+.ms-band--drei { grid-template-columns: 1fr; }
+.ms-band--vier { grid-template-columns: 1fr; }
+
+@media (min-width: 640px) {
+  .ms-band--drei { grid-template-columns: repeat(3, 1fr); }
+  .ms-band--vier { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 960px) {
+  .ms-band--vier { grid-template-columns: repeat(4, 1fr); }
+}
+
+.ms-band__titel {
+  font-size: 1.375rem;
+  font-weight: var(--font-heading-weight);
+  letter-spacing: -0.015em;
+}
+
+.ms-band__text {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--color-neutral-500);
+  text-wrap: pretty;
+}
+
+.ms-band > a { color: inherit; text-decoration: none; }
+.ms-band > a:hover,
+.ms-band > .ms-band__zelle:hover { background: var(--ms-zwischenflaeche); }
 
 /* --- Raster und Karten ------------------------------------------------- */
 
 .ms-raster {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
+
+/* Bereichskarte der Vorlage: Symbolchip, Titel, Text, Marken — und beim
+   Zeigen hebt sie sich mit Akzentring und weichem Schein. */
+.ms-bereichskarte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: calc(var(--space-8) * 1.2);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ms-bereichskarte:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 0 0 1px var(--color-accent),
+    0 18px 44px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-bereichskarte { transition: none; }
+  .ms-bereichskarte:hover { transform: none; }
+}
+
+.ms-bereichskarte .card-body { flex: 1; }
+
+.ms-symbolchip {
+  width: 42px; height: 42px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--color-neutral-900);
+  display: grid;
+  place-items: center;
+  color: var(--color-accent-400);
+}
+
+.ms-symbolchip--klein { width: 34px; height: 34px; border-radius: 9px; }
+
+.ms-symbolchip--indigo {
+  background: var(--color-section);
+  color: var(--color-accent-400);
+}
+
+.ms-tagzeile { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* Eine Karte, die selbst der Verweis ist.
    Auf dem Telefon ist die Fläche das Bedienelement — eine verlinkte
@@ -252,18 +667,47 @@ img { max-width: 100%; height: auto; display: block; }
 .ms-kategoriekarte {
   color: inherit;
   text-decoration: none;
-  transition: background-color 0.15s ease, transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .ms-kategoriekarte:hover {
-  background: color-mix(in srgb, var(--color-surface) 80%, var(--color-accent));
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 1px var(--color-accent),
+    0 12px 30px color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 .ms-kategoriekarte:active { transform: scale(0.995); }
 
 @media (prefers-reduced-motion: reduce) {
   .ms-kategoriekarte { transition: none; }
-  .ms-kategoriekarte:active { transform: none; }
+  .ms-kategoriekarte:hover, .ms-kategoriekarte:active { transform: none; }
+}
+
+/* Ring-Symbol der Sicherheitsmodule: zwei konzentrische Akzentkreise um
+   das Zeichen — Linie statt Fläche. */
+.ms-ringsymbol {
+  position: relative;
+  width: 52px; height: 52px;
+  display: grid;
+  place-items: center;
+  color: var(--color-accent-400);
+}
+
+.ms-ringsymbol::before,
+.ms-ringsymbol::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+
+.ms-ringsymbol::before {
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+.ms-ringsymbol::after {
+  inset: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 /* Hülle für alles, was breiter sein darf als der Bildschirm.
@@ -283,14 +727,186 @@ img { max-width: 100%; height: auto; display: block; }
   outline-offset: 2px;
 }
 
-.ms-abschnitt { display: flex; flex-direction: column; gap: var(--space-6); }
+/* --- Kontokarte ---------------------------------------------------------
+ *
+ * Die Indigo-Verlaufskarte der Vorlage — der eine Ort, an dem Sättigung
+ * Fläche werden darf (--color-section, wie das Statistikband der
+ * Landing-Vorlage). Oben rechts blüht der Akzent als Radialschein.
+ */
 
-.ms-kicker {
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.ms-kontokarte {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-8);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(140deg,
+    var(--color-section) 0%,
+    color-mix(in srgb, var(--color-section) 55%, var(--color-surface)) 55%,
+    var(--color-surface) 100%);
+  box-shadow: var(--shadow-sm);
+}
+
+.ms-kontokarte::before {
+  content: "";
+  position: absolute;
+  top: -40px; right: -30px;
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--color-accent) 30%, transparent),
+    transparent 70%);
+  pointer-events: none;
+}
+
+.ms-kontokarte > * { position: relative; }
+
+.ms-kontokarte .ms-kicker { color: var(--color-accent-400); }
+
+.ms-zahl {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ms-zahl--mittel { font-size: 1.375rem; letter-spacing: -0.02em; }
+
+/* Statistikzeile: Werte nebeneinander, getrennt durch stehende Hairlines. */
+.ms-statzeile {
+  display: flex;
+  align-items: stretch;
+}
+
+.ms-statzeile > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ms-statzeile > div + div {
+  border-left: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
+  padding-left: var(--space-6);
+}
+
+.ms-statzeile strong {
+  font-size: 1rem;
+  font-weight: var(--font-heading-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+.ms-statzeile small { font-size: 0.6875rem; color: var(--color-neutral-600); }
+
+/* Fortschritt: 3-px-Spur auf neutral-900, Füllung im Akzent. */
+.ms-fortschritt {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-neutral-900);
+  overflow: hidden;
+}
+
+.ms-fortschritt > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-accent-600), var(--color-accent-400));
+}
+
+/* --- Chips --------------------------------------------------------------
+ *
+ * Die Filterreihe der Vorlage: umrissene Pillen, die aktive trägt den
+ * eingelegten Akzentring auf hauchdünner Tönung.
+ */
+
+.ms-chipzeile {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ms-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-text) 16%, transparent);
+  background: transparent;
+  color: var(--color-neutral-300);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.ms-chip:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+
+.ms-chip--aktiv,
+.ms-chip[aria-current] {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-text);
+}
+
+/* --- Hinweisbox ---------------------------------------------------------
+ *
+ * Zeichen links, ein ruhiger Satz rechts, auf der Zwischenfläche — die
+ * Erklärzeile der Vorlage (Konfigurator, Wallet, Safe-Meet).
+ */
+
+.ms-hinweisbox {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-radius: 10px;
+  background: var(--ms-zwischenflaeche);
+  font-size: 0.75rem;
+  line-height: 1.6;
   color: var(--color-neutral-500);
 }
+
+.ms-hinweisbox svg { flex: none; margin-top: 2px; color: var(--color-accent-400); }
+.ms-hinweisbox--ok svg { color: var(--color-ok); }
+
+/* --- Zeilenliste --------------------------------------------------------
+ *
+ * Beschriftung links gedämpft, Wert rechts — getrennt durch Hairlines, in
+ * einer Karte gesammelt (Safe-Meet-Details, Transaktionen).
+ */
+
+.ms-zeilen {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.ms-zeilen > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+}
+
+.ms-zeilen > div + div {
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.ms-zeilen dt { font-size: 0.75rem; color: var(--color-neutral-500); }
+.ms-zeilen dd { margin: 0; font-size: 0.8125rem; text-align: right; }
 
 /* --- Formulare --------------------------------------------------------- */
 
@@ -298,7 +914,7 @@ img { max-width: 100%; height: auto; display: block; }
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  max-width: 26rem;
+  max-width: 30rem;
 }
 
 .field { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -307,10 +923,441 @@ img { max-width: 100%; height: auto; display: block; }
 
 .ms-fehler {
   padding: var(--space-4);
-  border: 1px solid var(--color-accent-700);
+  border: 1px solid color-mix(in srgb, var(--color-gefahr) 50%, transparent);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  background: color-mix(in srgb, var(--color-gefahr) 8%, transparent);
   font-size: 0.875rem;
+}
+
+/* Optionskarte des Konfigurators: Beschriftung und Erklärung links, der
+   Aufpreis rechts im hellen Akzent — die ganze Karte ist das Ziel. Die
+   gewählte trägt den eingelegten Akzentring. */
+.ms-option {
+  position: relative;
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.ms-option:hover { border-color: color-mix(in srgb, var(--color-text) 22%, transparent); }
+
+.ms-option__inhalt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ms-option__name { font-size: 0.875rem; }
+
+.ms-option__erklaerung {
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--color-neutral-600);
+}
+
+.ms-option__preis {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--color-accent-400);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Das Häkchenquadrat der Vorlage. Das echte Eingabefeld bleibt im Baum
+   (nur visuell versteckt), damit Tastatur und Vorleser es normal bedienen. */
+.ms-option input {
+  position: absolute;
+  opacity: 0;
+  width: 0; height: 0;
+  pointer-events: none;
+}
+
+.ms-option__kaestchen {
+  position: relative;
+  width: 20px; height: 20px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 6px;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+
+.ms-option input:checked ~ .ms-option__kaestchen {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.ms-option input:checked ~ .ms-option__kaestchen::after {
+  content: "";
+  position: absolute;
+  inset: 4px 3px 6px;
+  border-left: 2.5px solid var(--color-bg);
+  border-bottom: 2.5px solid var(--color-bg);
+  transform: rotate(-48deg);
+}
+
+.ms-option:has(input:checked) {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
+}
+
+.ms-option input:focus-visible ~ .ms-option__kaestchen {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Freitext- und Zahlenangaben tragen keine Häkchenmechanik — die Karte
+   stapelt Beschriftung, Feld und Erklärung. */
+.ms-option--feld {
+  flex-direction: column;
+  gap: var(--space-2);
+  cursor: default;
+}
+
+/* Die Summenleiste: Gesamt links, Hauptaktion rechts, auf der
+   Leistenfläche — sie bleibt beim Rollen am unteren Rand stehen, damit der
+   Betrag den Knopf nie verlässt (§ 312j Abs. 2 BGB: unmittelbar davor). */
+.ms-summenleiste {
+  position: sticky;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--ms-leistenflaeche);
+  box-shadow: var(--shadow-md);
+}
+
+@media (min-width: 860px) { .ms-summenleiste { bottom: var(--space-6); } }
+
+.ms-summenleiste > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ms-summenleiste small { font-size: 0.6875rem; color: var(--color-neutral-600); }
+
+/* --- Kachelraster (Katalog) ---------------------------------------------
+ *
+ * Die Produkt- und Creator-Kacheln der Vorlage: Bild zuerst, zwei Spalten
+ * schon auf dem Telefon, Preis als größte Zahl der Karte.
+ */
+
+.ms-raster--kacheln {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+}
+
+@media (min-width: 760px) {
+  .ms-raster--kacheln { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+}
+
+.ms-kachel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+a.ms-kachel:hover,
+.ms-kachel:has(> a:hover) {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 1px var(--color-accent),
+    0 12px 30px color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-kachel { transition: none; }
+  a.ms-kachel:hover, .ms-kachel:has(> a:hover) { transform: none; }
+}
+
+.ms-kachel__bild {
+  position: relative;
+  border-radius: 9px;
+  overflow: hidden;
+  aspect-ratio: 5 / 4;
+  background: var(--color-neutral-900);
+}
+
+.ms-kachel__bild img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ms-kachel__bild a { display: block; height: 100%; }
+
+.ms-kachel__marke {
+  position: absolute;
+  bottom: 6px; left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+  font-size: 0.5625rem;
+  color: var(--color-accent-400);
+}
+
+.ms-kachel__inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-inline: var(--space-1);
+}
+
+.ms-kachel__titel { font-size: 0.875rem; line-height: 1.35; }
+
+.ms-kachel__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.6875rem;
+  color: var(--color-neutral-600);
+}
+
+.ms-kachel__preiszeile {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+
+/* Der Betrag bricht nie — wenn die Kachel eng wird, rutscht die
+   Nebenangabe unter ihn. */
+.ms-kachel__preis {
+  font-size: 0.9375rem;
+  font-weight: var(--font-heading-weight);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ms-kachel__neben { font-size: 0.5625rem; color: var(--color-neutral-500); }
+
+/* Das Siegel der geprüften Identität — Akzent als Zeichen, nie als Fläche. */
+.ms-siegel { color: var(--color-accent); flex: none; }
+
+/* --- Gesperrte Inhalte ------------------------------------------------- */
+
+/*
+ * ACHTUNG: nur die visuelle Hülle. Die Unschärfe wird SERVERSEITIG als eigene
+ * Datei erzeugt — ein Weichzeichner per CSS wäre wirkungslos, weil das
+ * Original dann im Browser läge. Siehe docs/05-recht-compliance.md.
+ * Der Vorlagen-Stil: gedeckte Fläche, Schloss, eine Zeile.
+ */
+.ms-gesperrt {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-neutral-900);
+}
+
+.ms-gesperrt__schloss {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+  font-size: 0.75rem;
+  color: var(--color-neutral-300);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+.ms-gesperrt__schloss svg { color: var(--color-accent-300); }
+
+/* --- Chat ---------------------------------------------------------------
+ *
+ * Die Blasen der Vorlage: eigene rechts auf accent-800 mit accent-100,
+ * fremde links auf der Kartenfläche. Der Schwanz sitzt an der Ecke zur
+ * eigenen Seite (5 px statt 14 px). Meta-Angaben stehen klein UNTER der
+ * Blase, nicht in ihr.
+ */
+
+.ms-verlauf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ms-tagestrenner {
+  align-self: center;
+  font-size: 0.625rem;
+  color: var(--color-neutral-600);
+  padding: var(--space-1) var(--space-4);
+  border-radius: 6px;
+  background: var(--ms-zwischenflaeche);
+}
+
+.ms-nachricht {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  max-width: min(100%, 34rem);
+}
+
+.ms-nachricht--eigen { align-self: flex-end; align-items: flex-end; }
+
+.ms-blase {
+  padding: var(--space-3) var(--space-4);
+  border-radius: 14px;
+  border-bottom-left-radius: 5px;
+  background: var(--color-surface);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ms-nachricht--eigen .ms-blase {
+  border-radius: 14px;
+  border-bottom-right-radius: 5px;
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+.ms-blase--verborgen {
+  background: var(--ms-zwischenflaeche);
+  color: var(--color-neutral-500);
+  font-style: italic;
+}
+
+.ms-nachricht__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: 0.625rem;
+  color: var(--color-neutral-600);
+  padding-inline: var(--space-1);
+}
+
+.ms-nachricht__meta .btn { min-height: 24px; font-size: 0.625rem; }
+
+/* Avatar-Kreis mit Initiale — die App kennt keine Porträtbilder, die
+   Vorlage zeichnet den Platz trotzdem rund. */
+.ms-avatar {
+  width: 38px; height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-neutral-900);
+  color: var(--color-accent-400);
+  font-size: 0.8125rem;
+  font-weight: var(--font-heading-weight);
+  text-transform: uppercase;
+}
+
+.ms-avatar--gross { width: 56px; height: 56px; font-size: 1.125rem; }
+
+/* Gesprächszeile der Nachrichtenliste. */
+.ms-gespraech {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.ms-gespraech:hover { box-shadow: 0 0 0 1px var(--color-accent); }
+
+.ms-gespraech__inhalt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ms-gespraech__vorschau {
+  font-size: 0.75rem;
+  color: var(--color-neutral-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-gespraech__zeit {
+  flex: none;
+  font-size: 0.6875rem;
+  color: var(--color-neutral-600);
+}
+
+/* Creator-Abschnitt der Startseite: Checkliste links, Schrittkarte rechts. */
+.ms-creatorduett { grid-template-columns: 1fr; }
+
+@media (min-width: 960px) {
+  .ms-creatorduett { grid-template-columns: 0.9fr 1.1fr; }
+}
+
+/* --- Abschluss ----------------------------------------------------------
+ *
+ * Der zentrierte Schlussruf der Landing-Vorlage: Indigo-Radial hinter der
+ * Überschrift, zwei Knöpfe, darunter die Zusicherungen als Umriss-Marken.
+ */
+
+.ms-abschluss {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  text-align: center;
+  padding: calc(var(--space-8) * 2) var(--space-6);
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.ms-abschluss::before {
+  content: "";
+  position: absolute;
+  top: -320px; left: 50%;
+  transform: translateX(-50%);
+  width: 900px; height: 640px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--color-section) 90%, transparent) 0%,
+    transparent 68%);
+  pointer-events: none;
+}
+
+.ms-abschluss > * { position: relative; }
+.ms-abschluss h2 { max-width: 22ch; }
+
+.ms-abschluss__zusagen {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* --- Untere Navigation ------------------------------------------------- */
@@ -323,9 +1370,9 @@ img { max-width: 100%; height: auto; display: block; }
   display: flex;
   gap: 2px;
   padding: var(--space-3) var(--space-2) calc(var(--space-3) + env(safe-area-inset-bottom));
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  background: color-mix(in srgb, var(--ms-leistenflaeche) 94%, transparent);
   backdrop-filter: blur(12px);
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
 }
 
 @media (min-width: 860px) { .ms-untennav { display: none; } }
@@ -338,9 +1385,10 @@ img { max-width: 100%; height: auto; display: block; }
   align-items: center;
   gap: var(--space-1);
   padding-block: var(--space-2);
-  border-radius: var(--radius-lg);
+  border-radius: 10px;
   text-decoration: none;
   font-size: 0.6875rem;
+  letter-spacing: 0.01em;
   color: var(--color-neutral-500);
   /* Der meistgetippte Bereich der App. Die Regel steht hier zusätzlich zur
      globalen, damit sie auch dann gilt, wenn die Leiste je in einem Behälter
@@ -348,7 +1396,9 @@ img { max-width: 100%; height: auto; display: block; }
   touch-action: manipulation;
 }
 
-.ms-untennav__eintrag[aria-current="page"] { color: var(--color-accent); }
+/* Aktiv trägt die helle Akzentstufe, wie die Leiste der Vorlage
+   (AppNav.dc.html) — nicht den Basiston. */
+.ms-untennav__eintrag[aria-current="page"] { color: var(--color-accent-400); }
 
 /* Traeger fuer das Abzeichen: Es sitzt am Symbol, nicht am ganzen Eintrag,
    sonst wanderte es je nach Laenge der Beschriftung. */
@@ -386,27 +1436,10 @@ img { max-width: 100%; height: auto; display: block; }
   overflow: hidden;
 }
 
-/* Nur fuer Sprachausgaben, nie sichtbar.
-
-   Die uebliche Bauform: nicht display:none und nicht visibility:hidden —
-   beides nimmt das Element auch aus dem Zugaenglichkeitsbaum, und dann liest
-   es ebenfalls niemand vor. */
-.ms-nur-vorlesen {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* --- Fußzeile ---------------------------------------------------------- */
 
 .ms-fuss {
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
   padding-block: var(--space-8);
   margin-bottom: 72px;
   font-size: 0.8125rem;
@@ -448,22 +1481,3 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
 .ms-vorhang[data-sichtbar="ja"] { display: grid; }
-
-/* --- Gesperrte Inhalte ------------------------------------------------- */
-
-/*
- * ACHTUNG: nur die visuelle Hülle. Die Unschärfe wird SERVERSEITIG als eigene
- * Datei erzeugt — ein Weichzeichner per CSS wäre wirkungslos, weil das
- * Original dann im Browser läge. Siehe docs/05-recht-compliance.md.
- */
-.ms-gesperrt { position: relative; border-radius: var(--radius-md); overflow: hidden; }
-
-.ms-gesperrt__schloss {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  gap: var(--space-2);
-  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
-  font-size: 0.8125rem;
-}

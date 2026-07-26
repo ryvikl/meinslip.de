@@ -83,50 +83,60 @@ $auszug = static function (?string $text): string {
             <a class="btn btn-ghost" href="/nachrichten/deklaration"><?= te('chat.kopf_deklaration_aendern') ?></a>
         </p>
 
-        <?php foreach ($zeilen as $zeile): ?>
-            <?php
-            $kennung = (int) $zeile['id'];
-            $ungelesen = (int) $zeile['ungelesen'];
-            $angebotId = $zeile['angebot_id'] === null ? null : (int) $zeile['angebot_id'];
-            $text = $auszug(is_string($zeile['letzter_text']) ? $zeile['letzter_text'] : null);
-            ?>
-            <article class="card elev-sm">
-                <p class="card-kicker"><?= e((string) $zeile['partner_pseudonym']) ?></p>
-                <h2 class="card-title"><?= e((string) $zeile['partner_name']) ?></h2>
-
-                <p class="card-meta">
-                    <?php // Die Deklaration des Gegenuebers steht schon in der Liste —
-                          // sie soll nicht erst nach dem Oeffnen sichtbar werden. ?>
-                    <span class="tag tag-accent"><?= $zeile['partner_deklaration'] === null
-                        ? te('chat.kopf_ohne_angabe')
-                        : te('chat.deklaration.' . (string) $zeile['partner_deklaration']) ?></span>
-                    <?php if ($ungelesen > 0): ?>
-                        <span class="tag tag-accent-2"><?= te('chat.liste_ungelesen', ['anzahl' => $ungelesen]) ?></span>
-                    <?php endif; ?>
-                    <?php if ($zeile['letzte_nachricht_am'] !== null): ?>
-                        <span class="tag tag-neutral"><?= e((string) $zeile['letzte_nachricht_am']) ?></span>
-                    <?php endif; ?>
-                </p>
-
-                <?php if ($text === ''): ?>
-                    <p class="card-body text-muted"><?= te('chat.liste_ohne_nachricht') ?></p>
-                <?php else: ?>
-                    <p class="card-body" style="overflow-wrap:anywhere"><?= e($text) ?></p>
-                <?php endif; ?>
-
-                <?php if ($angebotId !== null): ?>
-                    <p class="card-meta">
-                        <?php if (isset($angebote[$angebotId])): ?>
-                            <a href="/angebot/<?= $angebotId ?>"><?= te('chat.liste_bezug', ['titel' => $angebote[$angebotId]]) ?></a>
+        <?php /*
+               * GESPRAECHSZEILEN NACH DER VORLAGE (Screen 07): Avatar-Kreis,
+               * Name mit Deklarationsmarke, eine Zeile Auszug, rechts Zeit
+               * und Ungelesen-Abzeichen. Die GANZE Zeile ist der Verweis —
+               * der fruehere "Oeffnen"-Knopf entfaellt. Der Angebotsbezug
+               * steht als Text in der Zeile; sein Verweis lebt im Fenster
+               * weiter (ein Verweis im Verweis waere kein gueltiges Markup).
+               */ ?>
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <?php foreach ($zeilen as $zeile): ?>
+                <?php
+                $kennung = (int) $zeile['id'];
+                $ungelesen = (int) $zeile['ungelesen'];
+                $angebotId = $zeile['angebot_id'] === null ? null : (int) $zeile['angebot_id'];
+                $text = $auszug(is_string($zeile['letzter_text']) ? $zeile['letzter_text'] : null);
+                $partnerName = (string) $zeile['partner_name'];
+                ?>
+                <a class="ms-gespraech" href="/nachrichten/<?= $kennung ?>">
+                    <span class="ms-avatar"><?= e(mb_substr($partnerName, 0, 1)) ?></span>
+                    <span class="ms-gespraech__inhalt">
+                        <span style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
+                            <span style="font-size:0.875rem"><?= e($partnerName) ?></span>
+                            <span class="ms-kachel__neben"><?= e((string) $zeile['partner_pseudonym']) ?></span>
+                            <?php // Die Deklaration des Gegenuebers steht schon in der Liste —
+                                  // sie soll nicht erst nach dem Oeffnen sichtbar werden. ?>
+                            <span class="tag tag-accent" style="font-size:0.5625rem"><?= $zeile['partner_deklaration'] === null
+                                ? te('chat.kopf_ohne_angabe')
+                                : te('chat.deklaration.' . (string) $zeile['partner_deklaration']) ?></span>
+                        </span>
+                        <?php if ($text === ''): ?>
+                            <span class="ms-gespraech__vorschau"><?= te('chat.liste_ohne_nachricht') ?></span>
                         <?php else: ?>
-                            <span class="text-muted"><?= te('chat.liste_bezug_entfallen') ?></span>
+                            <span class="ms-gespraech__vorschau"><?= e($text) ?></span>
                         <?php endif; ?>
-                    </p>
-                <?php endif; ?>
-
-                <p><a class="btn btn-primary" href="/nachrichten/<?= $kennung ?>"><?= te('chat.liste_oeffnen') ?></a></p>
-            </article>
-        <?php endforeach; ?>
+                        <?php if ($angebotId !== null): ?>
+                            <span class="ms-kachel__neben">
+                                <?= isset($angebote[$angebotId])
+                                    ? te('chat.liste_bezug', ['titel' => $angebote[$angebotId]])
+                                    : te('chat.liste_bezug_entfallen') ?>
+                            </span>
+                        <?php endif; ?>
+                    </span>
+                    <span style="display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-2)">
+                        <?php if ($zeile['letzte_nachricht_am'] !== null): ?>
+                            <span class="ms-gespraech__zeit"><?= e((string) $zeile['letzte_nachricht_am']) ?></span>
+                        <?php endif; ?>
+                        <?php if ($ungelesen > 0): ?>
+                            <span class="ms-untennav__abzeichen" style="position:static"><?= $ungelesen ?></span>
+                            <span class="ms-nur-vorlesen"><?= te('chat.liste_ungelesen', ['anzahl' => $ungelesen]) ?></span>
+                        <?php endif; ?>
+                    </span>
+                </a>
+            <?php endforeach; ?>
+        </div>
 
         <?php if ($seiten > 1): ?>
             <p class="card-meta">

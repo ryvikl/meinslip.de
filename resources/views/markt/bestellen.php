@@ -6,7 +6,12 @@ declare(strict_types=1);
  * Das Bestellformular — der Konfigurator.
  *
  * Wird aus resources/views/markt/angebot.php eingebunden und erbt dessen
- * Variablen. Eigenstaendig, weil hier der rechtlich empfindlichste Teil der
+ * Variablen. Gestaltung nach design/MeinSlip App.dc.html, Screen 05: jede
+ * Option ist eine Karte mit Bezeichnung links und Aufpreis rechts, die
+ * gewaehlte traegt den eingelegten Akzentring; unten haelt die Summenleiste
+ * Betrag und Bestellknopf zusammen im Bild.
+ *
+ * Eigenstaendig, weil hier der rechtlich empfindlichste Teil der
  * Oberflaeche steht:
  *
  *  1. PFLICHTFELDER TRAGEN 'required'. Das ist Bequemlichkeit, keine
@@ -16,8 +21,9 @@ declare(strict_types=1);
  *     § 312j Abs. 2 BGB verlangt Gegenstand (Art. 246a § 1 Abs. 1 S. 1 Nr. 1
  *     EGBGB), Gesamtpreis und Lieferkosten "unmittelbar bevor der Verbraucher
  *     seine Bestellung abgibt". Deshalb steht die Uebersichtskarte als
- *     letzter Block vor dem Knopf, und deshalb traegt sie Titel und
- *     Beschreibung der Ware, nicht nur Zahlen.
+ *     letzter Block vor der Summenleiste, und die Leiste selbst traegt den
+ *     Betrag NEBEN dem Knopf — beim Rollen bleibt sie stehen, Betrag und
+ *     Knopf trennen sich nie.
  *
  *     Der Betrag darf dabei nie mehr behaupten, als er ohne JavaScript
  *     einloest. public/assets/js/app.js rechnet die Aufpreise live mit; faellt
@@ -49,60 +55,83 @@ declare(strict_types=1);
  */
 ?>
 <form class="ms-formular" method="post" action="/bestellen/<?= (int) $angebot['id'] ?>"
-      data-konfigurator data-grundpreis="<?= $grundpreis ?>">
+      data-konfigurator data-grundpreis="<?= $grundpreis ?>" style="max-width:none">
     <?= \MeinSlip\Http\Formularschutz::feld() ?>
 
-    <?php foreach ($optionen as $option): ?>
-        <?php
-        $schluessel = (string) $option['schluessel'];
-        $feldId = 'option_' . $schluessel;
-        $wert = (string) ($eingaben[$feldId] ?? '');
-        $aufpreis = (int) $option['aufpreis_cent'];
-        $istPflicht = (int) $option['pflicht'] === 1;
-        $istSpezifikation = (int) $option['ist_spezifikation'] === 1;
-        $merkmale = 'data-option data-aufpreis="' . $aufpreis . '" data-spezifikation="'
-            . ($istSpezifikation ? 'ja' : 'nein') . '"';
-        ?>
-        <div class="field">
+    <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+        <?php foreach ($optionen as $option): ?>
+            <?php
+            $schluessel = (string) $option['schluessel'];
+            $feldId = 'option_' . $schluessel;
+            $wert = (string) ($eingaben[$feldId] ?? '');
+            $aufpreis = (int) $option['aufpreis_cent'];
+            $istPflicht = (int) $option['pflicht'] === 1;
+            $istSpezifikation = (int) $option['ist_spezifikation'] === 1;
+            $merkmale = 'data-option data-aufpreis="' . $aufpreis . '" data-spezifikation="'
+                . ($istSpezifikation ? 'ja' : 'nein') . '"';
+
+            $preisschild = $aufpreis > 0
+                ? te('markt.konfigurator_aufpreis', ['betrag' => geld($aufpreis, $waehrung)])
+                : te('markt.konfigurator_ohne_aufpreis');
+            ?>
             <?php if ((string) $option['art'] === \MeinSlip\Domain\Catalog\Angebote::ART_AUSWAHL): ?>
                 <?php // Ankreuzen statt Auswahlliste: app.js zaehlt ein Kaestchen ueber
                       // .checked, eine Liste dagegen ueber value !== "" — dort wuerde
                       // auch ein abwaehlendes "nein" den Aufpreis mitrechnen. ?>
-                <label class="radio">
+                <label class="ms-option">
                     <input type="checkbox" id="<?= e($feldId) ?>" name="<?= e($feldId) ?>" value="ja"
                            <?= $merkmale ?> <?= $wert === 'ja' ? 'checked' : '' ?> <?= $istPflicht ? 'required' : '' ?>>
-                    <span class="dot"></span>
-                    <span><?= e((string) $option['bezeichnung']) ?></span>
+                    <span class="ms-option__inhalt">
+                        <span class="ms-option__name"><?= e((string) $option['bezeichnung']) ?></span>
+                        <?php if (($option['erlaeuterung'] ?? null) !== null): ?>
+                            <span class="ms-option__erklaerung"><?= e((string) $option['erlaeuterung']) ?></span>
+                        <?php endif; ?>
+                        <?php if ($istSpezifikation || $istPflicht): ?>
+                            <span class="ms-tagzeile" style="margin-top:var(--space-1)">
+                                <?php if ($istSpezifikation): ?>
+                                    <span class="tag tag-accent-2" style="font-size:0.5625rem"><?= te('markt.konfigurator_spezifikation') ?></span>
+                                <?php endif; ?>
+                                <?php if ($istPflicht): ?>
+                                    <span class="tag tag-accent" style="font-size:0.5625rem"><?= te('markt.konfigurator_pflicht') ?></span>
+                                <?php endif; ?>
+                            </span>
+                        <?php endif; ?>
+                    </span>
+                    <span class="ms-option__preis"><?= $preisschild ?></span>
+                    <span class="ms-option__kaestchen" aria-hidden="true"></span>
                 </label>
-            <?php elseif ((string) $option['art'] === \MeinSlip\Domain\Catalog\Angebote::ART_ZAHL): ?>
-                <label for="<?= e($feldId) ?>"><?= e((string) $option['bezeichnung']) ?></label>
-                <input class="input" type="number" id="<?= e($feldId) ?>" name="<?= e($feldId) ?>"
-                       value="<?= e($wert) ?>" min="0" step="1" inputmode="numeric"
-                       <?= $merkmale ?> <?= $istPflicht ? 'required' : '' ?>>
             <?php else: ?>
-                <label for="<?= e($feldId) ?>"><?= e((string) $option['bezeichnung']) ?></label>
-                <input class="input" type="text" id="<?= e($feldId) ?>" name="<?= e($feldId) ?>"
-                       value="<?= e($wert) ?>" maxlength="190"
-                       <?= $merkmale ?> <?= $istPflicht ? 'required' : '' ?>>
+                <div class="ms-option ms-option--feld">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-4)">
+                        <label for="<?= e($feldId) ?>" style="font-size:0.875rem;color:var(--color-text)"><?= e((string) $option['bezeichnung']) ?></label>
+                        <span class="ms-option__preis"><?= $preisschild ?></span>
+                    </div>
+                    <?php if ((string) $option['art'] === \MeinSlip\Domain\Catalog\Angebote::ART_ZAHL): ?>
+                        <input class="input" type="number" id="<?= e($feldId) ?>" name="<?= e($feldId) ?>"
+                               value="<?= e($wert) ?>" min="0" step="1" inputmode="numeric"
+                               <?= $merkmale ?> <?= $istPflicht ? 'required' : '' ?>>
+                    <?php else: ?>
+                        <input class="input" type="text" id="<?= e($feldId) ?>" name="<?= e($feldId) ?>"
+                               value="<?= e($wert) ?>" maxlength="190"
+                               <?= $merkmale ?> <?= $istPflicht ? 'required' : '' ?>>
+                    <?php endif; ?>
+                    <?php if (($option['erlaeuterung'] ?? null) !== null): ?>
+                        <span class="ms-option__erklaerung"><?= e((string) $option['erlaeuterung']) ?></span>
+                    <?php endif; ?>
+                    <?php if ($istSpezifikation || $istPflicht): ?>
+                        <span class="ms-tagzeile">
+                            <?php if ($istSpezifikation): ?>
+                                <span class="tag tag-accent-2" style="font-size:0.5625rem"><?= te('markt.konfigurator_spezifikation') ?></span>
+                            <?php endif; ?>
+                            <?php if ($istPflicht): ?>
+                                <span class="tag tag-accent" style="font-size:0.5625rem"><?= te('markt.konfigurator_pflicht') ?></span>
+                            <?php endif; ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
-
-            <span class="hinweis">
-                <?= $aufpreis > 0
-                    ? te('markt.konfigurator_aufpreis', ['betrag' => geld($aufpreis, $waehrung)])
-                    : te('markt.konfigurator_ohne_aufpreis') ?>
-                <?php if ($istSpezifikation): ?>
-                    <span class="tag tag-accent-2"><?= te('markt.konfigurator_spezifikation') ?></span>
-                <?php endif; ?>
-                <?php if ($istPflicht): ?>
-                    <span class="tag tag-accent"><?= te('markt.konfigurator_pflicht') ?></span>
-                <?php endif; ?>
-            </span>
-
-            <?php if (($option['erlaeuterung'] ?? null) !== null): ?>
-                <span class="hinweis"><?= e((string) $option['erlaeuterung']) ?></span>
-            <?php endif; ?>
-        </div>
-    <?php endforeach; ?>
+        <?php endforeach; ?>
+    </div>
 
     <?php if (count($lieferwege) > 1): ?>
         <?php // Eine Gruppe aus Optionsfeldern laesst sich nicht mit einem
@@ -143,10 +172,9 @@ declare(strict_types=1);
     </article>
 
     <?php
-    // Die Uebersicht steht bewusst als LETZTER Block vor dem Knopf: § 312j
-    // Abs. 2 BGB verlangt die Angaben "unmittelbar bevor der Verbraucher seine
-    // Bestellung abgibt". Vorher stand sie vor der Widerrufskarte, also durch
-    // einen ganzen Block vom Knopf getrennt.
+    // Die Uebersicht steht bewusst als LETZTER Block vor der Summenleiste mit
+    // dem Knopf: § 312j Abs. 2 BGB verlangt die Angaben "unmittelbar bevor der
+    // Verbraucher seine Bestellung abgibt".
     //
     // Der Betrag wird hier genauso gebildet wie beim Absenden in
     // app/Http/MarktRouten.php: Jede Option, deren Feld einen Wert traegt,
@@ -183,34 +211,41 @@ declare(strict_types=1);
         <h3 class="card-title"><?= e((string) $angebot['titel']) ?></h3>
         <p class="card-body"><?= nl2br(e((string) ($angebot['beschreibung'] ?? ''))) ?></p>
 
-        <p class="card-body"><?= te('markt.konfigurator_summe_grundpreis') ?>: <?= e(geld($grundpreis, $waehrung)) ?></p>
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-4);font-size:0.8125rem">
+                <span style="color:var(--color-neutral-400)"><?= te('markt.konfigurator_summe_grundpreis') ?></span>
+                <span style="font-variant-numeric:tabular-nums"><?= e(geld($grundpreis, $waehrung)) ?></span>
+            </div>
 
-        <?php if (!$summeIstEndgueltig): ?>
-            <?php // Vollstaendige Liste dessen, was den Preis noch bewegen
-                  // kann. Sie steht hier ein zweites Mal, obwohl jeder Aufpreis
-                  // auch am Feld steht: Wer unten auf den Knopf schaut, soll
-                  // nicht nach oben scrollen muessen, um den Preis zu pruefen. ?>
-            <p class="card-meta"><?= te('markt.konfigurator_summe_aufpreise') ?></p>
-            <?php foreach ($aufpreisOptionen as $mitAufpreis): ?>
-                <p class="card-body"><?= te('markt.konfigurator_summe_aufpreis_zeile', [
-                    'bezeichnung' => (string) $mitAufpreis['bezeichnung'],
-                    'betrag' => geld((int) $mitAufpreis['aufpreis_cent'], $waehrung),
-                ]) ?></p>
-            <?php endforeach; ?>
-        <?php endif; ?>
+            <?php if (!$summeIstEndgueltig): ?>
+                <?php // Vollstaendige Liste dessen, was den Preis noch bewegen
+                      // kann. Sie steht hier ein zweites Mal, obwohl jeder Aufpreis
+                      // auch am Feld steht: Wer unten auf den Knopf schaut, soll
+                      // nicht nach oben scrollen muessen, um den Preis zu pruefen. ?>
+                <p class="card-meta" style="margin-top:var(--space-2)"><?= te('markt.konfigurator_summe_aufpreise') ?></p>
+                <?php foreach ($aufpreisOptionen as $mitAufpreis): ?>
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-4);font-size:0.8125rem">
+                        <span style="color:var(--color-neutral-400)"><?= e((string) $mitAufpreis['bezeichnung']) ?></span>
+                        <span style="font-variant-numeric:tabular-nums;color:var(--color-accent-400)"><?= te('markt.konfigurator_aufpreis', ['betrag' => geld((int) $mitAufpreis['aufpreis_cent'], $waehrung)]) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <hr class="hr" style="margin:var(--space-4) 0">
 
         <?php // data-gesamt ist die Naht fuer public/assets/js/app.js: Sobald
               // das Skript laeuft, ist der Betrag exakt und die Beschriftung
               // darf auf "Gesamtbetrag" wechseln. Der Text kommt aus dem
               // Attribut, damit er in der Sprachdatei bleibt und nicht ins
-              // Skript wandert. Die zwei Zeilen dafuer gehoeren in app.js. ?>
-        <p class="card-title">
-            <span data-summe-beschriftung data-gesamt="<?= te('markt.konfigurator_summe_gesamt') ?>"><?=
+              // Skript wandert. ?>
+        <p style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-4)">
+            <span data-summe-beschriftung data-gesamt="<?= te('markt.konfigurator_summe_gesamt') ?>" style="font-size:0.875rem"><?=
                 $summeIstEndgueltig
                     ? te('markt.konfigurator_summe_gesamt')
                     : te('markt.konfigurator_summe_vorlaeufig')
-            ?></span>:
-            <span data-summe><?= e(geld($vorlaeufigeSumme, $waehrung)) ?></span>
+            ?></span>
+            <span class="ms-zahl ms-zahl--mittel" data-summe><?= e(geld($vorlaeufigeSumme, $waehrung)) ?></span>
         </p>
 
         <?php // § 6 Abs. 1 PAngV: Am Gesamtpreis muss stehen, dass die
@@ -227,5 +262,18 @@ declare(strict_types=1);
 
     <p class="ms-fehler" data-spezifikation-warnung role="alert" hidden><?= te('markt.konfigurator_warnung') ?></p>
 
-    <button class="btn btn-primary btn-block" type="submit" data-absenden><?= te('markt.konfigurator_absenden') ?></button>
+    <?php // Die Leiste bleibt beim Rollen ueber der unteren Navigation stehen:
+          // Betrag und Bestellknopf verlassen einander nie (§ 312j Abs. 2 BGB
+          // — und schlicht guter Handel: niemand bestellt blind). ?>
+    <div class="ms-summenleiste">
+        <div>
+            <small data-summe-beschriftung data-gesamt="<?= te('markt.konfigurator_summe_gesamt') ?>"><?=
+                $summeIstEndgueltig
+                    ? te('markt.konfigurator_summe_gesamt')
+                    : te('markt.konfigurator_summe_vorlaeufig')
+            ?></small>
+            <span class="ms-zahl ms-zahl--mittel" data-summe><?= e(geld($vorlaeufigeSumme, $waehrung)) ?></span>
+        </div>
+        <button class="btn btn-primary" type="submit" data-absenden style="min-height:46px;padding-inline:var(--space-8)"><?= te('markt.konfigurator_absenden') ?></button>
+    </div>
 </form>

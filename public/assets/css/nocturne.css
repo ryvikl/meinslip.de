@@ -151,6 +151,22 @@
   --color-section-glow: #353b80;
   --color-section-ghost: #4c5397;
 
+  /* Statusfarben — fuenfte Ergaenzung gegenueber dem Export.
+     Die Design-Vorlage (design/MeinSlip App.dc.html, Kopfnotiz) legt fest:
+     "Statusfarben nur fuer Verifiziert, Warnung, SOS". Die Comps setzen sie
+     als Punkt, Linie und kleine Schrift ein — online-Punkte, "sicher aktiv",
+     Bewertungssterne, SOS. Drei Rollen, sonst nichts; Erfolg und Gefahr
+     fluten nie eine Flaeche.
+     Das Rot der Comps (#ef4444) erreicht auf der Kartenflaeche nur 4,04:1
+     und faellt als Schrift durch. Es wird durch #f35b5b ersetzt — den in
+     docs/09-design-system.md (Korrektur 1) bereits hergeleiteten
+     schrifttauglichen Alarmton: 5,41:1 auf --color-bg, 4,67:1 auf
+     --color-surface. Gruen und Bernstein bestehen unveraendert.
+     Geprueft von docs/kontrast-pruefung.py. */
+  --color-ok: #22c55e;
+  --color-warnung: #f59e0b;
+  --color-gefahr: #f35b5b;
+
   --font-heading: "Inter", system-ui, sans-serif;
   --font-heading-weight: 500;
   --font-body: "Inter", system-ui, sans-serif;

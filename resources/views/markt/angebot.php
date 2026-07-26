@@ -132,8 +132,10 @@ $darfAnschreiben ??= false;
             <p class="ms-kicker"><?= te('markt.angebot_kicker') ?></p>
             <h1 style="font-size:clamp(1.75rem,4vw,2.5rem)"><?= e((string) $angebot['titel']) ?></h1>
             <?php if ($verkaeufer !== null): ?>
-                <p class="text-muted" style="margin-top:var(--space-3)"><?= te('markt.angebot_von') ?>
+                <p class="text-muted" style="margin-top:var(--space-3);display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
+                    <?= te('markt.angebot_von') ?>
                     <span class="tag tag-outline"><?= e((string) $verkaeufer['pseudonym']) ?></span>
+                    <span class="ms-siegel" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 1.6 2.9-.3 1 2.7 2.4 1.7-.7 2.8.7 2.8-2.4 1.7-1 2.7-2.9-.3L12 22l-2.4-1.6-2.9.3-1-2.7-2.4-1.7.7-2.8-.7-2.8 2.4-1.7 1-2.7 2.9.3z"/><path d="M8.6 12.2l2.3 2.3 4.4-4.6" fill="none" stroke="var(--color-bg)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                 </p>
             <?php endif; ?>
         </div>
@@ -155,8 +157,14 @@ $darfAnschreiben ??= false;
         <article class="card elev-sm">
             <p class="card-kicker"><?= te('markt.angebot_beschreibung') ?></p>
             <p class="card-body"><?= nl2br(e((string) ($angebot['beschreibung'] ?? ''))) ?></p>
-            <p class="card-meta">
-                <span class="tag tag-accent"><?= te('markt.angebot_grundpreis') ?>: <?= e(geld($grundpreis, $waehrung)) ?></span>
+
+            <?php // Die Preiszeile der Vorlage: der Betrag ist die groesste
+                  // Zahl der Karte, die Bedingungen stehen als Marken daneben. ?>
+            <p style="display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-4)">
+                <span class="ms-zahl ms-zahl--mittel"><?= e(geld($grundpreis, $waehrung)) ?></span>
+                <span class="ms-kachel__neben" style="font-size:0.75rem"><?= te('markt.angebot_grundpreis') ?></span>
+            </p>
+            <p class="ms-tagzeile" style="margin-top:var(--space-3)">
                 <span class="tag tag-neutral"><?= te('markt.angebot_bearbeitungstage', ['tage' => (int) $angebot['bearbeitungstage']]) ?></span>
                 <?php if ((int) $angebot['versand_moeglich'] === 1): ?>
                     <span class="tag tag-neutral"><?= te('markt.angebot_versand') ?></span>
@@ -165,7 +173,7 @@ $darfAnschreiben ??= false;
                     <span class="tag tag-neutral"><?= te('markt.angebot_uebergabe') ?></span>
                 <?php endif; ?>
                 <?php if (($angebot['uebergabe_region'] ?? null) !== null): ?>
-                    <span class="tag tag-neutral"><?= te('markt.angebot_region', ['region' => (string) $angebot['uebergabe_region']]) ?></span>
+                    <span class="tag tag-outline"><?= te('markt.angebot_region', ['region' => (string) $angebot['uebergabe_region']]) ?></span>
                 <?php endif; ?>
             </p>
             <?php // § 6 Abs. 1 PAngV verlangt zum Preis die Angabe, dass die
@@ -211,30 +219,34 @@ $darfAnschreiben ??= false;
                 <h2 id="bilder"><?= te('medien.titel') ?></h2>
             </div>
 
-            <div class="ms-raster">
+            <div class="ms-raster--kacheln">
                 <?php foreach ($medien as $nummer => $bild): ?>
                     <?php $zeigbar = $bild['explizit'] !== true || $medienExplizitSichtbar; ?>
-                    <article class="card elev-sm">
-                        <?php if ($zeigbar): ?>
-                            <img src="/medien/angebot/<?= (int) $bild['id'] ?>"
-                                 alt="<?= te('medien.bild_alt') ?>"
-                                 loading="lazy"
-                                 style="width:100%;height:auto;display:block;border-radius:var(--radius-md)">
-                        <?php else: ?>
-                            <div class="ms-gesperrt" style="min-height:11rem;background:var(--color-neutral-900)">
-                                <span class="ms-gesperrt__schloss"><?= te('medien.gesperrt_schloss') ?></span>
-                            </div>
-                        <?php endif; ?>
-                        <p class="card-meta">
-                            <span class="tag tag-neutral"><?= te('medien.nummer', ['nummer' => (int) $nummer + 1]) ?></span>
-                            <?php if ($bild['explizit'] === true): ?>
-                                <span class="tag tag-accent"><?= te('medien.explizit_marke') ?></span>
+                    <figure class="ms-kachel" style="margin:0">
+                        <span class="ms-kachel__bild">
+                            <?php if ($zeigbar): ?>
+                                <img src="/medien/angebot/<?= (int) $bild['id'] ?>"
+                                     alt="<?= te('medien.bild_alt') ?>"
+                                     loading="lazy">
+                            <?php else: ?>
+                                <span class="ms-gesperrt__schloss">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"/></svg>
+                                    <?= te('medien.gesperrt_schloss') ?>
+                                </span>
                             <?php endif; ?>
-                        </p>
-                        <?php if ($bild['explizit'] === true): ?>
-                            <p class="card-meta text-muted"><?= $zeigbar ? te('medien.gesperrt_eigen') : te('medien.gesperrt_fremd') ?></p>
-                        <?php endif; ?>
-                    </article>
+                        </span>
+                        <figcaption class="ms-kachel__inhalt">
+                            <span class="ms-tagzeile">
+                                <span class="tag tag-neutral" style="font-size:0.625rem"><?= te('medien.nummer', ['nummer' => (int) $nummer + 1]) ?></span>
+                                <?php if ($bild['explizit'] === true): ?>
+                                    <span class="tag tag-accent" style="font-size:0.625rem"><?= te('medien.explizit_marke') ?></span>
+                                <?php endif; ?>
+                            </span>
+                            <?php if ($bild['explizit'] === true): ?>
+                                <span class="ms-kachel__meta"><?= $zeigbar ? te('medien.gesperrt_eigen') : te('medien.gesperrt_fremd') ?></span>
+                            <?php endif; ?>
+                        </figcaption>
+                    </figure>
                 <?php endforeach; ?>
             </div>
         </section>

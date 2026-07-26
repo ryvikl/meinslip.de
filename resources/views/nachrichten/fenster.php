@@ -114,12 +114,16 @@ $aufDieMinute = static fn (string $zeitpunkt): string => substr($zeitpunkt, 0, 1
     $eigen = $unterhaltung['eigene_deklaration'];
     ?>
     <section class="ms-abschnitt">
-        <div>
-            <p class="ms-kicker"><?= te('chat.kicker') ?></p>
-            <h1 style="font-size:clamp(1.5rem,4vw,2.25rem)"><?= e((string) $unterhaltung['partner_name']) ?></h1>
-            <p class="text-muted" style="margin-top:var(--space-3)">
-                <span class="tag tag-outline"><?= e((string) $unterhaltung['partner_pseudonym']) ?></span>
-            </p>
+        <?php // Der Gespraechskopf der Vorlage: Avatar-Kreis, Name, Pseudonym. ?>
+        <div style="display:flex;align-items:center;gap:var(--space-4)">
+            <span class="ms-avatar ms-avatar--gross"><?= e(mb_substr((string) $unterhaltung['partner_name'], 0, 1)) ?></span>
+            <div style="min-width:0">
+                <p class="ms-kicker"><?= te('chat.kicker') ?></p>
+                <h1 style="font-size:clamp(1.5rem,4vw,2.25rem)"><?= e((string) $unterhaltung['partner_name']) ?></h1>
+                <p class="text-muted" style="margin-top:var(--space-2)">
+                    <span class="tag tag-outline"><?= e((string) $unterhaltung['partner_pseudonym']) ?></span>
+                </p>
+            </div>
         </div>
 
         <?php if ($erfolg !== null): ?>
@@ -304,49 +308,59 @@ $aufDieMinute = static fn (string $zeitpunkt): string => substr($zeitpunkt, 0, 1
             <p class="text-muted"><?= te('chat.verlauf_leer') ?></p>
         <?php endif; ?>
 
-        <?php foreach ($nachrichten as $eintrag): ?>
-            <?php
-            $eigene = (bool) $eintrag['eigene'];
-            $verborgen = (bool) $eintrag['verborgen'];
-            ?>
-            <?php // Eigene und fremde Blasen unterscheiden sich in Rahmen und
-                  // Ausrichtung. Beides kommt aus vorhandenen Bausteinen —
-                  // '.card' plus die Randregel des Designsystems, keine neue
-                  // CSS-Klasse. ?>
-            <article class="card elev-sm"
-                     style="<?= $eigene ? 'margin-left:auto;max-width:min(100%,42rem);border-color:var(--color-accent)' : 'margin-right:auto;max-width:min(100%,42rem)' ?>">
-                <p class="card-kicker">
-                    <?= $eigene ? te('chat.blase_eigene') : e((string) $unterhaltung['partner_name']) ?>
-                </p>
+        <?php /*
+               * BLASEN NACH DER VORLAGE (Screen 07): eigene rechts auf der
+               * Akzentflaeche, fremde links auf der Kartenflaeche, der
+               * Schwanz an der Ecke zur eigenen Seite. Die Meta-Angaben —
+               * Deklaration, Zeitpunkt, Gelesen, Melden — stehen klein UNTER
+               * der Blase, nicht in ihr: Sie gehoeren zur Zeile, nicht zum
+               * gesprochenen Text.
+               */ ?>
+        <div class="ms-verlauf">
+            <?php foreach ($nachrichten as $eintrag): ?>
+                <?php
+                $eigene = (bool) $eintrag['eigene'];
+                $verborgen = (bool) $eintrag['verborgen'];
+                ?>
+                <article class="ms-nachricht <?= $eigene ? 'ms-nachricht--eigen' : '' ?>">
+                    <p class="ms-nur-vorlesen">
+                        <?= $eigene ? te('chat.blase_eigene') : e((string) $unterhaltung['partner_name']) ?>
+                    </p>
 
-                <?php if ($verborgen): ?>
-                    <p class="card-body text-muted"><?= te('chat.blase_verborgen') ?></p>
-                <?php else: ?>
-                    <p class="card-body" style="overflow-wrap:anywhere"><?= nl2br(e((string) $eintrag['text'])) ?></p>
-                <?php endif; ?>
-
-                <p class="card-meta">
-                    <?php // Die Deklaration DIESER Nachricht — nicht die aktuelle
-                          // des Kontos. Siehe Kopf dieser Datei. ?>
-                    <span class="tag tag-neutral"><?= te('chat.deklaration.' . (string) $eintrag['deklaration']) ?></span>
-                    <span class="tag tag-neutral"><?= e((string) $eintrag['angelegt_am']) ?></span>
-                    <?php if ($eigene && $eintrag['gelesen_am'] !== null): ?>
-                        <span class="tag tag-neutral"><?= te('chat.blase_gelesen') ?></span>
+                    <?php if ($verborgen): ?>
+                        <p class="ms-blase ms-blase--verborgen"><?= te('chat.blase_verborgen') ?></p>
+                    <?php else: ?>
+                        <p class="ms-blase"><?= nl2br(e((string) $eintrag['text'])) ?></p>
                     <?php endif; ?>
-                </p>
 
-                <?php if (!$eigene && !$verborgen): ?>
-                    <?php // Melden laeuft ueber POST, damit die Nachrichtenkennung
-                          // geprueft wird, bevor sie in der Adresse steht — siehe
-                          // NachrichtenRouten::melden(). ?>
-                    <form method="post" action="/nachrichten/<?= $kennung ?>/melden" style="margin:0">
-                        <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                        <input type="hidden" name="nachricht_id" value="<?= (int) $eintrag['id'] ?>">
-                        <button class="btn btn-ghost" type="submit"><?= te('chat.blase_melden') ?></button>
-                    </form>
-                <?php endif; ?>
-            </article>
-        <?php endforeach; ?>
+                    <?php // Ein div, kein p: In der Zeile steht auch das
+                          // Melde-Formular, und ein form in einem p ist kein
+                          // gueltiges Markup — der Browser schloesse das p
+                          // vorzeitig. ?>
+                    <div class="ms-nachricht__meta">
+                        <?php // Die Deklaration DIESER Nachricht — nicht die aktuelle
+                              // des Kontos. Siehe Kopf dieser Datei. ?>
+                        <span><?= te('chat.deklaration.' . (string) $eintrag['deklaration']) ?></span>
+                        <span aria-hidden="true">·</span>
+                        <span><?= e((string) $eintrag['angelegt_am']) ?></span>
+                        <?php if ($eigene && $eintrag['gelesen_am'] !== null): ?>
+                            <span aria-hidden="true">·</span>
+                            <span><?= te('chat.blase_gelesen') ?></span>
+                        <?php endif; ?>
+                        <?php if (!$eigene && !$verborgen): ?>
+                            <?php // Melden laeuft ueber POST, damit die Nachrichtenkennung
+                                  // geprueft wird, bevor sie in der Adresse steht — siehe
+                                  // NachrichtenRouten::melden(). ?>
+                            <form method="post" action="/nachrichten/<?= $kennung ?>/melden" style="margin:0">
+                                <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                                <input type="hidden" name="nachricht_id" value="<?= (int) $eintrag['id'] ?>">
+                                <button class="btn btn-ghost" type="submit"><?= te('chat.blase_melden') ?></button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
 
         <?php // Ziel der Weiterleitung nach dem Senden. Ersetzt das Herunterrollen
               // per Skript und funktioniert auch ohne JavaScript. ?>
