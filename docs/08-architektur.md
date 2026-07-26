@@ -212,9 +212,13 @@ docs/
 
 **Alle Datenbankzugriffe über vorbereitete Anweisungen.** Keine zusammengesetzten Abfragen.
 
-**Zugriffsschutz für Medien:** Bezahlte Inhalte liegen außerhalb von `public/` und werden über ein Skript mit Berechtigungsprüfung und kurzlebiger Signatur ausgeliefert.
+**Zugriffsschutz für Medien:** Bilder liegen in `storage/medien/`, außerhalb von `public/`, und werden ausschließlich über `MedienRouten` ausgeliefert.
 
-**Forensisches Wasserzeichen pro Käufer** in jedem ausgelieferten Medium. Das ist der belastbare Ersatz für die im Designkonzept vorgesehene Screenshot-Sperre, die in einer PWA technisch nicht möglich ist.
+Gebaut ist bewusst *keine* signierte Adresse, sondern etwas Strengeres: **Der Pfad kommt niemals aus der Anfrage.** Die Adresse trägt nur eine Ganzzahl, daraus wird eine Datenbankzeile, und erst die trägt den Pfad. Ein `..` kann damit gar nicht erst hineingeraten — Traversal ist strukturell unmöglich statt weggefiltert. Die Berechtigung entscheidet das *gebundene Angebot*, nicht die Medienzeile. Jede Ablehnung ist dieselbe `404` ohne Rumpf; ein `403` würde verraten, welche Kennungen existieren.
+
+Eine kurzlebige Signatur kommt erst mit den bezahlten Inhalten dazu — sie löst ein anderes Problem (Weitergabe einer gültigen Adresse), das ohne Bezahlschranke noch keines ist.
+
+**Noch nicht gebaut — forensisches Wasserzeichen pro Käufer** in jedem ausgelieferten Medium. Es ist der belastbare Ersatz für die im Designkonzept vorgesehene Screenshot-Sperre, die in einer PWA technisch nicht möglich ist. Es gehört zu den bezahlten Inhalten und damit hinter den gesperrten Bestellvorgang.
 
 **Übertragung ausschließlich verschlüsselt**, HSTS, sichere Cookie-Attribute, Inhaltssicherheitsrichtlinie.
 

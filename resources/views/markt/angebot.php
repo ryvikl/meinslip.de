@@ -41,6 +41,8 @@ declare(strict_types=1);
  * @var string|null $fehler
  * @var array<string,string> $eingaben
  * @var bool $gestoert
+ * @var list<array<string,mixed>> $medien   Medien::zuAngebot()
+ * @var bool $medienExplizitSichtbar        Medien::explizitSichtbar()
  */
 
 $angebot ??= null;
@@ -54,6 +56,9 @@ $bestellbar ??= false;
 $fehler ??= null;
 $eingaben ??= [];
 $gestoert ??= false;
+$medien ??= [];
+$medienExplizitSichtbar ??= false;
+$darfAnschreiben ??= false;
 ?>
 <?php if ($gestoert): ?>
     <section class="ms-abschnitt">
@@ -103,12 +108,24 @@ $gestoert ??= false;
      */
     $konfigurator = $bestellvorgangAktiv && $bestellbar && $istAktiv && $angemeldet && $darfKaufen;
 
-    // Der Chat entsteht erst spaeter (Paket P2); bis dahin ist /nachrichten
-    // eine ehrliche Platzhalterseite. Bewusst ein gewoehnlicher Verweis und
-    // kein Zwischenzustand: Wenn der Chat steht, aendert sich hier nur das
-    // Ziel. Wer abgemeldet ist, wird zur Anmeldung gefuehrt — schreiben kann
-    // nur, wer ein Konto hat.
-    $nachrichtZiel = $angemeldet ? '/nachrichten' : '/anmelden';
+    /*
+     * ANSCHREIBEN IST EIN FORMULAR, KEIN VERWEIS — und POST, nicht GET.
+     *
+     * Der Aufruf legt eine Zeile an und zaehlt gegen das Tageskontingent aus
+     * Unterhaltungen::UNTERHALTUNGEN_JE_TAG. Als Verweis liesse sich dieses
+     * Kontingent mit einer eingebetteten Grafik aufbrauchen, und der
+     * Vorauslader des Browsers eroeffnete Gespraeche, die niemand wollte.
+     * Dieselbe Begruendung steht bei NachrichtenRouten::neu().
+     *
+     * Die Empfaengerkennung kommt aus dem geladenen Angebot und nicht aus der
+     * Adresse. Wer sie im Formular faelscht, schreibt jemand anderen an — mehr
+     * nicht: Es gibt keine Aktion, die daran haengt, und ein Anschreiben ist
+     * ohnehin fuer jedes Konto moeglich.
+     *
+     * Ohne Anmeldung bleibt es beim Verweis zur Anmeldung. Ein Formular, das
+     * verlaesslich in eine Weiterleitung laeuft, waere eine Luege.
+     */
+    $anschreibenMoeglich = $angemeldet && $darfAnschreiben && $verkaeufer !== null;
     ?>
     <section class="ms-abschnitt">
         <div>
@@ -164,6 +181,64 @@ $gestoert ??= false;
             <?php endif; ?>
         </article>
     </section>
+
+    <?php if ($medien !== []): ?>
+        <?php /*
+               * DIE GALERIE.
+               *
+               * Jede Bildadresse traegt nur eine Ganzzahl. Der Dateipfad steht
+               * nirgends im ausgelieferten HTML — es gibt also nichts, woraus
+               * sich ableiten liesse, wie das Medienverzeichnis aufgebaut ist
+               * oder wie die Nachbardatei heisst.
+               *
+               * DIE ZWEITE ZONE WIRD HIER NICHT NUR VERSTECKT, SIE IST NICHT
+               * DA. Ein als nicht jugendfrei gekennzeichnetes Bild bekommt eine
+               * Fremde ueberhaupt nicht — auch nicht unscharf. Das <img> unten
+               * wird fuer sie gar nicht erst erzeugt, und die Medienroute wuerde
+               * es zusaetzlich mit 404 beantworten. Zwei Schlösser, weil das
+               * eine im Markup steht und das andere in der Route: Wer das
+               * Markup ueberlistet, kommt am zweiten nicht vorbei.
+               *
+               * .ms-gesperrt haelt an dieser Stelle KEINE unscharfe Fassung
+               * bereit, sondern eine leere Flaeche. Das ist der Unterschied
+               * zwischen "wir zeigen dir eine Ahnung davon" und "wir zeigen dir
+               * nichts" — und solange es keine echte Altersschranke gibt, ist
+               * nur das Zweite ehrlich.
+               */ ?>
+        <section class="ms-abschnitt" aria-labelledby="bilder">
+            <div>
+                <p class="ms-kicker"><?= te('medien.galerie_kicker') ?></p>
+                <h2 id="bilder"><?= te('medien.titel') ?></h2>
+            </div>
+
+            <div class="ms-raster">
+                <?php foreach ($medien as $nummer => $bild): ?>
+                    <?php $zeigbar = $bild['explizit'] !== true || $medienExplizitSichtbar; ?>
+                    <article class="card elev-sm">
+                        <?php if ($zeigbar): ?>
+                            <img src="/medien/angebot/<?= (int) $bild['id'] ?>"
+                                 alt="<?= te('medien.bild_alt') ?>"
+                                 loading="lazy"
+                                 style="width:100%;height:auto;display:block;border-radius:var(--radius-md)">
+                        <?php else: ?>
+                            <div class="ms-gesperrt" style="min-height:11rem;background:var(--color-neutral-900)">
+                                <span class="ms-gesperrt__schloss"><?= te('medien.gesperrt_schloss') ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <p class="card-meta">
+                            <span class="tag tag-neutral"><?= te('medien.nummer', ['nummer' => (int) $nummer + 1]) ?></span>
+                            <?php if ($bild['explizit'] === true): ?>
+                                <span class="tag tag-accent"><?= te('medien.explizit_marke') ?></span>
+                            <?php endif; ?>
+                        </p>
+                        <?php if ($bild['explizit'] === true): ?>
+                            <p class="card-meta text-muted"><?= $zeigbar ? te('medien.gesperrt_eigen') : te('medien.gesperrt_fremd') ?></p>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        </section>
+    <?php endif; ?>
 
     <?php if (!$istAktiv): ?>
         <?php /*
@@ -234,11 +309,26 @@ $gestoert ??= false;
                   // aendert nur, was "Nachricht schreiben" bedeutet — Hauptweg oder
                   // Nebenweg. Der Knopf selbst ist in beiden Faellen derselbe. ?>
             <p class="card-body"><?= $konfigurator ? te('markt.kontakt_neben_bestellung') : te('markt.kontakt_hauptweg') ?></p>
-            <p>
-                <a class="btn <?= $konfigurator ? 'btn-secondary' : 'btn-primary' ?>" href="<?= e($nachrichtZiel) ?>"><?= te('markt.nachricht_schreiben') ?></a>
-            </p>
-            <?php if (!$angemeldet): ?>
+
+            <?php if ($anschreibenMoeglich): ?>
+                <form method="post" action="/nachrichten/neu">
+                    <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                    <input type="hidden" name="empfaenger_id" value="<?= (int) $verkaeufer['id'] ?>">
+                    <input type="hidden" name="angebot_id" value="<?= (int) $angebot['id'] ?>">
+                    <button class="btn <?= $konfigurator ? 'btn-secondary' : 'btn-primary' ?>" type="submit"><?= te('markt.nachricht_schreiben') ?></button>
+                </form>
+            <?php elseif (!$angemeldet): ?>
+                <p>
+                    <a class="btn <?= $konfigurator ? 'btn-secondary' : 'btn-primary' ?>" href="/anmelden"><?= te('markt.nachricht_schreiben') ?></a>
+                </p>
                 <p class="card-meta text-muted"><?= te('markt.nachricht_anmeldung') ?></p>
+            <?php else: ?>
+                <?php // Die Verkaeuferin sieht ihre eigene Seite. Statt eines
+                      // Knopfes, der ins Selbstgespraech liefe, der Weg zu den
+                      // Anfragen, die zu diesem Angebot schon eingegangen sind. ?>
+                <p>
+                    <a class="btn btn-secondary" href="/nachrichten"><?= te('markt.nachricht_eigene') ?></a>
+                </p>
             <?php endif; ?>
         </article>
 

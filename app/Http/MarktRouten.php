@@ -16,6 +16,7 @@ use MeinSlip\Domain\Account\Sitzungen;
 use MeinSlip\Domain\Catalog\AngebotFehler;
 use MeinSlip\Domain\Catalog\Angebote;
 use MeinSlip\Domain\Ledger\Hauptbuch;
+use MeinSlip\Domain\Media\Medien;
 use MeinSlip\Domain\Order\BestellFehler;
 use MeinSlip\Domain\Order\Bestellungen;
 use MeinSlip\Domain\Order\Bestellzustand;
@@ -252,7 +253,7 @@ final class MarktRouten
         $seite = min($seiten, max(1, $anfrage->ganzzahl('seite', 1) ?? 1));
 
         $daten['kategorie'] = $kategorie;
-        $daten['angebote'] = $angebote->fuerKatalog($kategorieId, $seite, self::PRO_SEITE);
+        $daten['angebote'] = $this->mitVorschau($db, $angebote->fuerKatalog($kategorieId, $seite, self::PRO_SEITE));
         $daten['anzahl'] = $anzahl;
         $daten['seite'] = $seite;
         $daten['seiten'] = $seiten;
@@ -263,6 +264,49 @@ final class MarktRouten
             t('kategorie.' . (string) $kategorie['schluessel']) . ' — ' . t('allgemein.marke'),
             $daten
         );
+    }
+
+    /**
+     * Haengt an jede Katalogzeile ihr Kachelbild — oder laesst sie ohne.
+     *
+     * DER MEDIENAUSFALL DARF DEN KATALOG NICHT LEEREN. Die Bilder liegen im
+     * Dateisystem, ihre Zeilen in einer eigenen Tabelle; geht dort etwas
+     * schief, ist das ein Grund fuer eine Kachel ohne Bild und keiner fuer eine
+     * leere Kategorieseite. Deshalb faengt diese Stelle und gibt die Liste
+     * unveraendert zurueck. Die Vorlage kommt damit zurecht: Sie prueft je
+     * Zeile auf den Schluessel 'vorschau'.
+     *
+     * Welches Bild eine Kachel zeigt und ob es ueberhaupt gezeigt wird,
+     * entscheidet hier NIEMAND — die Auswahl trifft Medien, die Anzeige die
+     * Vorlage (explizite Bilder bleiben im Katalog fuer alle verschlossen,
+     * auch fuer die Eigentuemerin).
+     *
+     * @param  list<array<string,mixed>> $angebote
+     * @return list<array<string,mixed>>
+     */
+    private function mitVorschau(Database $db, array $angebote): array
+    {
+        if ($angebote === []) {
+            return $angebote;
+        }
+
+        try {
+            $vorschauen = (new Medien($db, Medien::verzeichnis($this->wurzel)))
+                ->ersteVorschauZuAngeboten(array_map(
+                    static fn (array $angebot): int => (int) ($angebot['id'] ?? 0),
+                    $angebote
+                ));
+        } catch (\Throwable $fehler) {
+            error_log('[MeinSlip/Markt] Kachelbilder: ' . $fehler->getMessage());
+
+            return $angebote;
+        }
+
+        foreach ($angebote as $nummer => $angebot) {
+            $angebote[$nummer]['vorschau'] = $vorschauen[(int) ($angebot['id'] ?? 0)] ?? null;
+        }
+
+        return $angebote;
     }
 
     /**
@@ -299,6 +343,13 @@ final class MarktRouten
             // faellt und nicht in jeder Verzweigung des HTML wiederholt wird.
             'bestellvorgangAktiv' => Env::bool('BESTELLVORGANG_AKTIV', false),
             'bestellbar' => false,
+            'medien' => [],
+            'medienExplizitSichtbar' => false,
+            // Wahr nur fuer angemeldete Fremde. Die Verkaeuferin selbst
+            // bekommt kein Anschreibeformular: Unterhaltungen::eroeffnen()
+            // wiese das Selbstgespraech ohnehin ab, und ein Knopf, der
+            // zuverlaessig in einen Fehler laeuft, ist keine Oberflaeche.
+            'darfAnschreiben' => false,
         ];
 
         $db = $this->datenbank();
@@ -380,8 +431,25 @@ final class MarktRouten
         // der diese Bedingung steht.
         $daten['bestellbar'] = $angebote->istBestellbar($angebotId);
 
+        // Die Bilder, und ob die explizit gekennzeichneten unter ihnen fuer
+        // DIESE Betrachterin sichtbar sind. Beide Fragen beantwortet Medien,
+        // nicht die Vorlage: Ein 'if' im HTML ist die Stelle, an der eine
+        // Sichtbarkeitsregel beim naechsten Umbau still verloren geht.
+        //
+        // Faellt die Medienschicht aus, bleibt die Seite ohne Bilder stehen —
+        // Titel, Preis und der Weg zur Anbieterin sind wichtiger als eine
+        // Galerie.
+        try {
+            $medien = new Medien($db, Medien::verzeichnis($this->wurzel));
+            $daten['medien'] = $medien->zuAngebot($angebotId);
+            $daten['medienExplizitSichtbar'] = $medien->explizitSichtbar($angebotId, $benutzerId);
+        } catch (\Throwable $fehler) {
+            error_log('[MeinSlip/Markt] Bilder zum Angebot: ' . $fehler->getMessage());
+        }
+
         if ($benutzerId !== 0) {
             $daten['darfKaufen'] = $konten->hatFaehigkeit($benutzerId, Konten::FAEHIGKEIT_KAUFEN);
+            $daten['darfAnschreiben'] = $benutzerId !== $verkaeuferId;
         }
 
         // Nur wo das Bestellformular tatsaechlich erscheint, wird die gezeigte
@@ -565,6 +633,9 @@ final class MarktRouten
                 'erfolg' => null,
                 'bestellbar' => false,
                 'bestellvorgangAktiv' => false,
+                'medien' => [],
+                'medienfehler' => null,
+                'medienerfolg' => null,
             ]);
         }
 
@@ -586,8 +657,41 @@ final class MarktRouten
                 // und die Verkaeuferin erfaehrt hier, welche Optionsart fehlt.
                 'bestellbar' => (new Angebote($db))->istBestellbar($angebotId),
                 'bestellvorgangAktiv' => Env::bool('BESTELLVORGANG_AKTIV', false),
+                // Hier zeigt die Eigentuemerin ihre eigenen Bilder, explizite
+                // eingeschlossen — das ist die Seite, auf der sie pruefen muss,
+                // was sie eingestellt hat. Die Auswahl kommt aus der
+                // Medienschicht, nicht aus einer zweiten Abfrage hier.
+                'medien' => $this->eigeneMedien($db, $angebotId),
+                // Rueckmeldungen des Uploads. Sie kommen nicht aus 'fehler'
+                // und 'erfolg', weil MedienRouten eine eigene Schluesselliste
+                // fuehrt: Ein Medienfehler durch die Angebotsliste zu schicken
+                // hiesse, beide Listen fuer immer synchron halten zu muessen.
+                'medienfehler' => $this->ausListe($anfrage->eingabe('medienfehler'), MedienRouten::FEHLER),
+                'medienerfolg' => $this->ausListe($anfrage->eingabe('medienerfolg'), MedienRouten::ERFOLGE),
             ]
         );
+    }
+
+    /**
+     * Die Bilder des eigenen Angebots — oder eine leere Liste.
+     *
+     * Die Eigentuemerpruefung ist schon gelaufen, wenn diese Stelle erreicht
+     * wird; sie steht deshalb nicht noch einmal hier, sondern beim einzigen
+     * Aufrufer. Gefangen wird trotzdem: Ein Fehler in der Medienschicht darf
+     * das Bearbeitungsformular nicht unerreichbar machen, sonst kaeme die
+     * Verkaeuferin an ihren Text und ihren Preis nicht mehr heran.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function eigeneMedien(Database $db, int $angebotId): array
+    {
+        try {
+            return (new Medien($db, Medien::verzeichnis($this->wurzel)))->zuAngebot($angebotId);
+        } catch (\Throwable $fehler) {
+            error_log('[MeinSlip/Markt] Eigene Bilder: ' . $fehler->getMessage());
+
+            return [];
+        }
     }
 
     /**

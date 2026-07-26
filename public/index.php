@@ -21,7 +21,9 @@ use MeinSlip\Core\Response;
 use MeinSlip\Core\Router;
 use MeinSlip\Core\View;
 use MeinSlip\Http\MarktRouten;
+use MeinSlip\Http\MedienRouten;
 use MeinSlip\Http\MeldeRouten;
+use MeinSlip\Http\NachrichtenRouten;
 use MeinSlip\Http\Routen;
 use MeinSlip\Http\VerwaltungsRouten;
 
@@ -45,9 +47,9 @@ error_reporting($debug ? E_ALL : E_ALL & ~E_DEPRECATED);
 $router = new Router();
 $ansicht = new View($wurzel . '/resources/views');
 
-// Vier Routenklassen statt einer: Grundseiten, Marktplatz, Meldeweg,
-// Verwaltung. Die Trennung ist keine Kosmetik — sie haelt den
-// Verwaltungsbereich in einer eigenen Datei mit eigener Zugangspruefung,
+// Sechs Routenklassen statt einer: Grundseiten, Marktplatz, Nachrichten,
+// Medien, Meldeweg, Verwaltung. Die Trennung ist keine Kosmetik — sie haelt
+// den Verwaltungsbereich in einer eigenen Datei mit eigener Zugangspruefung,
 // statt ihn zwischen oeffentliche Routen zu mischen, wo eine vergessene
 // Pruefung nicht auffiele.
 //
@@ -55,10 +57,14 @@ $ansicht = new View($wurzel . '/resources/views');
 // Rechtfertigung dafuer, dass Angebote ohne Vorabpruefung erscheinen
 // (Art. 16 DSA). Wer ihn ausbaut, muss die Vorabpruefung zurueckbauen.
 //
-// Die Reihenfolge ist unerheblich: Der Router vergleicht Muster der Reihe
-// nach, und die vier Klassen teilen sich keinen Pfad.
+// EINE Reihenfolge ist tragend: Routen darf '/nachrichten' nicht mehr
+// registrieren, sonst verdeckt der alte Platzhalter den echten Chat — der
+// Router nimmt den ersten Treffer. Der Kommentar in Routen::seiten() haelt
+// das fest. Sonst teilen sich die Klassen keinen Pfad.
 (new Routen($wurzel, $ansicht))->registrieren($router);
 (new MarktRouten($wurzel, $ansicht))->registrieren($router);
+(new NachrichtenRouten($wurzel, $ansicht))->registrieren($router);
+(new MedienRouten($wurzel, $ansicht))->registrieren($router);
 (new MeldeRouten($wurzel, $ansicht))->registrieren($router);
 (new VerwaltungsRouten($wurzel, $ansicht))->registrieren($router);
 

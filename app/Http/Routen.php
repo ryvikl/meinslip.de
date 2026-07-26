@@ -95,7 +95,14 @@ final class Routen
         // Bereiche der unteren Navigation, die noch kein Backend haben. Sie
         // duerfen nicht ins Leere laufen — eine ehrliche Auskunft ist besser
         // als eine Fehlerseite.
-        foreach (['/nachrichten' => 'nachrichten', '/guthaben' => 'guthaben'] as $pfad => $name) {
+        //
+        // '/nachrichten' ist hier ABSICHTLICH nicht mehr dabei: Der Chat steht
+        // (app/Http/NachrichtenRouten.php). Diese Klasse wird im Einstiegspunkt
+        // ZUERST registriert, und der Router nimmt den ersten Treffer — ein
+        // Platzhalter an dieser Stelle wuerde die echte Strecke also verdecken,
+        // ohne dass irgendetwas kaputt aussieht. '/guthaben' bleibt: Es ist aus
+        // Aufsichtsgruenden gesperrt und wird es auf Monate bleiben.
+        foreach (['/guthaben' => 'guthaben'] as $pfad => $name) {
             $router->get($pfad, fn (Request $a): Response => $this->rendern(
                 $a,
                 'seite',

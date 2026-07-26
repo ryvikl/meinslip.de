@@ -40,7 +40,13 @@ done
 cp .htaccess "$ZIEL/" 2>/dev/null || true
 
 # Leere Verzeichnisse, die zur Laufzeit gebraucht werden.
-mkdir -p "$ZIEL/storage/logs" "$ZIEL/storage/uploads"
+#
+# storage/medien muss dabei sein, obwohl Medien::verzeichnis() es zur Not
+# selbst anlegt: Auf geteiltem Webhosting darf der PHP-Benutzer nicht überall
+# Verzeichnisse erzeugen, und der erste Upload scheiterte dann mit
+# 'ziel_unbrauchbar' — sichtbar erst, wenn die erste Verkäuferin ihr erstes
+# Foto hochlädt. Ein leeres Verzeichnis im Paket kostet nichts.
+mkdir -p "$ZIEL/storage/logs" "$ZIEL/storage/uploads" "$ZIEL/storage/medien"
 touch "$ZIEL/storage/.htaccess"
 cat > "$ZIEL/storage/.htaccess" <<'HTACCESS'
 # storage/ enthält Protokolle und hochgeladene Dateien und darf niemals

@@ -11,12 +11,11 @@ return [
     'kicker' => 'In Arbeit',
     'titel' => 'Noch nicht verfügbar',
 
-    'nachrichten_titel' => 'Nachrichten',
-    'nachrichten' => 'Der Chat kommt, sobald es Profile gibt, mit denen sich schreiben lässt.',
-    'nachrichten_warum_titel' => 'Was ihn besonders macht',
-    'nachrichten_warum' => 'Jedes Profil wird angeben müssen, ob Nachrichten von der Person selbst, '
-        . 'von einem autorisierten Team oder KI-unterstützt kommen — sichtbar im Chatfenster. '
-        . 'Das macht sonst niemand, und es ist der stärkste Vertrauensunterschied, den wir bauen können.',
+    // Die 'nachrichten_*'-Texte sind entfallen: Der Chat ist gebaut. Die Seite
+    // steht in resources/views/nachrichten/, die Texte in
+    // resources/lang/de-DE/chat.php — darunter auch das Versprechen, das hier
+    // stand: Jedes Konto gibt an, ob selbst, im Team oder KI-unterstützt
+    // geschrieben wird, und das Label steht dauerhaft im Chatfenster.
 
     'guthaben_titel' => 'Guthaben',
     'guthaben' => 'Das Guthabenkonto ist im Code angelegt, aber bewusst gesperrt.',

@@ -114,6 +114,8 @@ return [
     'nachricht_schreiben' => 'Nachricht schreiben',
     'nachricht_anmeldung' => 'Zum Schreiben brauchst du ein Konto. '
         . 'Registrieren dauert eine Minute und schaltet auch das Anbieten frei.',
+    // Steht auf der eigenen Angebotsseite anstelle des Anschreibeknopfes.
+    'nachricht_eigene' => 'Anfragen zu diesem Angebot',
 
     // --- Meldeweg nach Art. 16 DSA ----------------------------------------
     // Ausdrücklich ohne Anmeldeschranke. Art. 16 Abs. 1 DSA spricht von

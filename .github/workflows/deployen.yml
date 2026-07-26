@@ -98,6 +98,11 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
+          # Muss zu composer.json passen: Das Paket-Skript ruft composer
+          # install auf, und der Plattformblock verlangt seit dem Medienpaket
+          # ext-gd. Fehlt sie hier, bricht der Paketbau ab, bevor irgendetwas
+          # den Server erreicht.
+          extensions: pdo, pdo_mysql, mbstring, json, gd, fileinfo
           coverage: none
           tools: composer:v2
 

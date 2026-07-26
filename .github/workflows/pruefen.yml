@@ -47,7 +47,10 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: pdo, pdo_sqlite, pdo_mysql, mbstring, json
+          # gd traegt die Bildverarbeitung (Neukodierung, EXIF-Strip, Vorschau).
+          # Ohne sie weist Bilder::annehmen() jeden Upload ab — die Tests
+          # wuerden sich dann selbst ueberspringen und nichts mehr pruefen.
+          extensions: pdo, pdo_sqlite, pdo_mysql, mbstring, json, gd, fileinfo
           coverage: none
           tools: composer:v2
 
@@ -105,7 +108,7 @@ jobs:
         with:
           # Die Version, die auf dem Server läuft.
           php-version: '8.5'
-          extensions: pdo, pdo_mysql, mbstring, json
+          extensions: pdo, pdo_mysql, mbstring, json, gd, fileinfo
           coverage: none
 
       - name: Zugangsdaten für die Prüfdatenbank

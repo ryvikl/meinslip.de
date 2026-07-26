@@ -29,6 +29,13 @@ sftp-config.json
 # === Hochgeladene Dateien und Nutzerinhalte ===
 /storage/uploads/
 /storage/media/
+# Der tatsächliche Ablageort der Bilder (Medien::verzeichnis()). Die englische
+# Zeile darüber stand hier von Anfang an und traf nie zu — ein einziger
+# Buchstabe Unterschied, und jedes hochgeladene Wäschefoto wäre beim nächsten
+# `git add .` im Repository und von dort aus in der Historie gelandet.
+# Unwiderruflich: Ein Bild aus der Git-Historie zu entfernen heißt, jede
+# Kopie des Repositories neu zu schreiben.
+/storage/medien/
 /public/uploads/
 
 # === Datenbank-Abzüge ===

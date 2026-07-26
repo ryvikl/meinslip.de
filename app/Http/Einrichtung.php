@@ -10,6 +10,7 @@ use MeinSlip\Core\Migrator;
 use MeinSlip\Core\Request;
 use MeinSlip\Core\Response;
 use MeinSlip\Domain\Ledger\Hauptbuch;
+use MeinSlip\Domain\Media\Bilder;
 
 /**
  * Einrichtung ueber den Browser.
@@ -57,6 +58,18 @@ final class Einrichtung
         $pruefen('PHP-Version ab 8.2', PHP_VERSION_ID >= 80200, 'gefunden: ' . PHP_VERSION);
         $pruefen('PDO vorhanden', extension_loaded('pdo_mysql') || extension_loaded('pdo_sqlite'));
         $pruefen('storage/ beschreibbar', is_writable($this->wurzel . '/storage'), $this->wurzel . '/storage');
+
+        // Ohne GD und fileinfo nimmt Bilder::annehmen() gar nichts an — kein
+        // Bild wird dann roh gespeichert. Das ist richtig so, aber es faellt
+        // sonst erst der ersten Verkaeuferin auf, die ein Foto hochladen will.
+        // Deshalb steht die Frage hier und nicht in einem Wartungsdokument.
+        $pruefen(
+            'Bildverarbeitung vorhanden',
+            Bilder::verfuegbar(),
+            Bilder::verfuegbar()
+                ? 'lesbare Formate: ' . implode(', ', Bilder::formate())
+                : 'ext-gd oder ext-fileinfo fehlt — Bilduploads werden abgewiesen'
+        );
 
         // Liegt die .env im oeffentlichen Verzeichnis, ist sie abrufbar.
         $envImWeb = is_readable($this->wurzel . '/public/.env');

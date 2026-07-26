@@ -9,6 +9,11 @@ declare(strict_types=1);
  * Bezeichnung kommt aus resources/lang/de-DE/kategorie.php und darf sich
  * jederzeit aendern, ohne dass eine Adresse bricht.
  *
+ * Jede Zeile in $angebote darf zusaetzlich den Schluessel 'vorschau' tragen:
+ * das Ergebnis von Medien::ersteVorschau() oder null. Fehlt er, erscheint die
+ * Kachel ohne Bild — die Liste bleibt also auch dann vollstaendig, wenn die
+ * Medienschicht ausfaellt.
+ *
  * @var array<string,mixed>|null $kategorie
  * @var list<array<string,mixed>> $angebote
  * @var int $anzahl
@@ -57,7 +62,42 @@ $gestoert ??= false;
         <?php else: ?>
             <div class="ms-raster">
                 <?php foreach ($angebote as $angebot): ?>
+                    <?php $vorschau = is_array($angebot['vorschau'] ?? null) ? $angebot['vorschau'] : null; ?>
                     <article class="card elev-sm">
+                        <?php if ($vorschau !== null): ?>
+                            <?php /*
+                                   * DIE KACHEL ZEIGT IM KATALOG NIE EIN ALS NICHT
+                                   * JUGENDFREI GEKENNZEICHNETES BILD — auch der
+                                   * Eigentuemerin nicht.
+                                   *
+                                   * Auf der Angebotsseite entscheidet
+                                   * Medien::explizitSichtbar() je Person; hier
+                                   * nicht, und das ist Absicht statt
+                                   * Bequemlichkeit: Der Katalog ist die eine
+                                   * Seite, die man mit offenem Bildschirm in der
+                                   * Bahn durchblaettert. Was die Eigentuemerin
+                                   * hier saehe, saehe der Sitznachbar mit. Sie
+                                   * sieht ihr Bild auf ihrer Angebotsseite und
+                                   * beim Bearbeiten — beides Seiten, die man
+                                   * absichtlich aufruft.
+                                   *
+                                   * Zugleich ist das Schloss eine ehrliche
+                                   * Auskunft: Das Angebot HAT ein Bild, es ist
+                                   * nur nichts fuer diese Ansicht.
+                                   */ ?>
+                            <?php if ($vorschau['explizit'] === true): ?>
+                                <div class="ms-gesperrt" style="min-height:9rem;background:var(--color-neutral-900)">
+                                    <span class="ms-gesperrt__schloss"><?= te('medien.gesperrt_kachel') ?></span>
+                                </div>
+                            <?php else: ?>
+                                <a href="/angebot/<?= (int) $angebot['id'] ?>">
+                                    <img src="/medien/angebot/<?= (int) $vorschau['id'] ?>"
+                                         alt="<?= te('medien.bild_alt') ?>"
+                                         loading="lazy"
+                                         style="width:100%;height:auto;display:block;border-radius:var(--radius-md)">
+                                </a>
+                            <?php endif; ?>
+                        <?php endif; ?>
                         <p class="card-kicker"><?= e((string) $angebot['verkaeufer_pseudonym']) ?></p>
                         <h2 class="card-title">
                             <a href="/angebot/<?= (int) $angebot['id'] ?>"><?= e((string) $angebot['titel']) ?></a>

@@ -29,9 +29,14 @@ declare(strict_types=1);
  * @var string|null $erfolg
  * @var bool $bestellbar           Angebote::istBestellbar()
  * @var bool $bestellvorgangAktiv  Schalter BESTELLVORGANG_AKTIV
+ * @var list<array<string,mixed>> $medien        Medien::zuAngebot()
+ * @var string|null $medienfehler                aus MedienRouten::FEHLER
+ * @var string|null $medienerfolg                aus MedienRouten::ERFOLGE
  */
 
 use MeinSlip\Domain\Catalog\Angebote;
+use MeinSlip\Domain\Media\Bilder;
+use MeinSlip\Domain\Media\Medien;
 
 $angebot ??= null;
 $kategorien ??= [];
@@ -39,6 +44,34 @@ $fehler ??= null;
 $erfolg ??= null;
 $bestellbar ??= false;
 $bestellvorgangAktiv ??= false;
+$medien ??= [];
+$medienfehler ??= null;
+$medienerfolg ??= null;
+
+/*
+ * Die Zahlen der Bildpipeline, einmal aufbereitet.
+ *
+ * Sie werden an JEDEN Fehlertext uebergeben, auch an die, die keinen
+ * Platzhalter tragen: Lang::t() ersetzt per str_replace, ein unbenutzter
+ * Platzhalter kostet also nichts. Der Gewinn ist, dass niemand beim Ergaenzen
+ * eines Textes daran denken muss — und ':mb' roh auf dem Bildschirm steht,
+ * wenn er es doch vergisst.
+ *
+ * Die drei Konstanten stehen bewusst in eigenen Zeilen und nicht direkt im
+ * Feldwert: 'x' => Medien::JE_ANGEBOT haette in derselben Zeile ein '>'
+ * unmittelbar vor einem grossgeschriebenen Wort, und genau darauf schlaegt die
+ * Hartkodierungspruefung von tests/UebersetzungenTest.php an. Sie kann dort
+ * nicht zwischen einem Klassennamen und einem deutschen Satz unterscheiden.
+ */
+$grenzeBilder = Medien::JE_ANGEBOT;
+$grenzeBytes = Bilder::MAX_BYTES;
+$grenzeKante = Bilder::MAX_KANTE;
+
+$medienZahlen = [
+    'anzahl' => $grenzeBilder,
+    'mb' => intdiv($grenzeBytes, 1024 * 1024),
+    'kante' => $grenzeKante,
+];
 
 /** Ganzzahlige Cent als Euro-Wert fuer ein Zahlenfeld — ohne Gleitkomma. */
 $euro = static function (int $cent): string {
@@ -242,6 +275,132 @@ $euro = static function (int $cent): string {
                 </div>
 
                 <button class="btn btn-primary btn-block" type="submit"><?= te('markt.bearbeiten_speichern') ?></button>
+            </form>
+        <?php endif; ?>
+    </section>
+
+    <section class="ms-abschnitt" aria-labelledby="bilder">
+        <div>
+            <p class="ms-kicker"><?= te('medien.kicker') ?></p>
+            <h2 id="bilder"><?= te('medien.titel') ?></h2>
+            <p class="ms-hero__unterzeile" style="margin-top:var(--space-4)"><?= te('medien.unterzeile', $medienZahlen) ?></p>
+        </div>
+
+        <?php if ($medienerfolg !== null): ?>
+            <p class="card" role="status"><?= te('medien.erfolg.' . $medienerfolg) ?></p>
+        <?php endif; ?>
+
+        <?php if ($medienfehler !== null): ?>
+            <p class="ms-fehler" role="alert"><?= te('medien.fehler.' . $medienfehler, $medienZahlen) ?></p>
+        <?php endif; ?>
+
+        <?php if ($medien === []): ?>
+            <p class="card"><?= te('medien.leer') ?></p>
+        <?php else: ?>
+            <div class="ms-raster">
+                <?php foreach ($medien as $nummer => $bild): ?>
+                    <article class="card elev-sm">
+                        <?php /*
+                               * HIER STEHT DAS SCHARFE BILD, AUCH WENN ES ALS
+                               * NICHT JUGENDFREI GEKENNZEICHNET IST. Diese Seite
+                               * sieht nur die Eigentuemerin — sie muss pruefen
+                               * koennen, was sie eingestellt hat. Statt das Bild
+                               * zu verbergen, sagt die Karte ihr die Folge ihrer
+                               * Kennzeichnung: dass es sonst niemand sieht.
+                               * .ms-gesperrt gehoert auf die Angebots- und
+                               * Katalogseite, nicht hierher.
+                               */ ?>
+                        <img src="/medien/angebot/<?= (int) $bild['id'] ?>"
+                             alt="<?= te('medien.bild_alt') ?>"
+                             loading="lazy"
+                             style="width:100%;height:auto;display:block;border-radius:var(--radius-md)">
+                        <p class="card-meta">
+                            <span class="tag tag-neutral"><?= te('medien.nummer', ['nummer' => (int) $nummer + 1]) ?></span>
+                            <?php if ($bild['explizit'] === true): ?>
+                                <span class="tag tag-accent"><?= te('medien.explizit_marke') ?></span>
+                            <?php endif; ?>
+                        </p>
+                        <?php if ($bild['explizit'] === true): ?>
+                            <p class="card-meta text-muted"><?= te('medien.gesperrt_eigen') ?></p>
+                        <?php endif; ?>
+                        <form method="post" action="/medien/entfernen/<?= (int) $bild['id'] ?>" style="margin:0">
+                            <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                            <button class="btn btn-ghost" type="submit"><?= te('medien.entfernen') ?></button>
+                        </form>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($status === Angebote::STATUS_ENTFERNT): ?>
+            <?php // Ein entferntes Angebot bekommt keine neuen Bilder mehr.
+                  // Medien::hinzufuegen() weist das ohnehin ab; das Formular
+                  // gar nicht erst zu zeigen, erspart den Fehlversuch. ?>
+        <?php elseif (count($medien) >= $grenzeBilder): ?>
+            <p class="card" role="status"><?= te('medien.voll', $medienZahlen) ?></p>
+        <?php else: ?>
+            <?php /*
+                   * enctype="multipart/form-data" ist die eine Angabe, ohne die
+                   * gar nichts geht: Fehlt sie, sendet der Browser nur den
+                   * Dateinamen als Text, $_FILES bleibt leer, und der Fehler
+                   * sieht aus wie "keine Datei ausgewaehlt", obwohl eine
+                   * ausgewaehlt war.
+                   *
+                   * MAX_FILE_SIZE MUSS VOR DEM DATEIFELD STEHEN — PHP wertet das
+                   * Feld nur aus, wenn es im Datenstrom vorher kommt. Es ist
+                   * keine Sicherung (der Browser kann es weglassen), sondern
+                   * eine Hoeflichkeit: Der Upload bricht dann frueh ab und PHP
+                   * meldet UPLOAD_ERR_FORM_SIZE, was Bilder in den eigenen
+                   * Schluessel 'upload_zu_gross' uebersetzt. Die echte Grenze
+                   * zieht Bilder::MAX_BYTES am fertig empfangenen Datenstrom.
+                   */ ?>
+            <form class="ms-formular" method="post" action="/medien/hinzufuegen/<?= $angebotId ?>"
+                  enctype="multipart/form-data">
+                <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                <input type="hidden" name="MAX_FILE_SIZE" value="<?= $grenzeBytes ?>">
+
+                <div class="field">
+                    <label for="bild"><?= te('medien.feld_datei') ?></label>
+                    <input class="input" type="file" id="bild" name="bild" required
+                           accept="<?= e(\MeinSlip\Http\MedienRouten::accept()) ?>">
+                    <span class="hinweis"><?= te('medien.hinweis_datei', $medienZahlen) ?></span>
+                </div>
+
+                <?php /*
+                       * PFLICHTFRAGE OHNE VORBELEGUNG.
+                       *
+                       * Kein 'checked' an einer der beiden Antworten, und das ist
+                       * die ganze Entscheidung: Eine Vorbelegung waere eine
+                       * Behauptung, die die Plattform der Nutzerin in den Mund
+                       * legt. Steht 'jugendfrei' vorn, veroeffentlicht ein
+                       * unaufmerksamer Klick ein Bild, das nicht haette
+                       * erscheinen duerfen; steht 'nicht jugendfrei' vorn,
+                       * verschwindet ein harmloses Bild ohne dass jemand
+                       * versteht, warum.
+                       *
+                       * Die Folge steht ausgeschrieben an der Antwort selbst,
+                       * nicht als Fussnote: Wer 'nicht jugendfrei' waehlt, muss
+                       * an genau dieser Stelle lesen, dass sein Bild dann
+                       * niemand sieht. Und wenn trotz allem nichts ankommt, gilt
+                       * die vorsichtigere Annahme — MedienRouten::hinzufuegen()
+                       * behandelt eine fehlende Antwort als 'nicht jugendfrei'.
+                       */ ?>
+                <div class="field" role="radiogroup" aria-labelledby="explizit-frage">
+                    <p id="explizit-frage"><?= te('medien.explizit_frage') ?></p>
+                    <label class="radio">
+                        <input type="radio" name="explizit" value="nein" required>
+                        <span class="dot"></span>
+                        <span><?= te('medien.explizit_nein') ?></span>
+                    </label>
+                    <label class="radio">
+                        <input type="radio" name="explizit" value="ja" required>
+                        <span class="dot"></span>
+                        <span><?= te('medien.explizit_ja') ?></span>
+                    </label>
+                    <span class="hinweis"><?= te('medien.explizit_pflicht') ?></span>
+                </div>
+
+                <button class="btn btn-primary btn-block" type="submit"><?= te('medien.hochladen') ?></button>
             </form>
         <?php endif; ?>
     </section>
