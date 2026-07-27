@@ -178,6 +178,14 @@ Praktisch heißt das: ein funktionierender Meldeweg mit zugesagter Reaktionszeit
 
 Nicht vor der ersten Zeile *Code* — Entwicklung kann und soll parallel laufen. Aber **vor dem Livegang**:
 
+> **Bis dahin steht die Seite hinter der Vorschau-Schranke** (`VORSCHAU_PASSWORT` in der `.env`,
+> umgesetzt in `app/Http/Vorschauschranke.php`). Die Impressumspflicht des § 5 DDG trifft
+> *öffentlich zugängliche* geschäftsmäßige Dienste; eine passwortgeschützte Vorschau ist nach
+> überwiegender Auffassung kein öffentliches Angebot — so lassen sich die Platzhalter-Rechtstexte
+> betreiben, ohne einen Abmahngrund ins Netz zu stellen. Keine Garantie: Der Punkt gehört mit auf
+> die anwaltliche Liste (Nr. 6). Die Schranke fällt geschlossen aus, nie offen, und nimmt genau
+> einen Pfad aus: `/deploy/migrieren` (eigenes Token, sonst bräche das Deployment).
+
 1. Vertrag mit einem KJM-positiv bewerteten Anbieter für die Altersverifikation
 2. Anwaltliche Bestätigung des Kommissionsmodells und der Trennung von Ware und Treffen
 3. Datenschutz-Folgenabschätzung abgeschlossen

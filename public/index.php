@@ -28,6 +28,7 @@ use MeinSlip\Http\Routen;
 use MeinSlip\Http\TerminRouten;
 use MeinSlip\Http\VerifizierungsRouten;
 use MeinSlip\Http\VerwaltungsRouten;
+use MeinSlip\Http\Vorschauschranke;
 
 $wurzel = dirname(__DIR__);
 
@@ -78,7 +79,15 @@ $ansicht = new View($wurzel . '/resources/views');
 (new VerwaltungsRouten($wurzel, $ansicht))->registrieren($router);
 
 try {
-    $antwort = $router->behandeln(Request::ausGlobalen());
+    $anfrage = Request::ausGlobalen();
+
+    // Die Vorschau-Schranke steht VOR dem Router: Solange die Rechtstexte
+    // Entwuerfe sind, ist die Seite nicht oeffentlich (Impressumspflicht des
+    // § 5 DDG trifft oeffentlich zugaengliche Dienste — Begruendung und
+    // Grenzen im Kopf von app/Http/Vorschauschranke.php). Gesteuert ueber
+    // VORSCHAU_PASSWORT in der .env; leer bedeutet: bewusst oeffentlich.
+    $antwort = (new Vorschauschranke($ansicht))->pruefen($anfrage)
+        ?? $router->behandeln($anfrage);
 } catch (Throwable $fehler) {
     error_log('[MeinSlip] ' . $fehler->getMessage() . ' @ ' . $fehler->getFile() . ':' . $fehler->getLine());
 
