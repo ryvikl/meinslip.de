@@ -116,10 +116,6 @@ return [
     'fuss_widerruf' => 'Widerruf',
     'fuss_kuendigen' => 'Verträge kündigen',
 
-    // Rechtstexte
-    'rechtstext_entwurf' => 'Dieser Text ist ein Platzhalter und noch nicht anwaltlich geprüft. '
-        . 'Vor einem öffentlichen Betrieb muss er durch eine geprüfte Fassung ersetzt werden.',
-
     // Offline
     'offline_titel' => 'Keine Verbindung',
     'offline_text' => 'Sobald du wieder online bist, geht es hier weiter.',
