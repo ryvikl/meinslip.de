@@ -225,10 +225,15 @@ $reiterliste = [
                     <button class="btn btn-primary" type="submit"><?= te('profil.bild_hochladen') ?></button>
                 </form>
                 <?php if ($hatBild): ?>
-                    <form method="post" action="/profil/bild/entfernen" style="margin:0">
-                        <?= $feld() ?>
-                        <button class="btn btn-ghost" type="submit"><?= te('profil.bild_entfernen') ?></button>
-                    </form>
+                    <div class="ms-zeile">
+                        <?php if (is_string($profil['bild_vorschau_pfad'] ?? null) && $profil['bild_vorschau_pfad'] !== ''): ?>
+                            <a class="btn btn-secondary" href="/profil/bild/ausschnitt"><?= te('profil.bild_ausschnitt') ?></a>
+                        <?php endif; ?>
+                        <form method="post" action="/profil/bild/entfernen" style="margin:0">
+                            <?= $feld() ?>
+                            <button class="btn btn-ghost" type="submit"><?= te('profil.bild_entfernen') ?></button>
+                        </form>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>

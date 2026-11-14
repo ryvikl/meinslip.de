@@ -91,7 +91,12 @@ final class Kontoschliessung
             )
         );
 
-        $profilbild = $this->db->wert('SELECT bild_pfad FROM profile WHERE benutzer_id = :b', ['b' => $benutzerId]);
+        // Zwei Dateien: das Quadrat, das alle sehen, und das ganze Foto fuer
+        // die Ausschnittwahl (siehe ProfilRouten::bildHochladen).
+        $profilbilder = $this->db->eine(
+            'SELECT bild_pfad, bild_vorschau_pfad FROM profile WHERE benutzer_id = :b',
+            ['b' => $benutzerId]
+        ) ?? [];
 
         $jetzt = gmdate('Y-m-d H:i:s');
 
@@ -155,10 +160,12 @@ final class Kontoschliessung
 
         // Das Profilbild liegt im Medienverzeichnis; Medien::datei() gibt nur
         // heraus, was wirklich darunter liegt.
-        $bilddatei = $this->medien->datei(is_string($profilbild) ? $profilbild : null);
+        foreach ($profilbilder as $relativ) {
+            $bilddatei = $this->medien->datei(is_string($relativ) ? $relativ : null);
 
-        if ($bilddatei !== null) {
-            @unlink($bilddatei);
+            if ($bilddatei !== null) {
+                @unlink($bilddatei);
+            }
         }
 
         try {
