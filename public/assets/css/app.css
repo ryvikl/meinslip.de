@@ -1944,3 +1944,121 @@ input[type="range"] { width: 100%; min-height: var(--tippziel); accent-color: va
 .ms-aufklappen[open] > summary { margin-bottom: var(--space-4); }
 .ms-aufklappen--leise > summary { color: var(--color-neutral-400); font-weight: 400; font-size: 0.875rem; }
 .ms-aufklappen--leise[open] { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* --- Angebotsseite --------------------------------------------------------
+   Bild zuerst, dann Titel, Preis und die eine Aktion. Ab 860px stehen Bild
+   und Inhalt nebeneinander, das Bild bleibt beim Rollen stehen. */
+.ms-angebot { display: grid; gap: var(--space-8); }
+.ms-angebot__bilder { min-width: 0; }
+.ms-angebot__inhalt { display: flex; flex-direction: column; gap: var(--space-6); min-width: 0; }
+.ms-angebot__inhalt h1 { font-size: clamp(1.75rem, 5vw, 2.5rem); overflow-wrap: anywhere; }
+.ms-angebot__preis { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); }
+.ms-angebot__preis .ms-zahl { font-size: clamp(2rem, 7vw, 2.75rem); color: var(--color-accent-300); }
+.ms-angebot__aktion { display: flex; flex-direction: column; gap: var(--space-3); }
+.ms-angebot__aktion .btn { min-height: 52px; font-size: 1rem; }
+.ms-angebot__block { display: flex; flex-direction: column; gap: var(--space-3); }
+.ms-angebot__block h2 { font-size: 1.125rem; letter-spacing: 0; }
+.ms-angebot__text { white-space: pre-line; overflow-wrap: anywhere; color: var(--color-neutral-300); }
+
+@media (min-width: 860px) {
+  .ms-angebot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .ms-angebot__bilder { position: sticky; top: 5.5rem; }
+}
+
+/* Galerie: waagerecht wischen, jedes Bild rastet ein. Ohne Skript. */
+.ms-galerie {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  border-radius: 20px;
+  background: var(--color-surface);
+  scrollbar-width: none;
+}
+.ms-galerie::-webkit-scrollbar { display: none; }
+.ms-galerie__bild {
+  position: relative;
+  flex: 0 0 100%;
+  margin: 0;
+  aspect-ratio: 4 / 5;
+  scroll-snap-align: start;
+  display: grid;
+  place-items: center;
+}
+.ms-galerie__bild img { width: 100%; height: 100%; object-fit: cover; }
+.ms-galerie__bild figcaption {
+  position: absolute;
+  right: var(--space-4); bottom: var(--space-4);
+  padding: 0.125rem 0.625rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+  font-size: 0.75rem;
+}
+.ms-galerie__schloss {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 28ch;
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-neutral-400);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.ms-galerie__schloss strong { color: var(--color-text); font-size: 0.9375rem; }
+.ms-galerie--leer {
+  aspect-ratio: 4 / 3;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-neutral-500);
+  border: 1px dashed var(--color-divider);
+  background: transparent;
+}
+.ms-galerie__hinweis { margin-top: var(--space-2); text-align: center; font-size: 0.75rem; color: var(--color-neutral-500); }
+@media (min-width: 860px) { .ms-galerie__hinweis { display: none; } }
+
+.ms-profilbild--klein { width: 48px; height: 48px; font-size: 1.125rem; margin: 3px; }
+
+.ms-anbieter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-divider);
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+}
+a.ms-anbieter:hover { border-color: var(--color-accent-500); }
+.ms-anbieter__text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-3); overflow-wrap: anywhere; }
+.ms-anbieter__text .hinweis { flex-basis: 100%; }
+.ms-anbieter__pfeil { color: var(--color-accent-300); font-size: 1.25rem; }
+
+.ms-eckdaten {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--space-3);
+}
+.ms-eckdaten li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: var(--space-4);
+  border-radius: 14px;
+  background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+.ms-eckdaten strong { font-weight: 600; }
+
+.ms-wunschliste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ms-wunschliste li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 12px;
+  background: var(--color-surface);
+}

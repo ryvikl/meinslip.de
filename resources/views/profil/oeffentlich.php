@@ -68,6 +68,7 @@ $vorstellung = is_string($profil['vorstellung']) ? $profil['vorstellung'] : '';
             <form method="post" action="/nachrichten/neu" style="margin:0">
                 <?= \MeinSlip\Http\Formularschutz::feld() ?>
                 <input type="hidden" name="empfaenger_id" value="<?= (int) $profil['benutzer_id'] ?>">
+                <input type="hidden" name="zurueck" value="/p/<?= e($pseudonym) ?>">
                 <button class="btn btn-primary" type="submit"><?= te('profil.oeffentlich_nachricht') ?></button>
             </form>
         <?php else: ?>
