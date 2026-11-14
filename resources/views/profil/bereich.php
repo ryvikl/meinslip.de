@@ -54,7 +54,7 @@ $reiterliste = [
 <section class="ms-profilkopf">
     <span class="ms-profilbild ms-profilbild--mittel">
         <?php if ($hatBild): ?>
-            <img src="/p/<?= e(rawurlencode($pseudonym)) ?>/bild" alt="">
+            <img src="/p/<?= e(rawurlencode($pseudonym)) ?>/bild" width="72" height="72" alt="">
         <?php else: ?>
             <?= e(mb_substr($name, 0, 1)) ?>
         <?php endif; ?>
@@ -208,7 +208,7 @@ $reiterliste = [
         <div class="card elev-sm ms-bildkarte">
             <span class="ms-profilbild ms-profilbild--gross">
                 <?php if ($hatBild): ?>
-                    <img src="/p/<?= e(rawurlencode($pseudonym)) ?>/bild" alt="">
+                    <img src="/p/<?= e(rawurlencode($pseudonym)) ?>/bild" width="112" height="112" alt="">
                 <?php else: ?>
                     <?= e(mb_substr($name, 0, 1)) ?>
                 <?php endif; ?>

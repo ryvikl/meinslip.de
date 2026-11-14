@@ -37,7 +37,7 @@ $vorstellung = is_string($profil['vorstellung']) ? $profil['vorstellung'] : '';
 <section class="ms-profilseite">
     <span class="ms-profilbild ms-profilbild--gross">
         <?php if ($hatBild): ?>
-            <img src="/p/<?= e(rawurlencode($pseudonym)) ?>/bild" alt="<?= te('profil.bild_alt', ['name' => $name]) ?>">
+            <img src="/p/<?= e(rawurlencode($pseudonym)) ?>/bild" width="112" height="112" alt="<?= te('profil.bild_alt', ['name' => $name]) ?>">
         <?php else: ?>
             <?= e(mb_substr($name, 0, 1)) ?>
         <?php endif; ?>
