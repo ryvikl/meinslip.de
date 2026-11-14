@@ -733,16 +733,36 @@ final class MarktRouten
                         return Response::weiterleitung('/verkaufen/' . $angebotId . '?fehler=preis_unlesbar');
                     }
 
+                    $art = $anfrage->eingabe('art', Angebote::ART_AUSWAHL) ?? Angebote::ART_AUSWAHL;
+                    $schluessel = $anfrage->eingabe('schluessel', '') ?? '';
+                    $istSpezifikation = $this->angekreuzt($anfrage, 'ist_spezifikation');
+                    $reihenfolge = $anfrage->ganzzahl('reihenfolge', 0) ?? 0;
+
+                    // Das Formular fragt Schluessel, Reihenfolge und das
+                    // Spezifikations-Kaestchen nicht mehr ab — niemand wusste,
+                    // was dort einzutragen ist. 'einfach' heisst: hier
+                    // bestimmen. Der Schluessel ist eine laufende Marke, die
+                    // Reihenfolge haengt hinten an, und ob die Angabe die Ware
+                    // zur Anfertigung nach Kundenwunsch macht, folgt aus der
+                    // Art: Zahl und Freitext nehmen einen eigenen Wert der
+                    // Kaeuferin auf, ein Ja/Nein tut das nicht (EuGH C-529/19).
+                    if ($anfrage->eingabe('einfach', '') === 'ja') {
+                        $vorhandene = (array) (($angebote->laden($angebotId) ?? [])['optionen'] ?? []);
+                        $schluessel = 'wunsch_' . bin2hex(random_bytes(4));
+                        $reihenfolge = count($vorhandene) + 1;
+                        $istSpezifikation = in_array($art, Angebote::SPEZIFIKATIONSARTEN, true);
+                    }
+
                     $angebote->optionSetzen(
                         angebotId: $angebotId,
                         verkaeuferId: $verkaeuferId,
-                        schluessel: $anfrage->eingabe('schluessel', '') ?? '',
+                        schluessel: $schluessel,
                         bezeichnung: $anfrage->eingabe('bezeichnung', '') ?? '',
-                        art: $anfrage->eingabe('art', Angebote::ART_AUSWAHL) ?? Angebote::ART_AUSWAHL,
+                        art: $art,
                         aufpreisCent: $aufpreis,
-                        istSpezifikation: $this->angekreuzt($anfrage, 'ist_spezifikation'),
+                        istSpezifikation: $istSpezifikation,
                         pflicht: $this->angekreuzt($anfrage, 'pflicht'),
-                        reihenfolge: $anfrage->ganzzahl('reihenfolge', 0) ?? 0,
+                        reihenfolge: $reihenfolge,
                         erlaeuterung: ($anfrage->eingabe('erlaeuterung', '') ?? '') === ''
                             ? null
                             : $anfrage->eingabe('erlaeuterung')

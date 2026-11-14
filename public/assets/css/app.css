@@ -1858,3 +1858,89 @@ input[type="file"]::file-selector-button {
   pointer-events: none;
 }
 input[type="range"] { width: 100%; min-height: var(--tippziel); accent-color: var(--color-accent-500); }
+
+/* --- Geführte Seiten (Angebot bearbeiten) ---------------------------------
+   Ein nächster Schritt oben, nummerierte Abschnitte darunter. */
+.ms-naechster {
+  border-color: var(--color-accent-600);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 16%, var(--color-surface)), var(--color-surface) 70%);
+}
+.ms-naechster .card-title { font-size: 1.25rem; }
+.ms-naechster .ms-zeile { margin-top: var(--space-3); align-items: center; }
+
+.ms-schrittleiste {
+  list-style: none;
+  counter-reset: schritt;
+  display: flex;
+  gap: var(--space-2);
+  margin: 0; padding: 0;
+}
+.ms-schrittleiste li { flex: 1; counter-increment: schritt; }
+.ms-schrittleiste a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tippziel);
+  padding: 0 var(--space-3);
+  border-radius: 12px;
+  border: 1px solid var(--color-divider);
+  color: var(--color-neutral-300);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.ms-schrittleiste a::before {
+  content: counter(schritt);
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.375rem; height: 1.375rem;
+  border-radius: 50%;
+  background: var(--color-neutral-800);
+  color: var(--color-neutral-200);
+  font-size: 0.75rem;
+}
+.ms-schrittleiste__fertig a { border-color: var(--color-accent-700); color: var(--color-text); }
+.ms-schrittleiste__fertig a::before { content: "✓"; background: var(--color-accent-500); color: var(--color-bg); }
+
+.ms-schritt { scroll-margin-top: 5rem; }
+.ms-schritt > div:first-child { position: relative; padding-left: 3.25rem; }
+.ms-schritt__nummer {
+  position: absolute;
+  left: 0; top: 0;
+  display: grid;
+  place-items: center;
+  width: 2.5rem; height: 2.5rem;
+  border-radius: 50%;
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+  font-weight: 600;
+}
+.ms-schritt h2 { font-size: clamp(1.375rem, 4vw, 1.75rem); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+
+.ms-zweispaltig { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+
+.ms-bildraster { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-4); }
+.ms-bildraster__eintrag { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+.ms-bildraster__eintrag img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; }
+.ms-bildraster__eintrag .btn { justify-content: flex-start; padding-inline: 0; }
+
+/* Aufklappbares: der Pfeil dreht sich, der Inhalt bekommt Luft. */
+.ms-aufklappen > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--tippziel);
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  color: var(--color-accent-300);
+}
+.ms-aufklappen > summary::-webkit-details-marker { display: none; }
+.ms-aufklappen > summary::after { content: "+"; font-size: 1.5rem; line-height: 1; }
+.ms-aufklappen[open] > summary::after { content: "–"; }
+.ms-aufklappen[open] > summary { margin-bottom: var(--space-4); }
+.ms-aufklappen--leise > summary { color: var(--color-neutral-400); font-weight: 400; font-size: 0.875rem; }
+.ms-aufklappen--leise[open] { display: flex; flex-direction: column; gap: var(--space-3); }

@@ -58,7 +58,7 @@ $eingaben ??= [];
         </div>
 
         <div class="field">
-            <label for="grundpreis"><?= te('markt.feld_grundpreis') ?></label>
+            <label for="grundpreis"><?= te('markt.bearb_feld_preis') ?></label>
             <input class="input" type="number" id="grundpreis" name="grundpreis" required
                    min="0.01" step="0.01" inputmode="decimal"
                    value="<?= e($eingaben['grundpreis'] ?? '') ?>">
@@ -66,11 +66,11 @@ $eingaben ??= [];
         </div>
 
         <div class="field">
-            <label for="bearbeitungstage"><?= te('markt.feld_bearbeitungstage') ?></label>
+            <label for="bearbeitungstage"><?= te('markt.bearb_feld_tage') ?></label>
             <input class="input" type="number" id="bearbeitungstage" name="bearbeitungstage" required
                    min="1" max="90" step="1" inputmode="numeric"
                    value="<?= e($eingaben['bearbeitungstage'] ?? '3') ?>">
-            <span class="hinweis"><?= te('markt.hinweis_bearbeitungstage') ?></span>
+            <span class="hinweis"><?= te('markt.bearb_hinweis_tage') ?></span>
         </div>
 
         <div class="field">
@@ -78,21 +78,21 @@ $eingaben ??= [];
                 <input type="checkbox" name="versand_moeglich" value="ja"
                     <?= ($eingaben['versand_moeglich'] ?? 'ja') === 'ja' ? 'checked' : '' ?>>
                 <span class="dot"></span>
-                <span><?= te('markt.feld_versand') ?></span>
+                <span><?= te('markt.bearb_versand') ?></span>
             </label>
             <label class="radio">
                 <input type="checkbox" name="uebergabe_moeglich" value="ja"
                     <?= ($eingaben['uebergabe_moeglich'] ?? '') === 'ja' ? 'checked' : '' ?>>
                 <span class="dot"></span>
-                <span><?= te('markt.feld_uebergabe') ?></span>
+                <span><?= te('markt.bearb_uebergabe') ?></span>
             </label>
         </div>
 
         <div class="field">
-            <label for="uebergabe_region"><?= te('markt.feld_uebergabe_region') ?></label>
+            <label for="uebergabe_region"><?= te('markt.bearb_feld_region') ?></label>
             <input class="input" type="text" id="uebergabe_region" name="uebergabe_region" maxlength="40"
                    value="<?= e($eingaben['uebergabe_region'] ?? '') ?>">
-            <span class="hinweis"><?= te('markt.hinweis_uebergabe_region') ?></span>
+            <span class="hinweis"><?= te('markt.bearb_hinweis_region') ?></span>
         </div>
 
         <button class="btn btn-primary btn-block" type="submit"><?= te('markt.anlegen_absenden') ?></button>
