@@ -157,7 +157,7 @@ final class BestellschalterTest extends TestCase
         return $this->db->einfuegen('benutzer', [
             'pseudonym' => $pseudonym,
             'email' => strtolower($pseudonym) . '@beispiel.test',
-            'passwort_hash' => password_hash('geheim-fuer-tests', PASSWORD_DEFAULT),
+            'passwort_hash' => Testfall::PASSWORT_HASH,
             'status' => 'aktiv',
             'sprache' => 'de-DE',
             'land' => 'DE',
