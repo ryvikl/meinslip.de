@@ -10,7 +10,9 @@ declare(strict_types=1);
  * ändert diese Datei im selben Paket. Belegstellen:
  *
  *  - Sitzung: app/Domain/Account/Sitzungen.php (Hashes, 720 Stunden)
- *  - Cookies: ms_sitzung, ms_formular, ms_preisstand, ms_melde_takt
+ *  - Versuchszaehler: app/Domain/Trust/Drossel.php (HMAC, hoechstens 1 Stunde)
+ *  - Kontoloeschung: app/Domain/Account/Kontoschliessung.php
+ *  - Cookies: ms_alter, ms_sitzung, ms_formular, ms_preisstand, ms_melde_takt
  *  - Bilder: app/Domain/Media/Bilder.php (Neuschreiben entfernt EXIF)
  *  - Prüfbeleg: app/Domain/Verification/Pruefbelege.php (30 / 7 Tage)
  *  - Kasse und Guthaben: gesperrt, siehe .env.example
@@ -42,7 +44,7 @@ return [
 
     'grundsatz_titel' => 'Das Wichtigste vorweg',
     'grundsatz' => <<<'TEXT'
-        Du nutzt diese Plattform unter einem Pseudonym. Deinen bürgerlichen Namen und deine Anschrift fragen wir bei der Registrierung nicht ab.
+        Diese Plattform ist nur für Erwachsene. Du nutzt sie unter einem Pseudonym. Deinen bürgerlichen Namen und deine Anschrift fragen wir bei der Registrierung nicht ab.
 
         - Keine Werbung, keine Werbenetzwerke, keine Profile für Dritte.
         - Keine Analyse- oder Statistikdienste, kein Tracking.
@@ -76,12 +78,16 @@ return [
         . 'Prüfsummen (Hashes) deiner Sitzungskennung, deiner Browserkennung und deiner IP-Adresse — '
         . 'nicht die Werte selbst. Sie dienen dazu, eine übernommene Sitzung erkennen zu können '
         . '(Art. 6 Abs. 1 lit. f DSGVO). Eine Sitzung läuft nach 30 Tagen ab oder endet, sobald du '
-        . 'dich abmeldest.',
+        . 'dich abmeldest. Damit niemand Passwörter durchprobieren oder massenhaft Konten anlegen '
+        . 'kann, zählen wir Fehlversuche bei der Anmeldung, neue Registrierungen und Meldungen ohne '
+        . 'Konto — ebenfalls nur als Prüfsumme von E-Mail-Adresse oder IP-Adresse, höchstens eine '
+        . 'Stunde lang.',
 
     'cookies_titel' => 'Cookies und Gerätespeicher',
     'cookies' => <<<'TEXT'
         Wir setzen ausschließlich Cookies, ohne die die Plattform nicht funktioniert. Eine Einwilligung ist dafür nicht nötig (§ 25 Abs. 2 Nr. 2 TDDDG), deshalb siehst du auch kein Cookie-Banner.
 
+        - ms_alter: merkt sich, dass du die Altersfrage mit Ja beantwortet hast, 30 Tage.
         - ms_sitzung: hält dich angemeldet, 30 Tage.
         - ms_formular: schützt Formulare davor, von fremden Seiten abgeschickt zu werden, 30 Tage.
         - ms_preisstand: merkt sich den Preis, der dir vor einer Bestellung angezeigt wurde, bis du den Browser schließt.
@@ -145,10 +151,10 @@ return [
 
     'dauer_titel' => 'Wie lange wir speichern',
     'dauer' => <<<'TEXT'
-        - Kontodaten: solange dein Konto besteht. Lässt du es schließen, löschen wir sie, soweit keine gesetzliche Pflicht entgegensteht.
+        - Kontodaten: solange dein Konto besteht. Du löschst es selbst in deinem Profil. Dabei entfernen wir Profil, Angebote, Bilder, das Foto der Identitätsprüfung und alle Anmeldungen sofort; Pseudonym und E-Mail-Adresse werden überschrieben.
         - Sitzungen: 30 Tage oder bis zur Abmeldung.
         - Fotos der Identitätsprüfung: höchstens 30 Tage, nach der Entscheidung höchstens 7 Tage.
-        - Nachrichten und Termine: solange beide Konten bestehen; darüber hinaus nur, wenn sie Gegenstand einer Meldung oder eines Streits sind, bis dieser abgeschlossen ist.
+        - Nachrichten und Termine: solange die Unterhaltung besteht. Löschst du dein Konto, bleiben deine Nachrichten für die andere Person lesbar, aber ohne deinen Namen — sie sind auch Teil ihrer Unterhaltung und ihr Beleg, falls sie etwas melden muss.
         - Meldungen und Moderationsentscheidungen: drei Jahre zum Ende des Kalenderjahres, damit wir Entscheidungen belegen und Wiederholungen erkennen können.
         - Geschäftsunterlagen: sobald Bestellungen möglich sind, gelten die handels- und steuerrechtlichen Fristen von bis zu zehn Jahren.
         TEXT,
@@ -165,7 +171,7 @@ return [
 
         Eine Einwilligung kannst du jederzeit mit Wirkung für die Zukunft widerrufen. Stützen wir eine Verarbeitung auf unser berechtigtes Interesse, kannst du ihr widersprechen (Art. 21 DSGVO).
 
-        Eine formlose E-Mail an die oben genannte Adresse genügt. Wir antworten innerhalb eines Monats.
+        Dein Konto löschst du selbst im Profil unter „Konto löschen“. Für alles andere genügt eine formlose E-Mail an die oben genannte Adresse. Wir antworten innerhalb eines Monats.
         TEXT,
 
     'beschwerde_titel' => 'Beschwerde bei der Aufsichtsbehörde',

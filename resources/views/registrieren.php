@@ -52,6 +52,20 @@ $email ??= '';
             <span class="hinweis"><?= te('konto.hinweis_passwort') ?></span>
         </div>
 
+        <?php // Das Kästchen trägt drei Erklärungen, auf die sich AGB und
+              // Datenschutzerklärung berufen: volljährig, Bedingungen
+              // angenommen, in die Verarbeitung eingewilligt. Ohne es wären
+              // das Behauptungen über die Person statt Erklärungen von ihr. ?>
+        <label style="display:flex;gap:var(--space-2);align-items:flex-start">
+            <input type="checkbox" name="volljaehrig" value="1" required>
+            <span>
+                <?= te('konto.erklaerung_1') ?>
+                <a href="/agb"><?= te('konto.erklaerung_agb') ?></a>
+                <?= te('konto.erklaerung_2') ?>
+                <a href="/datenschutz"><?= te('konto.erklaerung_datenschutz') ?></a><?= te('konto.erklaerung_3') ?>
+            </span>
+        </label>
+
         <button class="btn btn-primary btn-block" type="submit"><?= te('konto.registrieren_absenden') ?></button>
 
         <p class="hinweis"><?= te('konto.registrieren_naechster_schritt') ?></p>

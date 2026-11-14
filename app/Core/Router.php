@@ -68,8 +68,11 @@ final class Router
         }
 
         // Ein vorhandener Pfad mit falscher Methode ist 405, nicht 404 —
-        // das erleichtert die Fehlersuche erheblich.
-        return $pfadVorhanden
+        // das erleichtert die Fehlersuche erheblich. Ausnahme ist die
+        // Verwaltung: Sie antwortet Unbefugten ueberall mit 404, damit ihre
+        // Adressen nicht einmal als vorhanden erkennbar sind — ein 405 haette
+        // genau das verraten.
+        return $pfadVorhanden && !str_starts_with($anfrage->pfad, '/verwaltung')
             ? Response::text('Methode nicht erlaubt', 405)
             : Response::text('Nicht gefunden', 404);
     }

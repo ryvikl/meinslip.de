@@ -86,4 +86,29 @@ return [
     'weg_verkaufen_text' => 'Angebote anlegen, bearbeiten und zur Prüfung einreichen.',
     'weg_entdecken' => 'Entdecken',
     'weg_entdecken_text' => 'Der Katalog nach Art, Material und Tragedauer.',
+
+    // --- Konto schliessen (Art. 17 DSGVO) ----------------------------------
+    // Beide Saetze beschreiben, was Kontoschliessung::schliessen() tut. Wer
+    // dort etwas aendert, aendert es hier und in datenschutz.php.
+    'loeschen_kicker' => 'Endgültig',
+    'loeschen_titel' => 'Konto löschen',
+    'loeschen_was_geht' => 'Wir entfernen dein Profil, deine Angebote und Bilder, das Foto deiner '
+        . 'Identitätsprüfung, deine Sperrliste und alle Anmeldungen. Pseudonym und E-Mail-Adresse '
+        . 'werden überschrieben. Das lässt sich nicht rückgängig machen.',
+    'loeschen_was_bleibt' => 'Nachrichten, die du anderen geschrieben hast, bleiben bei ihnen '
+        . 'lesbar — ohne deinen Namen. Meldungen und Entscheidungen der Moderation bewahren wir '
+        . 'auf, weil wir dazu verpflichtet sind.',
+    'loeschen_passwort' => 'Dein Passwort zur Bestätigung',
+    'loeschen_bestaetigen' => 'Ich will mein Konto endgültig löschen.',
+    'loeschen_knopf' => 'Konto löschen',
+    'loeschen_fehler.unbestaetigt' => 'Bitte bestätige mit dem Häkchen, dass du dein Konto löschen willst.',
+    'loeschen_fehler.passwort_falsch' => 'Das Passwort stimmt nicht. Dein Konto besteht unverändert.',
+    'loeschen_fehler.bestellung_offen' => 'Du hast noch eine laufende Bestellung. Sobald sie '
+        . 'abgeschlossen ist, kannst du dein Konto löschen.',
+    'loeschen_fehler.verwalter_bleibt' => 'Dieses Konto hat Zugang zur Verwaltung. Der muss erst '
+        . 'entzogen werden.',
+    'loeschen_fehler.zu_viele_versuche' => 'Das waren zu viele falsche Passwörter. Bitte warte '
+        . 'eine Viertelstunde.',
+    'loeschen_fehler.gestoert' => 'Das hat gerade nicht geklappt. Dein Konto besteht unverändert — '
+        . 'bitte versuche es später noch einmal.',
 ];

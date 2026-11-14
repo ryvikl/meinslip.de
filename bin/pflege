@@ -108,6 +108,17 @@ try {
     $fehlerhaft = true;
 }
 
+// --- Versuchszaehler ------------------------------------------------------
+// Die Drossel zaehlt gehashte Merkmale (E-Mail-Adresse, IP). Nach dem laengsten
+// Fenster haben sie keinen Zweck mehr.
+try {
+    $versuche = (new MeinSlip\Domain\Trust\Drossel($db))->abgelaufeneEntfernen();
+    echo "versuche: {$versuche} abgelaufene Zaehler entfernt.\n";
+} catch (Throwable $fehler) {
+    fwrite(STDERR, "Versuchszaehler fehlgeschlagen: {$fehler->getMessage()}\n");
+    $fehlerhaft = true;
+}
+
 if ($fehlerhaft) {
     // Ausstieg mit 1, damit ein Cronjob-Wachhund anschlaegt. Eine Pflege, die
     // scheitert und trotzdem 0 meldet, ist schlimmer als keine — sie

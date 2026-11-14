@@ -52,6 +52,8 @@ $symbol = static function (string $name): string {
     <?php // Diskretion: keine Indexierung, keine Vorschau in fremden Diensten. ?>
     <meta name="robots" content="noindex, nofollow">
     <meta name="referrer" content="no-referrer">
+    <?php // Kennzeichnung "nur für Erwachsene" für Filterprogramme (RTA-Label). ?>
+    <meta name="RATING" content="RTA-5042-1996-1400-1577-RTA">
     <meta name="theme-color" content="#161826">
 
     <link rel="manifest" href="/manifest.webmanifest">
@@ -87,6 +89,7 @@ $symbol = static function (string $name): string {
             <?php if ($angemeldet): ?>
                 <span class="tag tag-outline ms-kopf__pseudonym"><?= e((string) $sitzung['pseudonym']) ?></span>
                 <form method="post" action="/abmelden" style="margin:0">
+                    <?= \MeinSlip\Http\Formularschutz::feld() ?>
                     <button class="btn btn-ghost" type="submit"><?= te('allgemein.nav_abmelden') ?></button>
                 </form>
             <?php else: ?>

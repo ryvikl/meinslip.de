@@ -20,6 +20,7 @@ use MeinSlip\Core\Request;
 use MeinSlip\Core\Response;
 use MeinSlip\Core\Router;
 use MeinSlip\Core\View;
+use MeinSlip\Http\Alterstor;
 use MeinSlip\Http\MarktRouten;
 use MeinSlip\Http\MedienRouten;
 use MeinSlip\Http\MeldeRouten;
@@ -78,7 +79,13 @@ $ansicht = new View($wurzel . '/resources/views');
 (new VerwaltungsRouten($wurzel, $ansicht))->registrieren($router);
 
 try {
-    $antwort = $router->behandeln(Request::ausGlobalen());
+    $anfrage = Request::ausGlobalen();
+
+    // Die Altersfrage steht vor allem anderen. Solange sie offen ist, entsteht
+    // keine Seite der Plattform — siehe app/Http/Alterstor.php.
+    $antwort = Alterstor::antworten($anfrage, $ansicht)
+        ?? Alterstor::pruefen($anfrage, $_COOKIE, $ansicht)
+        ?? $router->behandeln($anfrage);
 } catch (Throwable $fehler) {
     error_log('[MeinSlip] ' . $fehler->getMessage() . ' @ ' . $fehler->getFile() . ':' . $fehler->getLine());
 
