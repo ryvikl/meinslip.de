@@ -43,7 +43,8 @@ $bereiche = [
     <meta name="theme-color" content="#161826">
 
     <link rel="icon" href="/assets/symbole/app-icon.png" type="image/png">
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/nocturne.css')) ?>">
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/app.css')) ?>">
 
     <?php
     /*

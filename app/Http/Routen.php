@@ -283,6 +283,7 @@ final class Routen
             '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
             . '<title>' . te('allgemein.offline_titel') . '</title>'
+            . '<link rel="stylesheet" href="/assets/css/nocturne.css">'
             . '<link rel="stylesheet" href="/assets/css/app.css"></head>'
             . '<body><main class="ms-huelle ms-inhalt"><h1>' . te('allgemein.offline_titel') . '</h1>'
             . '<p>' . te('allgemein.offline_text') . '</p></main></body></html>'
