@@ -80,12 +80,110 @@ return [
     // Weg zugestellt wird.
     'art.meldung_eingegangen' => 'Deine Meldung ist eingegangen',
 
-    'konto_kicker' => 'Wege',
-    'konto_titel' => 'Weiter zu',
-    'weg_verkaufen' => 'Meine Angebote',
-    'weg_verkaufen_text' => 'Angebote anlegen, bearbeiten und zur Prüfung einreichen.',
-    'weg_entdecken' => 'Entdecken',
-    'weg_entdecken_text' => 'Der Katalog nach Art, Material und Tragedauer.',
+    'weg_entdecken' => 'Zum Katalog',
+
+    // --- Kopf und Reiter ---------------------------------------------------
+    'status_oeffentlich' => 'Öffentlich',
+    'status_privat' => 'Privat',
+    'reiter_label' => 'Profilbereich',
+    'reiter.uebersicht' => 'Übersicht',
+    'reiter.bearbeiten' => 'Profil',
+    'reiter.links' => 'Links',
+    'reiter.einstellungen' => 'Einstellungen',
+
+    // --- Übersicht ---------------------------------------------------------
+    'teilen_titel' => 'Deine Seite zum Teilen',
+    'teilen_text' => 'Unter dieser Adresse findet man dein Profil, deine Links und deine Angebote. '
+        . 'Gib sie weiter, wo du magst.',
+    'teilen_text_privat' => 'Dein Profil ist privat. Schalte es öffentlich, dann bekommt es eine '
+        . 'eigene Adresse, die du teilen kannst.',
+    'teilen_ansehen' => 'Seite ansehen',
+    'teilen_knopf' => 'Teilen',
+    'teilen_kopiert' => 'Adresse kopiert',
+    'teilen_einschalten' => 'Öffentlich schalten',
+    'zahl_angebote' => 'aktive Angebote',
+    'zahl_links' => 'Links',
+    'zahl_nachrichten' => 'Nachrichten',
+    'schritte_titel' => 'Mach dein Profil fertig',
+    'schritte_stand' => ':erledigt von :gesamt erledigt',
+    'schritt.bild' => 'Profilbild hochladen',
+    'schritt.vorstellung' => 'Ein paar Sätze über dich schreiben',
+    'schritt.links' => 'Den ersten Link hinzufügen',
+    'schritt.oeffentlich' => 'Profil öffentlich schalten',
+
+    // --- Profil bearbeiten -------------------------------------------------
+    'bild_titel' => 'Profilbild',
+    'bild_regel' => 'Jeder kann es sehen. Deshalb jugendfrei: keine nackte Haut, nichts Sexuelles. '
+        . 'JPEG, PNG oder WebP.',
+    'bild_feld' => 'Bilddatei',
+    'bild_hochladen' => 'Hochladen',
+    'bild_entfernen' => 'Bild entfernen',
+    'bild_alt' => 'Profilbild von :name',
+    'feld_anzeigename' => 'Anzeigename',
+    'hinweis_anzeigename' => 'So heißt du auf deiner Seite. Leer gelassen, steht dort dein Pseudonym.',
+    'feld_vorstellung' => 'Über dich',
+    'hinweis_vorstellung' => 'Bis zu 2000 Zeichen. Zeilenumbrüche bleiben erhalten.',
+    'speichern' => 'Speichern',
+
+    // --- Links -------------------------------------------------------------
+    'links_titel' => 'Deine Links',
+    'links_erklaerung' => 'Bis zu :anzahl Links erscheinen als Knöpfe auf deiner Seite — etwa zu '
+        . 'deinen anderen Profilen oder deiner Wunschliste. Die Reihenfolge bestimmst du.',
+    'links_leer' => 'Noch kein Link. Füg unten den ersten hinzu.',
+    'link_neu_titel' => 'Link hinzufügen',
+    'link_feld_titel' => 'Beschriftung',
+    'link_feld_adresse' => 'Adresse',
+    'link_hinweis_adresse' => 'Nur verschlüsselte Adressen (https). Unter der Beschriftung zeigen '
+        . 'wir an, wohin der Link führt.',
+    'link_hinzufuegen' => 'Hinzufügen',
+    'link_entfernen' => 'Entfernen',
+    'link_hoch' => 'Nach oben',
+    'link_runter' => 'Nach unten',
+
+    // --- Einstellungen -----------------------------------------------------
+    'sichtbar_titel' => 'Sichtbarkeit',
+    'sichtbar_feld' => 'Profil öffentlich zeigen',
+    'sichtbar_erklaerung' => 'Dann hat dein Profil eine eigene Adresse. Wer sie kennt, sieht Bild, '
+        . 'Vorstellung, Links und Angebote. Suchmaschinen nehmen die Seite nicht auf.',
+    'chat_titel' => 'Wer deine Nachrichten schreibt',
+    'chat_offen' => 'Noch nicht angegeben. Ohne diese Angabe kannst du nicht schreiben.',
+    'chat_aendern' => 'Ändern',
+    'pruefung_weg' => 'Zur Prüfung',
+    'abmelden_titel' => 'Abmelden',
+    'abmelden_text' => 'Beendet die Anmeldung auf diesem Gerät.',
+
+    // --- Rückmeldungen (ProfilRouten::MELDUNGEN) ---------------------------
+    'meldung.gespeichert' => 'Gespeichert.',
+    'meldung.bild_gespeichert' => 'Dein Profilbild ist da.',
+    'meldung.bild_entfernt' => 'Das Profilbild ist entfernt.',
+    'meldung.link_gespeichert' => 'Der Link steht auf deiner Seite.',
+    'meldung.link_entfernt' => 'Der Link ist entfernt.',
+    'meldung.anzeigename_zu_lang' => 'Der Anzeigename darf höchstens 60 Zeichen haben.',
+    'meldung.vorstellung_zu_lang' => 'Der Text über dich darf höchstens 2000 Zeichen haben.',
+    'meldung.link_titel_fehlt' => 'Der Link braucht eine Beschriftung.',
+    'meldung.link_titel_zu_lang' => 'Die Beschriftung darf höchstens 60 Zeichen haben.',
+    'meldung.link_adresse_ungueltig' => 'Diese Adresse nehmen wir nicht an. Sie muss mit https:// '
+        . 'beginnen und auf eine normale Webseite zeigen.',
+    'meldung.link_zu_viele' => 'Mehr als :anzahl Links gehen nicht. Entferne erst einen.',
+    'meldung.keine_datei' => 'Es ist keine Datei angekommen. Vielleicht war sie zu groß.',
+    'meldung.gestoert' => 'Das hat gerade nicht geklappt. Bitte versuche es später noch einmal.',
+    'meldung.unbestaetigt' => 'Bitte bestätige mit dem Häkchen, dass du dein Konto löschen willst.',
+    'meldung.passwort_falsch' => 'Das Passwort stimmt nicht. Dein Konto besteht unverändert.',
+    'meldung.bestellung_offen' => 'Du hast noch eine laufende Bestellung. Sobald sie abgeschlossen '
+        . 'ist, kannst du dein Konto löschen.',
+    'meldung.verwalter_bleibt' => 'Dieses Konto hat Zugang zur Verwaltung. Der muss erst entzogen werden.',
+    'meldung.zu_viele_versuche' => 'Das waren zu viele falsche Passwörter. Bitte warte eine Viertelstunde.',
+
+    // --- Öffentliche Seite -------------------------------------------------
+    'oeffentlich_unbekannt_titel' => 'Dieses Profil gibt es nicht',
+    'oeffentlich_unbekannt_text' => 'Entweder stimmt die Adresse nicht, oder das Profil ist nicht '
+        . 'öffentlich.',
+    'oeffentlich_bearbeiten' => 'Profil bearbeiten',
+    'oeffentlich_nachricht' => 'Nachricht schreiben',
+    'oeffentlich_nachricht_anmelden' => 'Anmelden und schreiben',
+    'oeffentlich_angebote_kicker' => 'Aktuell',
+    'oeffentlich_angebote_titel' => 'Neueste Angebote',
+    'oeffentlich_melden' => 'Profil melden',
 
     // --- Konto schliessen (Art. 17 DSGVO) ----------------------------------
     // Beide Saetze beschreiben, was Kontoschliessung::schliessen() tut. Wer
@@ -101,14 +199,4 @@ return [
     'loeschen_passwort' => 'Dein Passwort zur Bestätigung',
     'loeschen_bestaetigen' => 'Ich will mein Konto endgültig löschen.',
     'loeschen_knopf' => 'Konto löschen',
-    'loeschen_fehler.unbestaetigt' => 'Bitte bestätige mit dem Häkchen, dass du dein Konto löschen willst.',
-    'loeschen_fehler.passwort_falsch' => 'Das Passwort stimmt nicht. Dein Konto besteht unverändert.',
-    'loeschen_fehler.bestellung_offen' => 'Du hast noch eine laufende Bestellung. Sobald sie '
-        . 'abgeschlossen ist, kannst du dein Konto löschen.',
-    'loeschen_fehler.verwalter_bleibt' => 'Dieses Konto hat Zugang zur Verwaltung. Der muss erst '
-        . 'entzogen werden.',
-    'loeschen_fehler.zu_viele_versuche' => 'Das waren zu viele falsche Passwörter. Bitte warte '
-        . 'eine Viertelstunde.',
-    'loeschen_fehler.gestoert' => 'Das hat gerade nicht geklappt. Dein Konto besteht unverändert — '
-        . 'bitte versuche es später noch einmal.',
 ];

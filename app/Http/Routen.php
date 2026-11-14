@@ -14,13 +14,9 @@ use MeinSlip\Core\Router;
 use MeinSlip\Core\View;
 use MeinSlip\Domain\Account\Konten;
 use MeinSlip\Domain\Account\KontoFehler;
-use MeinSlip\Domain\Account\Kontoschliessung;
 use MeinSlip\Domain\Account\Sitzungen;
-use MeinSlip\Domain\Admin\Verwaltung;
 use MeinSlip\Domain\Ledger\Hauptbuch;
 use MeinSlip\Domain\Trust\Drossel;
-use MeinSlip\Domain\Media\Medien;
-use MeinSlip\Domain\Verification\Pruefbelege;
 
 /**
  * Alle Routen der Anwendung.
@@ -149,132 +145,7 @@ final class Routen
             ));
         }
 
-        $this->profil($router);
-    }
-
-    /**
-     * Das Profil — und darin die Zustellung nach Art. 17 DSA.
-     *
-     * Das ist der Grund, warum diese Seite vor Nachrichten und Guthaben
-     * entstanden ist: Wenn die Verwaltung eine Faehigkeit entzieht, ein Konto
-     * sperrt oder ein Angebot ablehnt, verlangt Art. 17 Abs. 1 DSA, dass die
-     * betroffene Person die Begruendung ERHAELT. Ein internes Protokoll belegt
-     * nur, DASS begruendet wurde — es erreicht niemanden. Ohne diese Seite
-     * laegen die Begruendungen in der Datenbank und die Pflicht waere trotzdem
-     * verletzt.
-     */
-    private function profil(Router $router): void
-    {
-        $router->get('/profil', function (Request $anfrage): Response {
-            $sitzung = $this->sitzung($anfrage);
-
-            if ($sitzung === null) {
-                return Response::weiterleitung('/anmelden');
-            }
-
-            $benachrichtigungen = [];
-            $gestoert = false;
-
-            try {
-                $benachrichtigungen = (new Verwaltung(Database::ausEnv()))
-                    ->benachrichtigungen((int) $sitzung['benutzer_id']);
-            } catch (\Throwable $fehler) {
-                error_log('[MeinSlip] Profil: ' . $fehler->getMessage());
-                $gestoert = true;
-            }
-
-            return $this->rendern($anfrage, 'profil', t('profil.titel') . ' — ' . t('allgemein.marke'), [
-                'aktiv' => '/profil',
-                'benachrichtigungen' => $benachrichtigungen,
-                'gestoert' => $gestoert,
-                // Nur bekannte Schluessel erreichen die Vorlage; alles andere
-                // waere ein frei waehlbarer Text in der Adresszeile.
-                'loeschFehler' => in_array(
-                    $anfrage->eingabe('loeschen'),
-                    ['unbestaetigt', 'passwort_falsch', 'bestellung_offen', 'verwalter_bleibt', 'zu_viele_versuche', 'gestoert'],
-                    true
-                ) ? (string) $anfrage->eingabe('loeschen') : null,
-            ]);
-        });
-
-        $router->post('/profil/gelesen', function (Request $anfrage): Response {
-            if (!Formularschutz::gueltig($anfrage)) {
-                return Response::weiterleitung('/profil');
-            }
-
-            $sitzung = $this->sitzung($anfrage);
-
-            if ($sitzung === null) {
-                return Response::weiterleitung('/anmelden');
-            }
-
-            $kennung = (int) ($anfrage->eingabe('id', '0') ?? '0');
-
-            try {
-                // benachrichtigungGelesen() prueft selbst, dass die Zustellung
-                // zu diesem Konto gehoert — eine fremde Kennung meldet
-                // dasselbe wie eine nicht vorhandene.
-                (new Verwaltung(Database::ausEnv()))
-                    ->benachrichtigungGelesen((int) $sitzung['benutzer_id'], $kennung);
-            } catch (\Throwable $fehler) {
-                error_log('[MeinSlip] Profil gelesen: ' . $fehler->getMessage());
-            }
-
-            return Response::weiterleitung('/profil');
-        });
-
-        // Konto schliessen (Art. 17 DSGVO). Die Datenschutzerklaerung sagt das
-        // zu; ohne diese Route waere die Zusage nur per E-Mail einloesbar.
-        $router->post('/profil/loeschen', function (Request $anfrage): Response {
-            if (!Formularschutz::gueltig($anfrage)) {
-                return Response::weiterleitung('/profil');
-            }
-
-            $sitzung = $this->sitzung($anfrage);
-
-            if ($sitzung === null) {
-                return Response::weiterleitung('/anmelden');
-            }
-
-            // Das Kaestchen ist die zweite Hand am Hebel: Ein Passwort-Manager
-            // fuellt das Feld von selbst, ankreuzen muss ein Mensch.
-            if (($anfrage->eingabe('bestaetigt', '') ?? '') !== '1') {
-                return Response::weiterleitung('/profil?loeschen=unbestaetigt#konto-loeschen');
-            }
-
-            $benutzerId = (string) $sitzung['benutzer_id'];
-
-            try {
-                $db = Database::ausEnv();
-                $drossel = new Drossel($db);
-
-                if ($drossel->erschoepft(Drossel::LOESCHUNG_KONTO, $benutzerId)) {
-                    return Response::weiterleitung('/profil?loeschen=zu_viele_versuche#konto-loeschen');
-                }
-
-                (new Kontoschliessung(
-                    $db,
-                    new Medien($db, Medien::verzeichnis($this->wurzel)),
-                    new Pruefbelege($db, Pruefbelege::verzeichnis($this->wurzel)),
-                ))->schliessen((int) $sitzung['benutzer_id'], (string) ($anfrage->eingabe('passwort', '') ?? ''));
-            } catch (KontoFehler $fehler) {
-                if ($fehler->schluessel() === 'passwort_falsch') {
-                    // Eine offene Sitzung am fremden Geraet darf das Passwort
-                    // nicht beliebig oft raten.
-                    $drossel->zaehlen(Drossel::LOESCHUNG_KONTO, $benutzerId);
-                }
-
-                return Response::weiterleitung('/profil?loeschen=' . rawurlencode($fehler->schluessel()) . '#konto-loeschen');
-            } catch (\Throwable $fehler) {
-                error_log('[MeinSlip] Konto schliessen: ' . $fehler->getMessage());
-
-                return Response::weiterleitung('/profil?loeschen=gestoert#konto-loeschen');
-            }
-
-            $this->sitzungCookieLoeschen();
-
-            return Response::weiterleitung('/?konto=geloescht');
-        });
+        // /profil und /p/{pseudonym} liegen in ProfilRouten.
     }
 
     // --- Konten ----------------------------------------------------------

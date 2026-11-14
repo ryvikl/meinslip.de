@@ -25,6 +25,7 @@ use MeinSlip\Http\MarktRouten;
 use MeinSlip\Http\MedienRouten;
 use MeinSlip\Http\MeldeRouten;
 use MeinSlip\Http\NachrichtenRouten;
+use MeinSlip\Http\ProfilRouten;
 use MeinSlip\Http\Routen;
 use MeinSlip\Http\TerminRouten;
 use MeinSlip\Http\VerifizierungsRouten;
@@ -65,6 +66,7 @@ $ansicht = new View($wurzel . '/resources/views');
 // Router nimmt den ersten Treffer. Der Kommentar in Routen::seiten() haelt
 // das fest. Sonst teilen sich die Klassen keinen Pfad.
 (new Routen($wurzel, $ansicht))->registrieren($router);
+(new ProfilRouten($wurzel, $ansicht))->registrieren($router);
 (new MarktRouten($wurzel, $ansicht))->registrieren($router);
 (new NachrichtenRouten($wurzel, $ansicht))->registrieren($router);
 // Termine haengen an einer Unterhaltung und stehen deshalb direkt hinter dem

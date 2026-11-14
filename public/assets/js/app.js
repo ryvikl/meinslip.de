@@ -145,3 +145,36 @@
     neuBerechnen();
   }
 })();
+
+/*
+ * Teilen-Knopf des Profils.
+ *
+ * Auf dem Handy öffnet er das Teilen-Menü des Geräts, sonst kopiert er die
+ * Adresse. Der Knopf steht mit "hidden" in der Seite und wird erst hier
+ * sichtbar: Ohne JavaScript gäbe es sonst einen Knopf, der nichts tut.
+ */
+(() => {
+  document.querySelectorAll("[data-teilen]").forEach((knopf) => {
+    const adresse = knopf.dataset.teilen;
+    const beschriftung = knopf.textContent;
+
+    if (!adresse || (!navigator.share && !navigator.clipboard)) return;
+
+    knopf.hidden = false;
+
+    knopf.addEventListener("click", async () => {
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: knopf.dataset.teilenTitel || "", url: adresse });
+          return;
+        }
+
+        await navigator.clipboard.writeText(adresse);
+        knopf.textContent = knopf.dataset.teilenKopiert || beschriftung;
+        setTimeout(() => { knopf.textContent = beschriftung; }, 2000);
+      } catch (fehler) {
+        // Abgebrochenes Teilen-Menü oder verweigerte Zwischenablage: nichts zu tun.
+      }
+    });
+  });
+})();

@@ -1481,3 +1481,186 @@ a.ms-kachel:hover,
 }
 
 .ms-vorhang[data-sichtbar="ja"] { display: grid; }
+
+/* ==========================================================================
+   Profilbereich und öffentliche Profilseite
+   ========================================================================== */
+
+.ms-schmal { max-width: 40rem; width: 100%; margin-inline: auto; }
+
+/* Das Profilbild: Kreis mit Bild oder Initiale. */
+.ms-profilbild {
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent-800), var(--color-section));
+  color: var(--color-accent-200);
+  font-weight: var(--font-heading-weight);
+  text-transform: uppercase;
+  margin: 5px;
+  box-shadow: 0 0 0 3px var(--color-bg), 0 0 0 5px var(--color-accent-700);
+}
+.ms-profilbild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ms-profilbild--mittel { width: 72px; height: 72px; font-size: 1.5rem; }
+.ms-profilbild--gross { width: 112px; height: 112px; font-size: 2.5rem; }
+
+.ms-profilkopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding-block: var(--space-4);
+}
+.ms-profilkopf__text { min-width: 0; }
+.ms-profilkopf__text h1 { font-size: clamp(1.5rem, 4vw, 2.25rem); overflow-wrap: anywhere; }
+.ms-profilkopf__zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  color: var(--color-neutral-400);
+  overflow-wrap: anywhere;
+}
+
+/* Reiterleiste. Auf schmalen Geräten seitlich wischbar statt umbrechend. */
+.ms-reiter {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-divider);
+  scrollbar-width: none;
+}
+.ms-reiter::-webkit-scrollbar { display: none; }
+.ms-reiter a {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  color: var(--color-neutral-300);
+  text-decoration: none;
+  font-weight: 600;
+}
+.ms-reiter a:hover { background: var(--color-surface); color: var(--color-text); }
+.ms-reiter a[aria-current="page"] { background: var(--color-accent-800); color: var(--color-accent-100); }
+.ms-reiter__zahl {
+  min-width: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--color-accent-500);
+  color: var(--color-bg);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.ms-teilen { display: flex; flex-direction: column; gap: var(--space-4); }
+.ms-teilen__adresse {
+  padding: var(--space-3) var(--space-4);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-accent-300);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.ms-teilen__knoepfe { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+.ms-kennzahlen {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.ms-kennzahlen a {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: inherit;
+  text-decoration: none;
+}
+
+.ms-schritte { list-style: none; padding: 0; margin: var(--space-4) 0 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.ms-schritte li { display: flex; align-items: center; gap: var(--space-3); }
+.ms-schritte li::before {
+  content: "";
+  flex: none;
+  width: 1.125rem; height: 1.125rem;
+  border-radius: 50%;
+  border: 2px solid var(--color-neutral-600);
+}
+.ms-schritte__fertig { color: var(--color-neutral-500); text-decoration: line-through; }
+.ms-schritte__fertig::before { background: var(--color-accent-500); border-color: var(--color-accent-500); }
+
+.ms-bildkarte { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.ms-bildkarte__formular { flex: 1 1 16rem; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.ms-zeile { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0; }
+.ms-zeile .input { flex: 1 1 12rem; min-width: 0; }
+
+.ms-zeilenkarte { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); margin: 0; }
+.ms-zeilenkarte > div { flex: 1 1 14rem; min-width: 0; }
+
+.ms-schalter { display: flex; align-items: flex-start; gap: var(--space-3); cursor: pointer; }
+.ms-schalter input { flex: none; width: 1.25rem; height: 1.25rem; margin-top: 0.15rem; accent-color: var(--color-accent-500); }
+.ms-schalter > span { display: flex; flex-direction: column; gap: var(--space-1); }
+
+.ms-linkverwaltung { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.ms-linkverwaltung li { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.ms-linkverwaltung__text { flex: 1 1 12rem; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); overflow-wrap: anywhere; }
+.ms-linkverwaltung__knoepfe { display: flex; align-items: center; gap: var(--space-2); }
+
+/* Die öffentliche Seite: eine zentrierte Spalte, wie eine Visitenkarte. */
+.ms-profilseite {
+  max-width: 34rem;
+  margin-inline: auto;
+  padding-block: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  text-align: center;
+}
+.ms-profilseite h1 { font-size: clamp(1.75rem, 5vw, 2.5rem); overflow-wrap: anywhere; }
+.ms-profilseite__pseudonym { color: var(--color-neutral-400); margin-top: var(--space-1); }
+.ms-profilseite__vorstellung {
+  color: var(--color-neutral-300);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  max-width: 60ch;
+}
+.ms-profilseite__aktionen { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); }
+
+.ms-linkliste { list-style: none; padding: 0; margin: 0; width: 100%; display: flex; flex-direction: column; gap: var(--space-3); }
+.ms-linkliste__eintrag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  min-height: 56px;
+  justify-content: center;
+  padding: var(--space-3) var(--space-6);
+  border-radius: 16px;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+.ms-linkliste__eintrag:hover { border-color: var(--color-accent-500); transform: translateY(-1px); }
+.ms-linkliste__titel { font-weight: 600; overflow-wrap: anywhere; }
+.ms-linkliste__ziel { font-size: 0.75rem; color: var(--color-neutral-400); overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-linkliste__eintrag { transition: none; }
+  .ms-linkliste__eintrag:hover { transform: none; }
+}
+
+@media (max-width: 520px) {
+  .ms-kennzahlen { grid-template-columns: 1fr; }
+  .ms-kennzahlen a { flex-direction: row; align-items: baseline; gap: var(--space-3); }
+}
