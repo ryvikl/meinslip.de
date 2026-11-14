@@ -3,35 +3,41 @@
 declare(strict_types=1);
 
 /**
- * Angebot bearbeiten — Stammdaten, Optionen des Konfigurators, Weg durch die
- * Statusmaschine.
+ * Ein eigenes Angebot bearbeiten.
  *
- * Veraendert wird nur im Entwurf oder in der Pause. Ein aktives Angebot laesst
- * sich weder umschreiben noch in seinen Optionen aendern — sonst wechselte die
- * Ware unter den Augen der Kaeuferin ihre Beschaffenheit, und die
- * Spezifikation, auf die sich der Widerrufsausschluss stuetzt, waere nicht
- * mehr die gezeigte. Die Oberflaeche bildet das ab, statt es beim Speichern
- * abzuweisen.
+ * DIE SEITE FÜHRT VON OBEN NACH UNTEN. Vorher standen Statuskasten, Stammdaten,
+ * Bilder und Konfigurator gleichrangig untereinander, und niemand wusste, was
+ * als Nächstes zu tun ist. Jetzt:
  *
- * NACH DEM TORABBAU GIBT ES ZWEI ZUSTAENDE, DIE HIER ERKLAERT WERDEN MUESSEN.
- * Erstens 'gesperrt': eine Massnahme der Verwaltung nach einer Meldung. Die
- * Begruendung dazu wird nach Art. 17 DSA zugestellt und liegt im Profil, nicht
- * hier — deshalb der Verweis dorthin statt einer zweiten, moeglicherweise
- * abweichenden Darstellung. Zweitens die fehlende Bestellbarkeit: Ein
- * veroeffentlichtes Angebot ohne Spezifikation der Art 'zahl' oder 'freitext'
- * ist sichtbar und ansprechbar, aber nicht bestellbar (§ 312g Abs. 2 Nr. 1
- * BGB). Das ist kein Fehler, sondern eine Auskunft — und sie erscheint nur,
- * wenn der Bestellvorgang ueberhaupt offen ist.
+ *   1. Oben steht GENAU EINE Karte mit dem nächsten Schritt — abhängig davon,
+ *      was dem Angebot noch fehlt und in welchem Status es ist.
+ *   2. Darunter drei nummerierte Schritte: Angaben, Bilder, Wünsche.
+ *   3. Ganz unten, abgesetzt, das endgültige Zurückziehen.
+ *
+ * DER DRITTE SCHRITT IST EINGEKLAPPT. Wünsche der Käufer (Optionen) braucht ein
+ * Angebot erst, wenn über die Kasse bestellt wird, und die ist abgeschaltet.
+ * Wer sie nicht braucht, soll sie nicht ausfüllen müssen, um zu verstehen, dass
+ * er sie nicht braucht.
+ *
+ * Schlüssel und Reihenfolge einer Option fragt das Formular nicht mehr ab:
+ * MarktRouten vergibt beides. Ob eine Angabe die Ware zur Anfertigung nach
+ * Kundenwunsch macht (§ 312g Abs. 2 Nr. 1 BGB), folgt aus der Art der Eingabe
+ * und nicht aus einem Kästchen, das niemand versteht.
+ *
+ * enctype="multipart/form-data" und MAX_FILE_SIZE VOR dem Dateifeld sind beim
+ * Bild-Upload Pflicht: Ohne das erste bleibt $_FILES leer, ohne das zweite
+ * bricht ein zu grosser Upload nicht früh ab. Die echte Grenze zieht
+ * Bilder::MAX_BYTES.
  *
  * @var array<string,mixed>|null $angebot
  * @var list<array<string,mixed>> $kategorien
  * @var string|null $fehler
  * @var string|null $erfolg
- * @var bool $bestellbar           Angebote::istBestellbar()
- * @var bool $bestellvorgangAktiv  Schalter BESTELLVORGANG_AKTIV
- * @var list<array<string,mixed>> $medien        Medien::zuAngebot()
- * @var string|null $medienfehler                aus MedienRouten::FEHLER
- * @var string|null $medienerfolg                aus MedienRouten::ERFOLGE
+ * @var bool $bestellbar
+ * @var bool $bestellvorgangAktiv
+ * @var list<array<string,mixed>> $medien
+ * @var string|null $medienfehler
+ * @var string|null $medienerfolg
  */
 
 use MeinSlip\Domain\Catalog\Angebote;
@@ -48,21 +54,6 @@ $medien ??= [];
 $medienfehler ??= null;
 $medienerfolg ??= null;
 
-/*
- * Die Zahlen der Bildpipeline, einmal aufbereitet.
- *
- * Sie werden an JEDEN Fehlertext uebergeben, auch an die, die keinen
- * Platzhalter tragen: Lang::t() ersetzt per str_replace, ein unbenutzter
- * Platzhalter kostet also nichts. Der Gewinn ist, dass niemand beim Ergaenzen
- * eines Textes daran denken muss — und ':mb' roh auf dem Bildschirm steht,
- * wenn er es doch vergisst.
- *
- * Die drei Konstanten stehen bewusst in eigenen Zeilen und nicht direkt im
- * Feldwert: 'x' => Medien::JE_ANGEBOT haette in derselben Zeile ein '>'
- * unmittelbar vor einem grossgeschriebenen Wort, und genau darauf schlaegt die
- * Hartkodierungspruefung von tests/UebersetzungenTest.php an. Sie kann dort
- * nicht zwischen einem Klassennamen und einem deutschen Satz unterscheiden.
- */
 $grenzeBilder = Medien::JE_ANGEBOT;
 $grenzeBytes = Bilder::MAX_BYTES;
 $grenzeKante = Bilder::MAX_KANTE;
@@ -73,10 +64,13 @@ $medienZahlen = [
     'kante' => $grenzeKante,
 ];
 
-/** Ganzzahlige Cent als Euro-Wert fuer ein Zahlenfeld — ohne Gleitkomma. */
+// Punkt als Dezimaltrenner: Das ist die Schreibweise, die <input type="number">
+// verlangt — unabhängig davon, was der Browser dem Menschen anzeigt.
 $euro = static function (int $cent): string {
     return intdiv($cent, 100) . '.' . str_pad((string) ($cent % 100), 2, '0', STR_PAD_LEFT);
 };
+
+$feld = static fn (): string => \MeinSlip\Http\Formularschutz::feld();
 ?>
 <?php if ($angebot === null): ?>
     <section class="ms-abschnitt">
@@ -92,134 +86,127 @@ $euro = static function (int $cent): string {
     $waehrung = (string) $angebot['waehrung'];
     $veraenderbar = in_array($status, [Angebote::STATUS_ENTWURF, Angebote::STATUS_PAUSIERT], true);
     $optionen = is_array($angebot['optionen'] ?? null) ? $angebot['optionen'] : [];
+    $hatBild = $medien !== [];
+    $hatText = trim((string) ($angebot['beschreibung'] ?? '')) !== '';
+    $aktion = '/verkaufen/' . $angebotId;
     ?>
     <section class="ms-abschnitt">
         <div>
-            <p class="ms-kicker"><?= te('markt.bearbeiten_kicker') ?></p>
-            <?php // Der Titel stammt von der Verkaeuferin und darf 190 Zeichen ohne eine
-                  // einzige Leerstelle enthalten. Ohne Umbruch an beliebiger Stelle
-                  // schoebe eine solche Zeichenkette auf 360 px die ganze Seite auseinander. ?>
-            <h1 style="font-size:clamp(1.75rem,4vw,2.5rem);overflow-wrap:anywhere"><?= e((string) $angebot['titel']) ?></h1>
-            <p style="margin-top:var(--space-3)">
-                <?php // Ein gesperrtes Angebot traegt ein anderes Etikett als die
-                      // uebrigen Status. Die Sperre ist die einzige Massnahme in
-                      // dieser Liste, die nicht von der Verkaeuferin ausgeht — sie
-                      // darf sich nicht im Grau der Selbstverstaendlichkeiten
-                      // verlieren. tag-accent ist vorhanden, eine neue Klasse
-                      // waere hier nicht zu rechtfertigen. ?>
-                <span class="tag <?= $status === Angebote::STATUS_GESPERRT ? 'tag-accent' : 'tag-neutral' ?>"><?= te('markt.status.' . $status) ?></span>
+            <p class="ms-kicker"><a href="/verkaufen"><?= te('markt.bearb_zurueck') ?></a></p>
+            <h1 style="overflow-wrap:anywhere"><?= e((string) $angebot['titel']) ?></h1>
+            <p>
+                <span class="tag <?= $status === Angebote::STATUS_AKTIV || $status === Angebote::STATUS_GESPERRT ? 'tag-accent' : 'tag-neutral' ?>"><?= te('markt.status.' . $status) ?></span>
             </p>
         </div>
 
         <?php if ($erfolg !== null): ?>
-            <p class="card" role="status"><?= te('markt.erfolg.' . $erfolg) ?></p>
+            <p class="ms-hinweisbox ms-hinweisbox--ok" role="status"><?= te('markt.erfolg.' . $erfolg) ?></p>
         <?php endif; ?>
 
         <?php if ($fehler !== null): ?>
             <p class="ms-fehler" role="alert"><?= te('markt.angebotsfehler.' . $fehler) ?></p>
         <?php endif; ?>
 
-        <?php if ($status === Angebote::STATUS_GESPERRT): ?>
-            <?php /*
-                   * ARTIKEL 17 DSA: DIE BEGRUENDUNG WIRD ZUGESTELLT, NICHT HIER
-                   * ERFUNDEN. Die Verwaltung schreibt beim Sperren eine
-                   * Begruendung, die als Zustellung im Profil landet. Diese
-                   * Karte sagt deshalb, DASS gesperrt wurde und WO die
-                   * Begruendung steht — sie wiederholt sie nicht. Zwei Orte
-                   * fuer denselben Text waeren zwei Orte, die auseinanderlaufen
-                   * koennen, und der falsche waere der ohne Zustellnachweis.
-                   *
-                   * Gesperrt heisst gesperrt: Weder das Stammdatenformular noch
-                   * ein Veroeffentlichen-Knopf erscheinen. Das ist keine
-                   * Anzeigefrage — Angebote::veroeffentlichen() laesst nur
-                   * 'entwurf' zu und Angebote::VERAENDERBAR nur 'entwurf' und
-                   * 'pausiert'. Die Oberflaeche bildet die Fachregel ab, statt
-                   * sie zu ersetzen.
-                   */ ?>
-            <article class="card elev-sm" role="status">
+        <?php // --- Der nächste Schritt: genau eine Karte, genau eine Hauptaktion. ?>
+        <article class="card elev-sm ms-naechster">
+            <?php if ($status === Angebote::STATUS_GESPERRT): ?>
                 <h2 class="card-title"><?= te('markt.gesperrt_titel') ?></h2>
                 <p class="card-body"><?= te('markt.gesperrt_text') ?></p>
                 <p class="card-body"><?= te('markt.gesperrt_begruendung') ?></p>
-                <p><a class="btn btn-secondary" href="/profil"><?= te('markt.gesperrt_zum_profil') ?></a></p>
-            </article>
+                <div class="ms-zeile"><a class="btn btn-primary" href="/profil"><?= te('markt.gesperrt_zum_profil') ?></a></div>
+
+            <?php elseif ($status === Angebote::STATUS_ENTFERNT): ?>
+                <h2 class="card-title"><?= te('markt.bearb_entfernt_titel') ?></h2>
+                <p class="card-body"><?= te('markt.aktion_entfernen_hinweis') ?></p>
+                <div class="ms-zeile"><a class="btn btn-primary" href="/verkaufen/neu"><?= te('markt.bearb_neues') ?></a></div>
+
+            <?php elseif ($status === Angebote::STATUS_AKTIV): ?>
+                <h2 class="card-title"><?= te('markt.bearb_aktiv_titel') ?></h2>
+                <p class="card-body"><?= te('markt.bearb_aktiv_text') ?></p>
+                <div class="ms-zeile">
+                    <a class="btn btn-primary" href="/angebot/<?= $angebotId ?>"><?= te('markt.verkaufen_ansehen') ?></a>
+                    <form method="post" action="<?= $aktion ?>" style="margin:0">
+                        <?= $feld() ?>
+                        <input type="hidden" name="aktion" value="pausieren">
+                        <button class="btn btn-secondary" type="submit"><?= te('markt.bearb_pausieren') ?></button>
+                    </form>
+                </div>
+
+            <?php elseif ($status === Angebote::STATUS_PAUSIERT): ?>
+                <h2 class="card-title"><?= te('markt.bearb_pausiert_titel') ?></h2>
+                <p class="card-body"><?= te('markt.bearb_pausiert_text') ?></p>
+                <form method="post" action="<?= $aktion ?>" class="ms-zeile">
+                    <?= $feld() ?>
+                    <input type="hidden" name="aktion" value="fortsetzen">
+                    <button class="btn btn-primary" type="submit"><?= te('markt.aktion_fortsetzen') ?></button>
+                </form>
+
+            <?php elseif (!$hatBild): ?>
+                <?php // Entwurf ohne Bild: Das Bild ist der Schritt, der am meisten bringt. ?>
+                <p class="card-kicker"><?= te('markt.bearb_naechster') ?></p>
+                <h2 class="card-title"><?= te('markt.bearb_bild_fehlt_titel') ?></h2>
+                <p class="card-body"><?= te('markt.bearb_bild_fehlt_text') ?></p>
+                <div class="ms-zeile">
+                    <a class="btn btn-primary" href="#bilder"><?= te('markt.bearb_bild_fehlt_knopf') ?></a>
+                    <form method="post" action="<?= $aktion ?>/veroeffentlichen" style="margin:0">
+                        <?= $feld() ?>
+                        <button class="btn btn-ghost" type="submit"><?= te('markt.bearb_ohne_bild') ?></button>
+                    </form>
+                </div>
+
+            <?php else: ?>
+                <p class="card-kicker"><?= te('markt.bearb_naechster') ?></p>
+                <h2 class="card-title"><?= te('markt.bearb_fertig_titel') ?></h2>
+                <p class="card-body"><?= te('markt.veroeffentlichen_hinweis') ?></p>
+                <form method="post" action="<?= $aktion ?>/veroeffentlichen" class="ms-zeile">
+                    <?= $feld() ?>
+                    <button class="btn btn-primary" type="submit"><?= te('markt.veroeffentlichen') ?></button>
+                </form>
+            <?php endif; ?>
+        </article>
+
+        <?php if ($veraenderbar): ?>
+            <?php // Die Übersicht der Schritte, zum Anspringen. ?>
+            <ol class="ms-schrittleiste" aria-label="<?= te('markt.bearb_schritte') ?>">
+                <li class="ms-schrittleiste__fertig"><a href="#angaben"><?= te('markt.bearb_schritt_angaben') ?></a></li>
+                <li class="<?= $hatBild ? 'ms-schrittleiste__fertig' : '' ?>"><a href="#bilder"><?= te('markt.bearb_schritt_bilder') ?></a></li>
+                <li class="<?= $optionen !== [] ? 'ms-schrittleiste__fertig' : '' ?>"><a href="#wuensche"><?= te('markt.bearb_schritt_wuensche') ?></a></li>
+            </ol>
         <?php endif; ?>
 
         <?php if ($bestellvorgangAktiv && !$bestellbar && $status !== Angebote::STATUS_ENTFERNT): ?>
-            <?php // Sichtbar ja, bestellbar nein. Der Satz nennt ausdruecklich die
-                  // fehlende Optionsart und nicht nur "eine Spezifikation" — wer
-                  // ein Ankreuzfeld als Spezifikation gesetzt hat, wuerde sonst
-                  // ein zweites anlegen und waere keinen Schritt weiter. ?>
             <article class="card elev-sm">
                 <h2 class="card-title"><?= te('markt.nicht_bestellbar_titel') ?></h2>
                 <p class="card-body"><?= te('markt.nicht_bestellbar_text') ?></p>
             </article>
         <?php endif; ?>
-
-        <article class="card elev-sm">
-            <p class="card-kicker"><?= te('markt.ablauf_titel') ?></p>
-
-            <?php if ($status === Angebote::STATUS_ENTWURF): ?>
-                <?php // DER TORABBAU IN EINEM KNOPF. Frueher stand hier "Zur Pruefung
-                      // einreichen" und danach wartete das Angebot auf einen Menschen.
-                      // Die Route /verkaufen/{id}/einreichen gibt es weiterhin, aus der
-                      // Oberflaeche ist sie verschwunden. ?>
-                <p class="card-body"><?= te('markt.veroeffentlichen_hinweis') ?></p>
-                <form method="post" action="/verkaufen/<?= $angebotId ?>/veroeffentlichen" style="margin:0">
-                    <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                    <button class="btn btn-primary" type="submit"><?= te('markt.veroeffentlichen') ?></button>
-                </form>
-            <?php elseif ($status === Angebote::STATUS_AKTIV): ?>
-                <form method="post" action="/verkaufen/<?= $angebotId ?>" style="margin:0">
-                    <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                    <input type="hidden" name="aktion" value="pausieren">
-                    <button class="btn btn-secondary" type="submit"><?= te('markt.aktion_pausieren') ?></button>
-                </form>
-            <?php elseif ($status === Angebote::STATUS_PAUSIERT): ?>
-                <form method="post" action="/verkaufen/<?= $angebotId ?>" style="margin:0">
-                    <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                    <input type="hidden" name="aktion" value="fortsetzen">
-                    <button class="btn btn-primary" type="submit"><?= te('markt.aktion_fortsetzen') ?></button>
-                </form>
-            <?php endif; ?>
-
-            <?php if ($status !== Angebote::STATUS_ENTFERNT): ?>
-                <form method="post" action="/verkaufen/<?= $angebotId ?>" style="margin:0">
-                    <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                    <input type="hidden" name="aktion" value="entfernen">
-                    <button class="btn btn-ghost" type="submit"><?= te('markt.aktion_entfernen') ?></button>
-                </form>
-                <p class="card-meta"><?= te('markt.aktion_entfernen_hinweis') ?></p>
-            <?php endif; ?>
-        </article>
     </section>
 
-    <section class="ms-abschnitt" aria-labelledby="stammdaten">
+    <?php if ($status !== Angebote::STATUS_ENTFERNT && $status !== Angebote::STATUS_GESPERRT): ?>
+
+    <?php // ================= Schritt 1: Angaben ================= ?>
+    <section class="ms-abschnitt ms-schritt" id="angaben" aria-labelledby="angaben-titel">
         <div>
-            <p class="ms-kicker"><?= te('markt.stammdaten_kicker') ?></p>
-            <h2 id="stammdaten"><?= te('markt.bearbeiten_stammdaten') ?></h2>
+            <p class="ms-schritt__nummer">1</p>
+            <h2 id="angaben-titel"><?= te('markt.bearb_angaben_titel') ?></h2>
+            <p class="hinweis"><?= te('markt.bearb_angaben_text') ?></p>
         </div>
 
-        <?php if ($status === Angebote::STATUS_GESPERRT): ?>
-            <?php // Eigener Satz statt 'bearbeiten_gesperrt': Dessen Rat lautet
-                  // "pausiere das Angebot" — aus 'gesperrt' fuehrt kein Weg nach
-                  // 'pausiert' (Angebote::UEBERGAENGE), der Rat liefe also ins
-                  // Leere. Aus einer Sperre kommt man ueber den Widerspruch
-                  // heraus, nicht ueber einen Knopf hier. ?>
-            <p class="card"><?= te('markt.bearbeiten_gesperrt_sperre') ?></p>
-        <?php elseif (!$veraenderbar): ?>
-            <p class="card"><?= te('markt.bearbeiten_gesperrt') ?></p>
+        <?php if (!$veraenderbar): ?>
+            <p class="ms-hinweisbox"><?= te('markt.bearb_erst_pausieren') ?></p>
         <?php else: ?>
-            <form class="ms-formular" method="post" action="/verkaufen/<?= $angebotId ?>">
-                <?= \MeinSlip\Http\Formularschutz::feld() ?>
+            <form class="card elev-sm ms-formular" method="post" action="<?= $aktion ?>">
+                <?= $feld() ?>
                 <input type="hidden" name="aktion" value="stammdaten">
-                <?php // Kaestchen melden sich nur angekreuzt. Dieses Steuerfeld sagt der
-                      // Route, dass die beiden Lieferwege ueberhaupt im Formular standen. ?>
+                <?php // Marke dafür, dass die Lieferwege mitgeschickt werden: Ein
+                      // nicht angekreuztes Kästchen schickt gar nichts. ?>
                 <input type="hidden" name="lieferwege" value="ja">
 
                 <div class="field">
                     <label for="titel"><?= te('markt.feld_titel') ?></label>
                     <input class="input" type="text" id="titel" name="titel" required maxlength="190"
                            value="<?= e((string) $angebot['titel']) ?>">
+                    <span class="hinweis"><?= te('markt.bearb_hinweis_titel') ?></span>
                 </div>
 
                 <div class="field">
@@ -234,97 +221,91 @@ $euro = static function (int $cent): string {
 
                 <div class="field">
                     <label for="beschreibung"><?= te('markt.feld_beschreibung') ?></label>
-                    <textarea class="input" id="beschreibung" name="beschreibung" rows="6"><?= e((string) ($angebot['beschreibung'] ?? '')) ?></textarea>
+                    <textarea class="input" id="beschreibung" name="beschreibung" rows="5"
+                              placeholder="<?= te('markt.bearb_beschreibung_beispiel') ?>"><?= e((string) ($angebot['beschreibung'] ?? '')) ?></textarea>
+                    <span class="hinweis"><?= te('markt.hinweis_beschreibung') ?></span>
                 </div>
 
-                <div class="field">
-                    <label for="grundpreis"><?= te('markt.feld_grundpreis') ?></label>
-                    <input class="input" type="number" id="grundpreis" name="grundpreis" required
-                           min="0.01" step="0.01" inputmode="decimal"
-                           value="<?= e($euro((int) $angebot['grundpreis_cent'])) ?>">
-                    <span class="hinweis"><?= te('markt.hinweis_grundpreis') ?></span>
+                <div class="ms-zweispaltig">
+                    <div class="field">
+                        <label for="grundpreis"><?= te('markt.bearb_feld_preis') ?></label>
+                        <input class="input" type="number" id="grundpreis" name="grundpreis" required
+                               min="0.01" step="0.01" inputmode="decimal"
+                               value="<?= e($euro((int) $angebot['grundpreis_cent'])) ?>">
+                    </div>
+                    <div class="field">
+                        <label for="bearbeitungstage"><?= te('markt.bearb_feld_tage') ?></label>
+                        <input class="input" type="number" id="bearbeitungstage" name="bearbeitungstage" required
+                               min="1" max="90" step="1" inputmode="numeric"
+                               value="<?= (int) $angebot['bearbeitungstage'] ?>">
+                    </div>
                 </div>
+                <span class="hinweis"><?= te('markt.bearb_hinweis_tage') ?></span>
 
                 <div class="field">
-                    <label for="bearbeitungstage"><?= te('markt.feld_bearbeitungstage') ?></label>
-                    <input class="input" type="number" id="bearbeitungstage" name="bearbeitungstage" required
-                           min="1" max="90" step="1" inputmode="numeric"
-                           value="<?= (int) $angebot['bearbeitungstage'] ?>">
-                </div>
-
-                <div class="field">
+                    <span><?= te('markt.bearb_lieferung') ?></span>
                     <label class="radio">
                         <input type="checkbox" name="versand_moeglich" value="ja"
                             <?= (int) $angebot['versand_moeglich'] === 1 ? 'checked' : '' ?>>
                         <span class="dot"></span>
-                        <span><?= te('markt.feld_versand') ?></span>
+                        <span><?= te('markt.bearb_versand') ?></span>
                     </label>
                     <label class="radio">
                         <input type="checkbox" name="uebergabe_moeglich" value="ja"
                             <?= (int) $angebot['uebergabe_moeglich'] === 1 ? 'checked' : '' ?>>
                         <span class="dot"></span>
-                        <span><?= te('markt.feld_uebergabe') ?></span>
+                        <span><?= te('markt.bearb_uebergabe') ?></span>
                     </label>
                 </div>
 
                 <div class="field">
-                    <label for="uebergabe_region"><?= te('markt.feld_uebergabe_region') ?></label>
+                    <label for="uebergabe_region"><?= te('markt.bearb_feld_region') ?></label>
                     <input class="input" type="text" id="uebergabe_region" name="uebergabe_region" maxlength="40"
+                           placeholder="<?= te('markt.bearb_region_beispiel') ?>"
                            value="<?= e((string) ($angebot['uebergabe_region'] ?? '')) ?>">
-                    <span class="hinweis"><?= te('markt.hinweis_uebergabe_region') ?></span>
+                    <span class="hinweis"><?= te('markt.bearb_hinweis_region') ?></span>
                 </div>
 
-                <button class="btn btn-primary btn-block" type="submit"><?= te('markt.bearbeiten_speichern') ?></button>
+                <button class="btn btn-primary btn-block" type="submit"><?= te('markt.bearb_angaben_speichern') ?></button>
             </form>
         <?php endif; ?>
     </section>
 
-    <section class="ms-abschnitt" aria-labelledby="bilder">
+    <?php // ================= Schritt 2: Bilder ================= ?>
+    <section class="ms-abschnitt ms-schritt" id="bilder" aria-labelledby="bilder-titel">
         <div>
-            <p class="ms-kicker"><?= te('medien.kicker') ?></p>
-            <h2 id="bilder"><?= te('medien.titel') ?></h2>
-            <p class="ms-hero__unterzeile" style="margin-top:var(--space-4)"><?= te('medien.unterzeile', $medienZahlen) ?></p>
+            <p class="ms-schritt__nummer">2</p>
+            <h2 id="bilder-titel"><?= te('markt.bearb_bilder_titel') ?></h2>
+            <p class="hinweis"><?= te('markt.bearb_bilder_text', $medienZahlen) ?></p>
         </div>
 
         <?php if ($medienerfolg !== null): ?>
-            <p class="card" role="status"><?= te('medien.erfolg.' . $medienerfolg) ?></p>
+            <p class="ms-hinweisbox ms-hinweisbox--ok" role="status"><?= te('medien.erfolg.' . $medienerfolg) ?></p>
         <?php endif; ?>
 
+        <?php // Das Fehlerbild steht direkt über dem Formular, damit der Grund
+              // neben dem Feld steht, an dem er sich beheben lässt. ?>
         <?php if ($medienfehler !== null): ?>
             <p class="ms-fehler" role="alert"><?= te('medien.fehler.' . $medienfehler, $medienZahlen) ?></p>
         <?php endif; ?>
 
-        <?php if ($medien === []): ?>
-            <p class="card"><?= te('medien.leer') ?></p>
-        <?php else: ?>
-            <div class="ms-raster">
+        <?php if ($medien !== []): ?>
+            <div class="ms-bildraster">
                 <?php foreach ($medien as $nummer => $bild): ?>
-                    <article class="card elev-sm">
-                        <?php /*
-                               * HIER STEHT DAS SCHARFE BILD, AUCH WENN ES ALS
-                               * NICHT JUGENDFREI GEKENNZEICHNET IST. Diese Seite
-                               * sieht nur die Eigentuemerin — sie muss pruefen
-                               * koennen, was sie eingestellt hat. Statt das Bild
-                               * zu verbergen, sagt die Karte ihr die Folge ihrer
-                               * Kennzeichnung: dass es sonst niemand sieht.
-                               * .ms-gesperrt gehoert auf die Angebots- und
-                               * Katalogseite, nicht hierher.
-                               */ ?>
-                        <img src="/medien/angebot/<?= (int) $bild['id'] ?>"
-                             alt="<?= te('medien.bild_alt') ?>"
-                             loading="lazy"
-                             style="width:100%;height:auto;display:block;border-radius:var(--radius-md)">
+                    <?php // Diese Seite sieht nur die Eigentümerin, und sie darf ihr eigenes
+                          // Bild immer scharf sehen — auch ein nicht jugendfreies. ?>
+                    <article class="ms-bildraster__eintrag">
+                        <img src="/medien/angebot/<?= (int) $bild['id'] ?>" alt="<?= te('medien.bild_alt') ?>" loading="lazy">
                         <p class="card-meta">
-                            <span class="tag tag-neutral"><?= te('medien.nummer', ['nummer' => (int) $nummer + 1]) ?></span>
+                            <?php if ((int) $nummer === 0): ?>
+                                <span class="tag tag-accent"><?= te('markt.bearb_titelbild') ?></span>
+                            <?php endif; ?>
                             <?php if ($bild['explizit'] === true): ?>
-                                <span class="tag tag-accent"><?= te('medien.explizit_marke') ?></span>
+                                <span class="tag tag-neutral" title="<?= te('medien.gesperrt_eigen') ?>"><?= te('medien.explizit_marke') ?></span>
                             <?php endif; ?>
                         </p>
-                        <?php if ($bild['explizit'] === true): ?>
-                            <p class="card-meta text-muted"><?= te('medien.gesperrt_eigen') ?></p>
-                        <?php endif; ?>
                         <form method="post" action="/medien/entfernen/<?= (int) $bild['id'] ?>" style="margin:0">
-                            <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                            <?= $feld() ?>
                             <button class="btn btn-ghost" type="submit"><?= te('medien.entfernen') ?></button>
                         </form>
                     </article>
@@ -332,61 +313,27 @@ $euro = static function (int $cent): string {
             </div>
         <?php endif; ?>
 
-        <?php if ($status === Angebote::STATUS_ENTFERNT): ?>
-            <?php // Ein entferntes Angebot bekommt keine neuen Bilder mehr.
-                  // Medien::hinzufuegen() weist das ohnehin ab; das Formular
-                  // gar nicht erst zu zeigen, erspart den Fehlversuch. ?>
-        <?php elseif (count($medien) >= $grenzeBilder): ?>
-            <p class="card" role="status"><?= te('medien.voll', $medienZahlen) ?></p>
+        <?php if (count($medien) >= $grenzeBilder): ?>
+            <p class="ms-hinweisbox" role="status"><?= te('medien.voll', $medienZahlen) ?></p>
         <?php else: ?>
-            <?php /*
-                   * enctype="multipart/form-data" ist die eine Angabe, ohne die
-                   * gar nichts geht: Fehlt sie, sendet der Browser nur den
-                   * Dateinamen als Text, $_FILES bleibt leer, und der Fehler
-                   * sieht aus wie "keine Datei ausgewaehlt", obwohl eine
-                   * ausgewaehlt war.
-                   *
-                   * MAX_FILE_SIZE MUSS VOR DEM DATEIFELD STEHEN — PHP wertet das
-                   * Feld nur aus, wenn es im Datenstrom vorher kommt. Es ist
-                   * keine Sicherung (der Browser kann es weglassen), sondern
-                   * eine Hoeflichkeit: Der Upload bricht dann frueh ab und PHP
-                   * meldet UPLOAD_ERR_FORM_SIZE, was Bilder in den eigenen
-                   * Schluessel 'upload_zu_gross' uebersetzt. Die echte Grenze
-                   * zieht Bilder::MAX_BYTES am fertig empfangenen Datenstrom.
-                   */ ?>
-            <form class="ms-formular" method="post" action="/medien/hinzufuegen/<?= $angebotId ?>"
+            <form class="card elev-sm ms-formular" method="post" action="/medien/hinzufuegen/<?= $angebotId ?>"
                   enctype="multipart/form-data">
-                <?= \MeinSlip\Http\Formularschutz::feld() ?>
+                <?= $feld() ?>
                 <input type="hidden" name="MAX_FILE_SIZE" value="<?= $grenzeBytes ?>">
 
                 <div class="field">
-                    <label for="bild"><?= te('medien.feld_datei') ?></label>
+                    <label for="bild"><?= te($hatBild ? 'markt.bearb_bild_weiteres' : 'markt.bearb_bild_erstes') ?></label>
                     <input class="input" type="file" id="bild" name="bild" required
                            accept="<?= e(\MeinSlip\Http\MedienRouten::accept()) ?>">
                     <span class="hinweis"><?= te('medien.hinweis_datei', $medienZahlen) ?></span>
                 </div>
 
-                <?php /*
-                       * PFLICHTFRAGE OHNE VORBELEGUNG.
-                       *
-                       * Kein 'checked' an einer der beiden Antworten, und das ist
-                       * die ganze Entscheidung: Eine Vorbelegung waere eine
-                       * Behauptung, die die Plattform der Nutzerin in den Mund
-                       * legt. Steht 'jugendfrei' vorn, veroeffentlicht ein
-                       * unaufmerksamer Klick ein Bild, das nicht haette
-                       * erscheinen duerfen; steht 'nicht jugendfrei' vorn,
-                       * verschwindet ein harmloses Bild ohne dass jemand
-                       * versteht, warum.
-                       *
-                       * Die Folge steht ausgeschrieben an der Antwort selbst,
-                       * nicht als Fussnote: Wer 'nicht jugendfrei' waehlt, muss
-                       * an genau dieser Stelle lesen, dass sein Bild dann
-                       * niemand sieht. Und wenn trotz allem nichts ankommt, gilt
-                       * die vorsichtigere Annahme — MedienRouten::hinzufuegen()
-                       * behandelt eine fehlende Antwort als 'nicht jugendfrei'.
-                       */ ?>
+                <?php // DIE FRAGE HAT KEINE VORBELEGUNG. Ein 'checked' auf "nein"
+                      // wäre die bequeme Antwort und damit die, die ungelesen
+                      // durchgeht. Bleibt die Wahl aus, behandelt
+                      // MedienRouten::hinzufuegen() das Bild als nicht jugendfrei. ?>
                 <div class="field" role="radiogroup" aria-labelledby="explizit-frage">
-                    <p id="explizit-frage"><?= te('medien.explizit_frage') ?></p>
+                    <span id="explizit-frage"><?= te('medien.explizit_frage') ?></span>
                     <label class="radio">
                         <input type="radio" name="explizit" value="nein" required>
                         <span class="dot"></span>
@@ -397,7 +344,6 @@ $euro = static function (int $cent): string {
                         <span class="dot"></span>
                         <span><?= te('medien.explizit_ja') ?></span>
                     </label>
-                    <span class="hinweis"><?= te('medien.explizit_pflicht') ?></span>
                 </div>
 
                 <button class="btn btn-primary btn-block" type="submit"><?= te('medien.hochladen') ?></button>
@@ -405,146 +351,104 @@ $euro = static function (int $cent): string {
         <?php endif; ?>
     </section>
 
-    <section class="ms-abschnitt" aria-labelledby="optionen">
+    <?php // ================= Schritt 3: Wünsche der Käufer ================= ?>
+    <section class="ms-abschnitt ms-schritt" id="wuensche" aria-labelledby="wuensche-titel">
         <div>
-            <p class="ms-kicker"><?= te('markt.konfigurator_kicker') ?></p>
-            <h2 id="optionen"><?= te('markt.optionen_titel') ?></h2>
-            <p class="ms-hero__unterzeile" style="margin-top:var(--space-4)"><?= te('markt.optionen_unterzeile') ?></p>
+            <p class="ms-schritt__nummer">3</p>
+            <h2 id="wuensche-titel"><?= te('markt.bearb_wuensche_titel') ?> <span class="tag tag-neutral"><?= te('markt.bearb_freiwillig') ?></span></h2>
+            <p class="hinweis"><?= te('markt.bearb_wuensche_text') ?></p>
         </div>
 
-        <?php if ($optionen === []): ?>
-            <p class="card"><?= te('markt.optionen_leer') ?></p>
-        <?php else: ?>
-            <?php
-            /*
-             * Sechs Spalten passen auf 360 px nicht nebeneinander: die Kopfzeilen
-             * allein, dazu die Tags "Spezifikation" und "Pflichtangabe" und der
-             * Knopf "Entfernen" brauchen mehr als die 326 px, die die Huelle uebrig
-             * laesst. Ohne eigenen Bildlauf scrollt das Dokument statt der Tabelle —
-             * die Spalte "Aktion" mit dem Entfernen-Knopf steht dann ausserhalb des
-             * Bildes, und beim Zurueckschieben geht die Zeilenzuordnung verloren.
-             *
-             * tabindex="0" ist Pflicht, nicht Zierde: In den Spalten Schluessel,
-             * Bezeichnung, Art und Aufpreis steht nichts Fokussierbares, ueber das
-             * sich der Behaelter per Tastatur hinscrollen liesse. Chrome macht
-             * Bildlaufbehaelter seit 127 von sich aus fokussierbar, Safari nicht.
-             * WCAG 2.1.1: Was die Maus erreicht, muss die Tastatur auch erreichen.
-             * role="region" braucht dazu einen Namen, sonst steht der Bereich
-             * namenlos in der Landmarkenliste.
-             */
-            ?>
-            <div class="ms-breit" tabindex="0" role="region" aria-label="<?= te('markt.optionen_titel') ?>">
-                <table class="table">
-                    <thead>
-                    <tr>
-                        <th scope="col"><?= te('markt.option_schluessel') ?></th>
-                        <th scope="col"><?= te('markt.option_bezeichnung') ?></th>
-                        <th scope="col"><?= te('markt.option_art') ?></th>
-                        <th scope="col"><?= te('markt.option_aufpreis') ?></th>
-                        <th scope="col"><?= te('markt.konfigurator_spezifikation') ?></th>
-                        <?php if ($veraenderbar): ?>
-                            <th scope="col"><?= te('markt.spalte_aktion') ?></th>
-                        <?php endif; ?>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($optionen as $option): ?>
-                        <tr>
-                            <?php // Der Schluessel erlaubt 80 Zeichen aus [a-z0-9_] — eine
-                                  // Zeichenkette voellig ohne Umbruchstelle. Ohne Umbruch an
-                                  // beliebiger Stelle belegte allein diese Spalte rund 440 px
-                                  // und schoebe die uebrigen Spalten weit nach rechts. ?>
-                            <td style="overflow-wrap:anywhere"><?= e((string) $option['schluessel']) ?></td>
-                            <td style="overflow-wrap:anywhere"><?= e((string) $option['bezeichnung']) ?></td>
-                            <td data-label="<?= te('markt.option_art') ?>"><?= te('markt.art.' . (string) $option['art']) ?></td>
-                            <td data-label="<?= te('markt.option_aufpreis') ?>"><?= e(geld((int) $option['aufpreis_cent'], $waehrung)) ?></td>
-                            <td>
-                                <?php if ((int) $option['ist_spezifikation'] === 1): ?>
-                                    <span class="tag tag-accent-2"><?= te('markt.konfigurator_spezifikation') ?></span>
+        <?php if ($optionen !== []): ?>
+            <ul class="ms-linkverwaltung">
+                <?php foreach ($optionen as $option): ?>
+                    <li class="card elev-sm">
+                        <div class="ms-linkverwaltung__text">
+                            <strong><?= e((string) $option['bezeichnung']) ?></strong>
+                            <span class="card-meta">
+                                <?= te('markt.bearb_art.' . (string) $option['art']) ?>
+                                <?php if ((int) $option['aufpreis_cent'] > 0): ?>
+                                    · + <?= e(geld((int) $option['aufpreis_cent'], $waehrung)) ?>
                                 <?php endif; ?>
                                 <?php if ((int) $option['pflicht'] === 1): ?>
-                                    <span class="tag tag-accent"><?= te('markt.konfigurator_pflicht') ?></span>
+                                    · <?= te('markt.konfigurator_pflicht') ?>
                                 <?php endif; ?>
-                            </td>
-                            <?php if ($veraenderbar): ?>
-                                <td>
-                                    <form method="post" action="/verkaufen/<?= $angebotId ?>" style="margin:0">
-                                        <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                                        <input type="hidden" name="aktion" value="option_entfernen">
-                                        <input type="hidden" name="schluessel" value="<?= e((string) $option['schluessel']) ?>">
-                                        <button class="btn btn-ghost" type="submit"><?= te('markt.option_entfernen') ?></button>
-                                    </form>
-                                </td>
-                            <?php endif; ?>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+                            </span>
+                        </div>
+                        <?php if ($veraenderbar): ?>
+                            <form method="post" action="<?= $aktion ?>" style="margin:0">
+                                <?= $feld() ?>
+                                <input type="hidden" name="aktion" value="option_entfernen">
+                                <input type="hidden" name="schluessel" value="<?= e((string) $option['schluessel']) ?>">
+                                <button class="btn btn-ghost" type="submit"><?= te('markt.option_entfernen') ?></button>
+                            </form>
+                        <?php endif; ?>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
         <?php endif; ?>
 
         <?php if ($veraenderbar): ?>
-            <form class="ms-formular" method="post" action="/verkaufen/<?= $angebotId ?>">
-                <?= \MeinSlip\Http\Formularschutz::feld() ?>
-                <input type="hidden" name="aktion" value="option_setzen">
+            <details class="card elev-sm ms-aufklappen"<?= $fehler !== null && str_starts_with($fehler, 'option') ? ' open' : '' ?>>
+                <summary><?= te($optionen === [] ? 'markt.bearb_wunsch_erster' : 'markt.bearb_wunsch_weiterer') ?></summary>
 
-                <h3><?= te('markt.optionen_neu') ?></h3>
+                <form class="ms-formular" method="post" action="<?= $aktion ?>">
+                    <?= $feld() ?>
+                    <input type="hidden" name="aktion" value="option_setzen">
+                    <?php // Kein Schlüssel, keine Reihenfolge, kein Spezifikations-Kästchen:
+                          // 'einfach' sagt MarktRouten, alle drei selbst zu bestimmen. ?>
+                    <input type="hidden" name="einfach" value="ja">
 
-                <div class="field">
-                    <label for="schluessel"><?= te('markt.option_schluessel') ?></label>
-                    <input class="input" type="text" id="schluessel" name="schluessel" required
-                           maxlength="80" pattern="[a-z0-9_]{2,80}" autocapitalize="none">
-                    <span class="hinweis"><?= te('markt.option_hinweis_schluessel') ?></span>
-                </div>
+                    <div class="field">
+                        <label for="bezeichnung"><?= te('markt.bearb_wunsch_frage') ?></label>
+                        <input class="input" type="text" id="bezeichnung" name="bezeichnung" required maxlength="190"
+                               placeholder="<?= te('markt.bearb_wunsch_beispiel') ?>">
+                    </div>
 
-                <div class="field">
-                    <label for="bezeichnung"><?= te('markt.option_bezeichnung') ?></label>
-                    <input class="input" type="text" id="bezeichnung" name="bezeichnung" required maxlength="190">
-                </div>
-
-                <div class="field">
-                    <label for="art"><?= te('markt.option_art') ?></label>
-                    <select class="input" id="art" name="art">
-                        <?php foreach (Angebote::OPTIONSARTEN as $art): ?>
-                            <option value="<?= e($art) ?>"><?= te('markt.art.' . $art) ?></option>
+                    <div class="field" role="radiogroup" aria-labelledby="art-frage">
+                        <span id="art-frage"><?= te('markt.bearb_wunsch_art') ?></span>
+                        <?php foreach ([Angebote::ART_ZAHL, Angebote::ART_FREITEXT, Angebote::ART_AUSWAHL] as $nummer => $art): ?>
+                            <label class="radio">
+                                <input type="radio" name="art" value="<?= e($art) ?>" required <?= $nummer === 0 ? 'checked' : '' ?>>
+                                <span class="dot"></span>
+                                <span><?= te('markt.bearb_art_lang.' . $art) ?></span>
+                            </label>
                         <?php endforeach; ?>
-                    </select>
-                </div>
+                    </div>
 
-                <div class="field">
-                    <label for="aufpreis"><?= te('markt.option_aufpreis') ?></label>
-                    <input class="input" type="number" id="aufpreis" name="aufpreis"
-                           min="0" step="0.01" inputmode="decimal" value="0.00">
-                    <span class="hinweis"><?= te('markt.option_hinweis_aufpreis') ?></span>
-                </div>
+                    <div class="field">
+                        <label for="aufpreis"><?= te('markt.bearb_wunsch_aufpreis') ?></label>
+                        <input class="input" type="number" id="aufpreis" name="aufpreis"
+                               min="0" step="0.01" inputmode="decimal" value="0.00">
+                        <span class="hinweis"><?= te('markt.bearb_wunsch_aufpreis_hinweis') ?></span>
+                    </div>
 
-                <div class="field">
-                    <label for="erlaeuterung"><?= te('markt.option_erlaeuterung') ?></label>
-                    <textarea class="input" id="erlaeuterung" name="erlaeuterung" rows="3"></textarea>
-                </div>
+                    <div class="field">
+                        <label class="radio">
+                            <input type="checkbox" name="pflicht" value="ja">
+                            <span class="dot"></span>
+                            <span><?= te('markt.bearb_wunsch_pflicht') ?></span>
+                        </label>
+                    </div>
 
-                <div class="field">
-                    <label for="reihenfolge"><?= te('markt.option_reihenfolge') ?></label>
-                    <input class="input" type="number" id="reihenfolge" name="reihenfolge"
-                           min="0" step="1" inputmode="numeric" value="0">
-                </div>
-
-                <div class="field">
-                    <label class="radio">
-                        <input type="checkbox" name="ist_spezifikation" value="ja" checked>
-                        <span class="dot"></span>
-                        <span><?= te('markt.option_ist_spezifikation') ?></span>
-                    </label>
-                    <span class="hinweis"><?= te('markt.option_hinweis_spezifikation') ?></span>
-                    <label class="radio">
-                        <input type="checkbox" name="pflicht" value="ja">
-                        <span class="dot"></span>
-                        <span><?= te('markt.option_pflicht') ?></span>
-                    </label>
-                </div>
-
-                <button class="btn btn-primary btn-block" type="submit"><?= te('markt.option_speichern') ?></button>
-            </form>
+                    <button class="btn btn-primary btn-block" type="submit"><?= te('markt.bearb_wunsch_speichern') ?></button>
+                </form>
+            </details>
         <?php endif; ?>
     </section>
+
+    <?php // ================= Ganz unten: zurückziehen ================= ?>
+    <section class="ms-abschnitt">
+        <details class="ms-aufklappen ms-aufklappen--leise">
+            <summary><?= te('markt.bearb_entfernen_frage') ?></summary>
+            <p class="hinweis"><?= te('markt.aktion_entfernen_hinweis') ?></p>
+            <form method="post" action="<?= $aktion ?>" style="margin:0">
+                <?= $feld() ?>
+                <input type="hidden" name="aktion" value="entfernen">
+                <button class="btn btn-secondary" type="submit"><?= te('markt.aktion_entfernen') ?></button>
+            </form>
+        </details>
+    </section>
+
+    <?php endif; ?>
 <?php endif; ?>

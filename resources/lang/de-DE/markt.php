@@ -269,7 +269,7 @@ return [
 
     'hinweis_titel' => 'Bis 190 Zeichen. Der Titel steht im Katalog.',
     'hinweis_beschreibung' => 'Beschreibe die Ware ehrlich. Keine Kontaktdaten, keine Absprachen an der Plattform vorbei.',
-    'hinweis_grundpreis' => 'Ohne Optionen. Aufpreise legst du im nächsten Schritt fest.',
+    'hinweis_grundpreis' => 'Den Preis kannst du später jederzeit ändern.',
     'hinweis_bearbeitungstage' => 'Zwischen 1 und 90 Tagen. Halte die Zusage lieber knapp und sicher.',
     'hinweis_uebergabe_region' => 'Grobe Region, nie eine Adresse — etwa „Raum München“. Höchstens 40 Zeichen.',
     'auswahl_bitte_waehlen' => 'Bitte wählen',
@@ -315,6 +315,80 @@ return [
     'art.freitext' => 'Freier Text',
 
     'ablauf_titel' => 'Weg des Angebots',
+
+    // --- Angebot bearbeiten: der geführte Ablauf ---------------------------
+    // Alltagssprache, keine Fachwörter. "Konfigurator", "Spezifikation",
+    // "Stammdaten" und "Schlüssel" stehen hier absichtlich nirgends.
+    'bearb_zurueck' => '← Meine Angebote',
+    'bearb_naechster' => 'Als Nächstes',
+    'bearb_neues' => 'Neues Angebot anlegen',
+    'bearb_entfernt_titel' => 'Dieses Angebot ist zurückgezogen',
+    'bearb_aktiv_titel' => 'Dein Angebot ist im Katalog',
+    'bearb_aktiv_text' => 'Alle können es jetzt sehen und dir schreiben. Willst du etwas ändern, '
+        . 'pausiere es kurz — danach stellst du es mit einem Klick wieder ein.',
+    'bearb_pausieren' => 'Pausieren und bearbeiten',
+    'bearb_pausiert_titel' => 'Dein Angebot ist pausiert',
+    'bearb_pausiert_text' => 'Im Katalog ist es gerade nicht zu sehen. Ändere unten, was du magst, '
+        . 'und stell es dann wieder ein.',
+    'bearb_bild_fehlt_titel' => 'Lade ein Bild hoch',
+    'bearb_bild_fehlt_text' => 'Angebote mit Bild werden deutlich öfter angesehen. Ein Foto der '
+        . 'Ware genügt.',
+    'bearb_bild_fehlt_knopf' => 'Bild hochladen',
+    'bearb_ohne_bild' => 'Ohne Bild veröffentlichen',
+    'bearb_fertig_titel' => 'Bereit zum Veröffentlichen',
+    'bearb_schritte' => 'Schritte',
+    'bearb_schritt_angaben' => 'Angaben',
+    'bearb_schritt_bilder' => 'Bilder',
+    'bearb_schritt_wuensche' => 'Wünsche',
+    'bearb_erst_pausieren' => 'Solange das Angebot im Katalog steht, lässt es sich nicht ändern. '
+        . 'Pausiere es oben, dann kannst du hier bearbeiten.',
+
+    'bearb_angaben_titel' => 'Was bietest du an?',
+    'bearb_angaben_text' => 'Das sehen Käufer im Katalog und auf der Seite deines Angebots.',
+    'bearb_hinweis_titel' => 'Kurz und genau, zum Beispiel „Schwarzer Spitzenslip, zwei Tage getragen“.',
+    'bearb_beschreibung_beispiel' => 'Material, Größe, wie und wie lange getragen …',
+    'bearb_feld_preis' => 'Preis in Euro',
+    'bearb_feld_tage' => 'Fertig in … Tagen',
+    'bearb_hinweis_tage' => 'So lange brauchst du, bis die Ware rausgeht. Lieber einen Tag mehr '
+        . 'angeben und früher liefern.',
+    'bearb_lieferung' => 'Wie kommt die Ware zum Käufer?',
+    'bearb_versand' => 'Per Post — anonym, ohne dass ihr eure Adressen seht',
+    'bearb_uebergabe' => 'Persönliche Übergabe an einem öffentlichen Ort',
+    'bearb_feld_region' => 'Wo ist eine Übergabe möglich?',
+    'bearb_region_beispiel' => 'Raum Mannheim',
+    'bearb_hinweis_region' => 'Nur ausfüllen, wenn du Übergaben anbietest. Eine grobe Gegend, nie '
+        . 'deine Adresse.',
+    'bearb_angaben_speichern' => 'Angaben speichern',
+
+    'bearb_bilder_titel' => 'Bilder',
+    'bearb_bilder_text' => 'Bis zu :anzahl Bilder. Das erste ist das Titelbild im Katalog. Aufnahmeort '
+        . 'und Kameradaten entfernen wir beim Hochladen automatisch.',
+    'bearb_titelbild' => 'Titelbild',
+    'bearb_bild_erstes' => 'Bild auswählen',
+    'bearb_bild_weiteres' => 'Weiteres Bild auswählen',
+
+    'bearb_wuensche_titel' => 'Wünsche der Käufer',
+    'bearb_freiwillig' => 'freiwillig',
+    'bearb_wuensche_text' => 'Hier legst du fest, was Käufer bei dir bestimmen dürfen — etwa wie '
+        . 'viele Tage du die Ware trägst. Du kannst das auch leer lassen und Wünsche einfach im '
+        . 'Chat klären.',
+    'bearb_wunsch_erster' => 'Einen Wunsch hinzufügen',
+    'bearb_wunsch_weiterer' => 'Noch einen Wunsch hinzufügen',
+    'bearb_wunsch_frage' => 'Was dürfen Käufer bestimmen?',
+    'bearb_wunsch_beispiel' => 'Tragedauer in Tagen',
+    'bearb_wunsch_art' => 'Wie geben Käufer das an?',
+    'bearb_art_lang.zahl' => 'Mit einer Zahl — zum Beispiel „3“ für drei Tage',
+    'bearb_art_lang.freitext' => 'Mit eigenen Worten — zum Beispiel „beim Sport getragen“',
+    'bearb_art_lang.auswahl' => 'Mit Ja oder Nein — zum Beispiel „mit Foto beim Tragen“',
+    'bearb_art.zahl' => 'Zahl',
+    'bearb_art.freitext' => 'Eigene Worte',
+    'bearb_art.auswahl' => 'Ja oder Nein',
+    'bearb_wunsch_aufpreis' => 'Kostet das extra? (Euro)',
+    'bearb_wunsch_aufpreis_hinweis' => 'Bei 0 bleibt es beim Preis oben.',
+    'bearb_wunsch_pflicht' => 'Käufer müssen das angeben, bevor sie bestellen',
+    'bearb_wunsch_speichern' => 'Wunsch speichern',
+
+    'bearb_entfernen_frage' => 'Angebot endgültig zurückziehen?',
 
     // DER ABGEBAUTE VORABPRÜFUNG IN ZWEI TEXTEN. Vorher stand hier „Zur
     // Prüfung einreichen“ und „Nach dem Einreichen sieht ein Mensch das
@@ -448,10 +522,10 @@ return [
     'angebotsfehler.allgemein' => 'Das hat nicht geklappt. Bitte versuche es erneut.',
 
     // --- Rueckmeldungen nach erfolgreichem Speichern -----------------------
-    'erfolg.angelegt' => 'Der Entwurf ist angelegt.',
+    'erfolg.angelegt' => 'Dein Entwurf ist gespeichert. Noch sieht ihn niemand.',
     'erfolg.gespeichert' => 'Gespeichert.',
-    'erfolg.option_gespeichert' => 'Die Option ist gespeichert.',
-    'erfolg.option_entfernt' => 'Die Option ist entfernt.',
+    'erfolg.option_gespeichert' => 'Der Wunsch ist gespeichert.',
+    'erfolg.option_entfernt' => 'Der Wunsch ist entfernt.',
     'erfolg.veroeffentlicht' => 'Dein Angebot steht ab sofort im Katalog.',
     // Bleibt für den Altpfad /verkaufen/{id}/einreichen.
     'erfolg.eingereicht' => 'Das Angebot liegt zur Prüfung vor.',

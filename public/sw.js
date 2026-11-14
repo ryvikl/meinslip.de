@@ -10,7 +10,7 @@
  * bleiben. Zwischengespeichert wird nur die Hülle.
  */
 
-const VERSION = "v5";
+const VERSION = "v6";
 const HUELLE_CACHE = `meinslip-huelle-${VERSION}`;
 
 /*
