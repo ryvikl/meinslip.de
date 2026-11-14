@@ -244,9 +244,16 @@ jobs:
           # einer wenig hilfreichen Meldung scheitern.
           #
           # Im selben Aufruf: Ablageverzeichnisse anlegen und beschreibbar
-          # machen. storage/ ist vom rsync ausgenommen und entsteht nur hier.
+          # machen. storage/ ist vom rsync ausgenommen und entsteht nur hier —
+          # samt der .htaccess, die es vom Netz abschneidet. Das Paket bringt
+          # sie zwar mit, aber der Ausschluss liess sie nie ankommen. Dort
+          # liegen Bilder und die Selfies der Identitaetspruefung; zeigt der
+          # Dokumentenstamm je versehentlich auf den Projektstamm, ist diese
+          # Datei das Einzige, was dazwischen steht.
           if ssh "${SSH_BENUTZER}@${SSH_HOST}" "
             mkdir -p '${SSH_ZIEL}/storage/logs' '${SSH_ZIEL}/storage/uploads' \
+              '${SSH_ZIEL}/storage/medien' '${SSH_ZIEL}/storage/belege' \
+              && echo 'Require all denied' > '${SSH_ZIEL}/storage/.htaccess' \
               && chmod -R 775 '${SSH_ZIEL}/storage' \
               && test -f '${SSH_ZIEL}/.env'
           "; then

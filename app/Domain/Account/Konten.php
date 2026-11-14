@@ -99,6 +99,13 @@ final class Konten
             throw new KontoFehler('pseudonym_ungueltig');
         }
 
+        // Geschlossene Konten heissen 'geloescht-<Kennung>'. Wer sich so nennt,
+        // gaebe sich als eines aus — und blockierte spaeter die Schliessung
+        // des Kontos mit genau dieser Kennung am eindeutigen Index.
+        if (str_starts_with(mb_strtolower($pseudonym), Kontoschliessung::PSEUDONYM_VORSILBE)) {
+            throw new KontoFehler('pseudonym_ungueltig');
+        }
+
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new KontoFehler('email_ungueltig');
         }
@@ -155,7 +162,7 @@ final class Konten
         if ($konto === null) {
             // Auch ohne Treffer einmal hashen, damit die Antwortzeit nicht
             // verraet, ob die Adresse existiert.
-            password_verify($passwort, '$2y$12$usercheckusercheckuserchecku');
+            password_verify($passwort, self::vergleichsHash());
 
             return null;
         }
@@ -178,6 +185,22 @@ final class Konten
         );
 
         return $konto;
+    }
+
+    /**
+     * Ein Hash mit genau den Kosten, die ein echtes Konto traegt.
+     *
+     * Vorher stand hier eine feste Zeichenkette mit Kosten 12. Unter PHP 8.2
+     * und 8.3 rechnet PASSWORD_DEFAULT mit Kosten 10 — eine unbekannte Adresse
+     * antwortete dadurch viermal so langsam wie eine bekannte, und genau
+     * dieser Unterschied verriet, wer hier ein Konto hat. Der Hash entsteht
+     * einmal je Prozess aus demselben Aufruf wie beim Registrieren.
+     */
+    private static function vergleichsHash(): string
+    {
+        static $hash = null;
+
+        return $hash ??= password_hash('kein-konto-zu-dieser-adresse', PASSWORD_DEFAULT);
     }
 
     /** @return array<string,mixed>|null */

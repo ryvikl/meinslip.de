@@ -12,9 +12,18 @@ Finanziert ausschließlich über Transaktionsprovision. Keine Werbung.
 
 ## Projektstand
 
-**Konzeptphase.** In diesem Repository liegt noch kein Code, sondern die Wissensbasis, aus der gebaut wird: Marktanalyse, Wettbewerb, belegte Marktlücken, Feature-Konzepte, Rechts- und Steuerrahmen, Architektur und ein priorisierter Backlog.
+**Läuft, ohne Bezahlfunktion.** Registrieren, Angebote einstellen, Bilder, Chat, Terminabsprachen, Meldeweg, Moderation und Kontolöschung sind gebaut und getestet. Vor jeder Seite steht eine Altersfrage. Kasse und Guthaben sind bewusst abgeschaltet (`BESTELLVORGANG_AKTIV=false`).
 
-Stand: 25. Juli 2026
+Offen vor dem öffentlichen Betrieb, nicht im Code lösbar:
+
+- Anwaltliche Prüfung der Rechtstexte und der Frage, ob Altersfrage plus Bildregeln für den Jugendschutz genügen
+- Jugendschutz-Kennzeichnung `age-de.xml` (Generator von JusProg), Datei nach `public/`
+- Datenschutz-Folgenabschätzung, Auftragsverarbeitungsvertrag mit dem Hoster
+- Cronjob für `bin/pflege` im KAS-Adminbereich
+- Passwort zurücksetzen und E-Mail-Bestätigung: brauchen Mailversand, den es noch nicht gibt
+- Zahlungsdienstleister und anerkanntes Altersverfahren, bevor Kasse oder explizite Bilder freigeschaltet werden
+
+Wie deployt wird, steht in [`deployment/README.md`](deployment/README.md). Darunter liegt die Wissensbasis, aus der gebaut wurde.
 
 ## Lesereihenfolge
 

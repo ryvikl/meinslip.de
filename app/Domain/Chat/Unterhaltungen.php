@@ -173,7 +173,7 @@ final class Unterhaltungen
 
         $this->pruefeKeineSperre($starterId, $empfaengerId);
 
-        $angebotId = $this->gepruefterAngebotsbezug($angebotId);
+        $angebotId = $this->gepruefterAngebotsbezug($angebotId, $starterId, $empfaengerId);
         $schluessel = $this->kontextSchluessel($starterId, $empfaengerId, $angebotId);
 
         // Zuerst suchen, dann drosseln: Eine bestehende Unterhaltung wieder zu
@@ -729,15 +729,21 @@ final class Unterhaltungen
      * Der Fremdschluessel wuerde die Zeile ebenfalls abweisen — aber als
      * PDOException mitten im Schreiben, und die faengt oben niemand.
      */
-    private function gepruefterAngebotsbezug(?int $angebotId): ?int
+    private function gepruefterAngebotsbezug(?int $angebotId, int $starterId, int $empfaengerId): ?int
     {
         if ($angebotId === null || $angebotId <= 0) {
             return null;
         }
 
+        // Nur ein AKTIVES Angebot, das EINEM DER BEIDEN gehoert. Vorher
+        // genuegte die blosse Existenz: Wer eine beliebige Kennung mitschickte,
+        // bekam im Chatfenster den Titel angezeigt — auch den eines fremden
+        // Entwurfs oder eines gesperrten Angebots — und haengte der anderen
+        // Person einen Bezug an, den es nie gab.
         $vorhanden = (int) $this->db->wert(
-            'SELECT COUNT(*) FROM angebote WHERE id = :id',
-            ['id' => $angebotId]
+            "SELECT COUNT(*) FROM angebote
+              WHERE id = :id AND status = 'aktiv' AND verkaeufer_id IN (:a, :b)",
+            ['id' => $angebotId, 'a' => $starterId, 'b' => $empfaengerId]
         );
 
         return $vorhanden > 0 ? $angebotId : null;

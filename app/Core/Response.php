@@ -102,6 +102,26 @@ final class Response
             header('X-Frame-Options: DENY');
             // Diskretion: Die Seite soll nicht in fremden Vorschauen auftauchen.
             header('Permissions-Policy: geolocation=(self), camera=(self), microphone=()');
+            // Zweite Linie hinter der Maskierung in den Vorlagen: Selbst wenn
+            // einmal ein Wert ungefiltert in eine Seite geriete, laedt und
+            // startet der Browser nichts, was nicht von hier kommt.
+            // 'unsafe-inline' nur fuer Stile — die Vorlagen setzen style="".
+            // Skripte gibt es ausschliesslich als Datei.
+            header(
+                "Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; "
+                . "style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; "
+                . "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            );
+            // Kennzeichnung "nur fuer Erwachsene" fuer Filterprogramme.
+            header('Rating: RTA-5042-1996-1400-1577-RTA');
+
+            // Seiten nie zwischenspeichern: Chat, Profil und Verwaltung blieben
+            // sonst im Verlauf und im Zurueck-Speicher eines geteilten Geraets
+            // lesbar, nachdem sich jemand abgemeldet hat. Dateien (Bilder)
+            // bringen ihre eigene Angabe mit.
+            if (!$this->istDatei && !isset($this->kopfzeilen['Cache-Control'])) {
+                header('Cache-Control: no-store');
+            }
         }
 
         // Eine Datei wird gestreamt statt in den Arbeitsspeicher gelesen: Ein

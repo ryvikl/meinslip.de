@@ -14,9 +14,13 @@ use MeinSlip\Core\Router;
 use MeinSlip\Core\View;
 use MeinSlip\Domain\Account\Konten;
 use MeinSlip\Domain\Account\KontoFehler;
+use MeinSlip\Domain\Account\Kontoschliessung;
 use MeinSlip\Domain\Account\Sitzungen;
 use MeinSlip\Domain\Admin\Verwaltung;
 use MeinSlip\Domain\Ledger\Hauptbuch;
+use MeinSlip\Domain\Trust\Drossel;
+use MeinSlip\Domain\Media\Medien;
+use MeinSlip\Domain\Verification\Pruefbelege;
 
 /**
  * Alle Routen der Anwendung.
@@ -93,7 +97,7 @@ final class Routen
             '/sicherheit' => ['sicherheit', ['treuhand', 'versand', 'identitaet', 'inhalte', 'chat'], false],
             '/fuer-creator' => ['creator', ['anteil', 'adresse', 'impressum', 'zeit', 'steuer', 'stand'], false],
             '/impressum' => ['impressum', [
-                'anbieter', 'vertretung', 'kontakt', 'steuer', 'verantwortlich', 'kontaktstelle',
+                'anbieter', 'vertretung', 'kontakt', 'steuer', 'verantwortlich', 'jugendschutz', 'kontaktstelle',
                 'vertragspartner', 'streit', 'haftung', 'urheber', 'stand',
             ], true],
             '/datenschutz' => ['datenschutz', [
@@ -183,6 +187,13 @@ final class Routen
                 'aktiv' => '/profil',
                 'benachrichtigungen' => $benachrichtigungen,
                 'gestoert' => $gestoert,
+                // Nur bekannte Schluessel erreichen die Vorlage; alles andere
+                // waere ein frei waehlbarer Text in der Adresszeile.
+                'loeschFehler' => in_array(
+                    $anfrage->eingabe('loeschen'),
+                    ['unbestaetigt', 'passwort_falsch', 'bestellung_offen', 'verwalter_bleibt', 'zu_viele_versuche', 'gestoert'],
+                    true
+                ) ? (string) $anfrage->eingabe('loeschen') : null,
             ]);
         });
 
@@ -211,6 +222,59 @@ final class Routen
 
             return Response::weiterleitung('/profil');
         });
+
+        // Konto schliessen (Art. 17 DSGVO). Die Datenschutzerklaerung sagt das
+        // zu; ohne diese Route waere die Zusage nur per E-Mail einloesbar.
+        $router->post('/profil/loeschen', function (Request $anfrage): Response {
+            if (!Formularschutz::gueltig($anfrage)) {
+                return Response::weiterleitung('/profil');
+            }
+
+            $sitzung = $this->sitzung($anfrage);
+
+            if ($sitzung === null) {
+                return Response::weiterleitung('/anmelden');
+            }
+
+            // Das Kaestchen ist die zweite Hand am Hebel: Ein Passwort-Manager
+            // fuellt das Feld von selbst, ankreuzen muss ein Mensch.
+            if (($anfrage->eingabe('bestaetigt', '') ?? '') !== '1') {
+                return Response::weiterleitung('/profil?loeschen=unbestaetigt#konto-loeschen');
+            }
+
+            $benutzerId = (string) $sitzung['benutzer_id'];
+
+            try {
+                $db = Database::ausEnv();
+                $drossel = new Drossel($db);
+
+                if ($drossel->erschoepft(Drossel::LOESCHUNG_KONTO, $benutzerId)) {
+                    return Response::weiterleitung('/profil?loeschen=zu_viele_versuche#konto-loeschen');
+                }
+
+                (new Kontoschliessung(
+                    $db,
+                    new Medien($db, Medien::verzeichnis($this->wurzel)),
+                    new Pruefbelege($db, Pruefbelege::verzeichnis($this->wurzel)),
+                ))->schliessen((int) $sitzung['benutzer_id'], (string) ($anfrage->eingabe('passwort', '') ?? ''));
+            } catch (KontoFehler $fehler) {
+                if ($fehler->schluessel() === 'passwort_falsch') {
+                    // Eine offene Sitzung am fremden Geraet darf das Passwort
+                    // nicht beliebig oft raten.
+                    $drossel->zaehlen(Drossel::LOESCHUNG_KONTO, $benutzerId);
+                }
+
+                return Response::weiterleitung('/profil?loeschen=' . rawurlencode($fehler->schluessel()) . '#konto-loeschen');
+            } catch (\Throwable $fehler) {
+                error_log('[MeinSlip] Konto schliessen: ' . $fehler->getMessage());
+
+                return Response::weiterleitung('/profil?loeschen=gestoert#konto-loeschen');
+            }
+
+            $this->sitzungCookieLoeschen();
+
+            return Response::weiterleitung('/?konto=geloescht');
+        });
     }
 
     // --- Konten ----------------------------------------------------------
@@ -232,9 +296,25 @@ final class Routen
             $email = $a->eingabe('email', '') ?? '';
 
             try {
+                // Im Browser erzwingt 'required' das Kaestchen. Das hier ist
+                // fuer jede Anfrage, die nicht aus dem Formular kommt.
+                if ($a->eingabe('volljaehrig', '') !== '1') {
+                    throw new KontoFehler('nicht_bestaetigt');
+                }
+
                 $db = Database::ausEnv();
+                $drossel = new Drossel($db);
+                $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+
+                // Jedes neue Konto darf sofort oeffentlich einstellen. Ohne
+                // Grenze legte ein Skript davon beliebig viele an.
+                if ($drossel->erschoepft(Drossel::REGISTRIERUNG_IP, $ip)) {
+                    throw new KontoFehler('zu_viele_versuche');
+                }
+
                 $konten = new Konten($db);
                 $id = $konten->registrieren($pseudonym, $email, $a->eingabe('passwort', '') ?? '');
+                $drossel->zaehlen(Drossel::REGISTRIERUNG_IP, $ip);
 
                 $sitzungen = new Sitzungen($db);
                 $kennung = $sitzungen->starten($id, $a->kopfzeile('user-agent'), $_SERVER['REMOTE_ADDR'] ?? null);
@@ -263,14 +343,33 @@ final class Routen
 
             $email = $a->eingabe('email', '') ?? '';
             $db = Database::ausEnv();
+            $drossel = new Drossel($db);
+            $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+
+            // Gezaehlt wird je Adresse UND je IP, und zwar jeder Fehlversuch —
+            // auch der gegen eine Adresse ohne Konto. Sonst verriete die
+            // Sperre selbst, welche Adressen registriert sind.
+            if ($drossel->erschoepft(Drossel::ANMELDUNG_KONTO, $email)
+                || $drossel->erschoepft(Drossel::ANMELDUNG_IP, $ip)) {
+                return $this->rendern($a, 'anmelden', t('konto.anmelden_titel'), [
+                    'fehler' => 'zu_viele_versuche',
+                    'email' => $email,
+                ]);
+            }
+
             $konto = (new Konten($db))->anmelden($email, $a->eingabe('passwort', '') ?? '');
 
             if ($konto === null) {
+                $drossel->zaehlen(Drossel::ANMELDUNG_KONTO, $email);
+                $drossel->zaehlen(Drossel::ANMELDUNG_IP, $ip);
+
                 return $this->rendern($a, 'anmelden', t('konto.anmelden_titel'), [
                     'fehler' => 'anmeldung_fehlgeschlagen',
                     'email' => $email,
                 ]);
             }
+
+            $drossel->vergessen(Drossel::ANMELDUNG_KONTO, $email);
 
             $kennung = (new Sitzungen($db))->starten(
                 (int) $konto['id'],
@@ -283,6 +382,12 @@ final class Routen
         });
 
         $router->post('/abmelden', function (Request $a): Response {
+            // Ohne diese Pruefung meldete jede fremde Seite Besucher per
+            // selbstabschickendem Formular ab.
+            if (!Formularschutz::gueltig($a)) {
+                return Response::weiterleitung('/');
+            }
+
             $kennung = $_COOKIE[Sitzungen::COOKIE] ?? null;
 
             if (is_string($kennung)) {
@@ -369,8 +474,14 @@ final class Routen
                 $zustand['datenbank'] = 'ok';
 
                 $abweichung = (new Hauptbuch($db))->abweichung();
+                // Nur ob, nicht wie viel: Der Betrag einer Abweichung geht
+                // niemanden an, der diese Adresse ohne Anmeldung abruft. Er
+                // steht im Protokoll.
                 $zustand['hauptbuch'] = $abweichung === 0 ? 'ausgeglichen' : 'ABWEICHUNG';
-                $zustand['hauptbuch_abweichung_cent'] = $abweichung;
+
+                if ($abweichung !== 0) {
+                    error_log('[MeinSlip/Zustand] Hauptbuch weicht um ' . $abweichung . ' Cent ab.');
+                }
             } catch (\Throwable) {
                 $zustand['datenbank'] = 'fehler';
             }

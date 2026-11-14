@@ -110,3 +110,29 @@ foreach ($benachrichtigungen as $eintrag) {
         </a>
     </div>
 </section>
+
+<section class="ms-abschnitt" id="konto-loeschen">
+    <div>
+        <p class="ms-kicker"><?= te('profil.loeschen_kicker') ?></p>
+        <h2><?= te('profil.loeschen_titel') ?></h2>
+        <p class="hinweis"><?= te('profil.loeschen_was_geht') ?></p>
+        <p class="hinweis"><?= te('profil.loeschen_was_bleibt') ?></p>
+    </div>
+
+    <?php if (($loeschFehler ?? null) !== null): ?>
+        <p class="ms-fehler" role="alert"><?= te('profil.loeschen_fehler.' . $loeschFehler) ?></p>
+    <?php endif; ?>
+
+    <form method="post" action="/profil/loeschen" class="card elev-sm" style="display:flex;flex-direction:column;gap:var(--space-4);max-width:32rem">
+        <?= \MeinSlip\Http\Formularschutz::feld() ?>
+        <div class="field">
+            <label for="loeschen-passwort"><?= te('profil.loeschen_passwort') ?></label>
+            <input id="loeschen-passwort" name="passwort" type="password" autocomplete="current-password" required>
+        </div>
+        <label style="display:flex;gap:var(--space-2);align-items:flex-start">
+            <input type="checkbox" name="bestaetigt" value="1" required>
+            <span><?= te('profil.loeschen_bestaetigen') ?></span>
+        </label>
+        <button class="btn btn-ghost" type="submit"><?= te('profil.loeschen_knopf') ?></button>
+    </form>
+</section>

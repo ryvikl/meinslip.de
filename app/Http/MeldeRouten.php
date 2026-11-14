@@ -13,6 +13,7 @@ use MeinSlip\Core\View;
 use MeinSlip\Domain\Account\Sitzungen;
 use MeinSlip\Domain\Admin\Verwaltung;
 use MeinSlip\Domain\Chat\Unterhaltungen;
+use MeinSlip\Domain\Trust\Drossel;
 use MeinSlip\Domain\Trust\Meldungen;
 use MeinSlip\Domain\Trust\MeldungsFehler;
 
@@ -331,6 +332,33 @@ final class MeldeRouten
         $sitzung = $this->sitzung($anfrage);
         $melderId = $sitzung !== null ? (int) $sitzung['benutzer_id'] : null;
 
+        // Eine private Nachricht melden darf nur, wer sie lesen darf. Dieser
+        // Weg pruefte bisher nur, dass es die Kennung gibt — anders als der
+        // Knopf im Chat. Damit liess sich jede fremde Nachricht in die
+        // Arbeitsliste schieben, auch ohne Konto, und die Antwort verriet,
+        // welche Kennungen vergeben sind. Wer nicht beteiligt ist, bekommt
+        // dieselbe Auskunft wie bei einer Kennung, die es nicht gibt.
+        if ($gegenstand['art'] === Unterhaltungen::GEGENSTAND_NACHRICHT
+            && !$this->darfNachrichtMelden($db, $melderId, $gegenstand['id'])) {
+            return $this->formularSeite($anfrage, 'gegenstand_unbekannt', $eingaben);
+        }
+
+        // Der Takt oben haengt an einem Cookie, und wer flutet, schickt keines
+        // mit. Meldungen ohne Konto bekommen deshalb zusaetzlich eine Grenze je
+        // IP-Adresse — auch die dringenden, die den Deckel je Gegenstand
+        // umgehen duerfen. Angemeldete sind ueber ihr Konto begrenzt
+        // (Meldungen::pruefeKeineDoppelmeldung).
+        $drossel = new Drossel($db);
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+
+        if ($melderId === null) {
+            if ($drossel->erschoepft(Drossel::MELDUNG_IP, $ip)) {
+                return $this->formularSeite($anfrage, 'zu_viele_meldungen', $eingaben);
+            }
+
+            $drossel->zaehlen(Drossel::MELDUNG_IP, $ip);
+        }
+
         // Ab hier ist die Anfrage ein vollstaendiger Meldeversuch, und ab hier
         // zaehlt sie — nicht erst bei Erfolg. Sonst waere jede abgewiesene
         // Meldung kostenlos: Die Strecke liesse sich als Existenztest fuer
@@ -365,6 +393,21 @@ final class MeldeRouten
         }
 
         return Response::weiterleitung(self::DANKE);
+    }
+
+    /** Ob dieses Konto an der Unterhaltung der Nachricht beteiligt ist. */
+    private function darfNachrichtMelden(Database $db, ?int $melderId, int $nachrichtId): bool
+    {
+        if ($melderId === null) {
+            return false;
+        }
+
+        return (int) $db->wert(
+            'SELECT COUNT(*) FROM nachrichten n
+               JOIN unterhaltungen u ON u.id = n.unterhaltung_id
+              WHERE n.id = :n AND (u.teilnehmer_a_id = :a OR u.teilnehmer_b_id = :b)',
+            ['n' => $nachrichtId, 'a' => $melderId, 'b' => $melderId]
+        ) > 0;
     }
 
     /**

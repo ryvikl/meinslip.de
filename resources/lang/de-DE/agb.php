@@ -32,7 +32,7 @@ return [
 
     'konto_titel' => '§ 2 Dein Konto',
     'konto' => <<<'TEXT'
-        Ein Konto bekommt nur, wer mindestens 18 Jahre alt und unbeschränkt geschäftsfähig ist. Mit der Registrierung versicherst du das. Stellt sich heraus, dass es nicht stimmt, sperren wir das Konto sofort.
+        Die Plattform ist ausschließlich für Erwachsene. Ein Konto bekommt nur, wer mindestens 18 Jahre alt und unbeschränkt geschäftsfähig ist. Mit der Registrierung versicherst du das ausdrücklich. Stellt sich heraus, dass es nicht stimmt, sperren wir das Konto sofort.
 
         - Du registrierst dich selbst, mit einer E-Mail-Adresse, die dir gehört.
         - Ein Mensch, ein Konto. Damit kaufst und verkaufst du.
@@ -67,6 +67,7 @@ return [
         Verboten ist insbesondere:
 
         - jede Darstellung oder Beteiligung Minderjähriger und jede Anspielung darauf,
+        - pornografische Darstellungen in Bildern, Profilen und Angebotstexten: keine sexuellen Handlungen, keine Nahaufnahmen von Genitalien. Gezeigt wird die Ware,
         - Ware, deren Verkauf oder Versand gesetzlich verboten ist,
         - das Anbieten oder Vermitteln sexueller Dienstleistungen und jedes Angebot, das Zeit statt Ware bepreist,
         - Inhalte ohne Einwilligung der abgebildeten Person, fremde Bilder und fremde Identitäten,
@@ -151,7 +152,7 @@ return [
 
     'laufzeit_titel' => '§ 15 Laufzeit und Kündigung',
     'laufzeit' => <<<'TEXT'
-        Der Nutzungsvertrag läuft unbefristet. Du kannst ihn jederzeit ohne Frist beenden — eine E-Mail von der Adresse deines Kontos genügt. Wir können mit einer Frist von 14 Tagen kündigen. Das Recht zur fristlosen Kündigung aus wichtigem Grund bleibt für beide Seiten bestehen; ein wichtiger Grund für uns ist insbesondere ein Verstoß gegen § 2 oder § 5.
+        Der Nutzungsvertrag läuft unbefristet. Du kannst ihn jederzeit ohne Frist beenden, indem du dein Konto im Profil löschst. Wir können mit einer Frist von 14 Tagen kündigen. Das Recht zur fristlosen Kündigung aus wichtigem Grund bleibt für beide Seiten bestehen; ein wichtiger Grund für uns ist insbesondere ein Verstoß gegen § 2 oder § 5.
 
         Laufende Bestellungen wickeln wir trotz Kündigung zu Ende ab.
         TEXT,

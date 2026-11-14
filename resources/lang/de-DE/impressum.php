@@ -13,10 +13,6 @@ declare(strict_types=1);
  * Routen::ROBOTS_RECHTSSEITE, nicht dieser Text. Der Firmenname gehört
  * deshalb in KEINEN Seitentitel und auf keine Seite außerhalb der
  * Rechtsseiten.
- *
- * OFFEN: Ein Jugendschutzbeauftragter nach § 7 JMStV ist noch nicht bestellt
- * und steht deshalb nicht hier. Vor dem öffentlichen Betrieb muss er benannt
- * und in einem eigenen Abschnitt mit Kontakt aufgeführt werden.
  */
 return [
     'kicker' => 'Anbieterkennzeichnung',
@@ -54,6 +50,18 @@ return [
         Robby Klier
         Leipziger Straße 90
         04552 Borna
+        TEXT,
+
+    'jugendschutz_titel' => 'Jugendschutzbeauftragter',
+    'jugendschutz' => <<<'TEXT'
+        Jugendschutzbeauftragter nach § 7 JMStV:
+
+        Robby Klier
+        Leipziger Straße 90
+        04552 Borna
+        E-Mail: info@chicandchill.de
+
+        Diese Plattform richtet sich ausschließlich an Erwachsene. Hinweise zum Jugendschutz gehen an diese Adresse; schreib „Jugendschutz MeinSlip“ in den Betreff.
         TEXT,
 
     'kontaktstelle_titel' => 'Kontaktstelle für Behörden und Nutzer',
