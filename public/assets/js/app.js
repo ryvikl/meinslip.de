@@ -178,3 +178,84 @@
     });
   });
 })();
+
+/*
+ * Ausschnitt des Profilbilds.
+ *
+ * Die drei Regler des Formulars sind die Wahrheit; dieses Skript zeichnet nur
+ * die Vorschau dazu und lässt das Bild mit Finger oder Maus verschieben. Die
+ * Rechnung ist dieselbe wie in app/Domain/Media/Ausschnitt.php — wer hier
+ * etwas ändert, ändert es dort.
+ */
+(() => {
+  const formular = document.querySelector("[data-ausschnitt]");
+  if (!formular) return;
+
+  const buehne = formular.querySelector("[data-ausschnitt-buehne]");
+  const bild = formular.querySelector("[data-ausschnitt-bild]");
+  const zoom = formular.elements.zoom;
+  const x = formular.elements.x;
+  const y = formular.elements.y;
+
+  function zeichnen() {
+    const breite = bild.naturalWidth;
+    const hoehe = bild.naturalHeight;
+    if (!breite || !hoehe) return;
+
+    const seite = (Math.min(breite, hoehe) * 100) / Number(zoom.value);
+    const links = ((breite - seite) * Number(x.value)) / 100;
+    const oben = ((hoehe - seite) * Number(y.value)) / 100;
+    const massstab = buehne.clientWidth / seite;
+
+    bild.style.width = breite + "px";
+    bild.style.height = hoehe + "px";
+    bild.style.transform =
+      "translate(" + -links * massstab + "px," + -oben * massstab + "px) scale(" + massstab + ")";
+  }
+
+  function starten() {
+    buehne.hidden = false;
+    // Mit der Vorschau schiebt man das Bild selbst; die beiden Lage-Regler
+    // bleiben für Tastatur und Vorleser erreichbar, nehmen aber keinen Platz.
+    formular.querySelectorAll("[data-ausschnitt-fein]").forEach((feld) => feld.classList.add("ms-nur-vorlesen"));
+    zeichnen();
+  }
+
+  if (bild.complete && bild.naturalWidth) starten();
+  else bild.addEventListener("load", starten);
+
+  [zoom, x, y].forEach((regler) => regler.addEventListener("input", zeichnen));
+  window.addEventListener("resize", zeichnen);
+
+  let griff = null;
+
+  buehne.addEventListener("pointerdown", (ereignis) => {
+    griff = { px: ereignis.clientX, py: ereignis.clientY, x: Number(x.value), y: Number(y.value) };
+    buehne.setPointerCapture(ereignis.pointerId);
+  });
+
+  buehne.addEventListener("pointermove", (ereignis) => {
+    if (!griff) return;
+
+    const breite = bild.naturalWidth;
+    const hoehe = bild.naturalHeight;
+    const seite = (Math.min(breite, hoehe) * 100) / Number(zoom.value);
+    const massstab = buehne.clientWidth / seite;
+    const klemmen = (wert) => Math.max(0, Math.min(100, wert));
+
+    // Fingerweg in Bildpunkten der Quelle, dann in Prozent des Spielraums.
+    // Gibt es in einer Richtung keinen Spielraum, bleibt der Wert stehen.
+    if (breite > seite) {
+      x.value = klemmen(griff.x - ((ereignis.clientX - griff.px) / massstab / (breite - seite)) * 100);
+    }
+    if (hoehe > seite) {
+      y.value = klemmen(griff.y - ((ereignis.clientY - griff.py) / massstab / (hoehe - seite)) * 100);
+    }
+
+    zeichnen();
+  });
+
+  const loslassen = () => { griff = null; };
+  buehne.addEventListener("pointerup", loslassen);
+  buehne.addEventListener("pointercancel", loslassen);
+})();

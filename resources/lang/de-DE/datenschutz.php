@@ -102,6 +102,8 @@ return [
 
         Dein Profil ist zunächst privat. Schaltest du es öffentlich, bekommt es eine eigene Adresse, die du weitergeben kannst. Wer sie kennt, sieht dort Anzeigenamen, Profilbild, Vorstellung, deine Verweise und deine aktuellen Angebote. Du kannst das jederzeit wieder abschalten. Verweise auf fremde Seiten öffnen sich in einem neuen Fenster; die Zielseite erfährt dabei nicht, dass du von hier kommst, verarbeitet deine Daten aber nach ihren eigenen Regeln.
 
+        Beim Profilbild wählst du selbst den Ausschnitt. Öffentlich ausgeliefert wird nur dieser; das ganze Foto bewahren wir auf, damit du den Ausschnitt später ändern kannst, und zeigen es niemandem außer dir.
+
         Jedes hochgeladene Bild wird von uns neu geschrieben, bevor es gespeichert wird. Dabei fallen alle eingebetteten Zusatzangaben weg: Aufnahmeort, Gerät, Zeitpunkt. Das Original mit diesen Angaben bewahren wir nicht auf.
 
         Du kannst Angebote, Bilder, Profilbild und Verweise jederzeit entfernen. Sie verschwinden dann sofort.

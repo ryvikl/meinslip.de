@@ -1822,3 +1822,39 @@ input[type="file"]::file-selector-button {
 /* Überschrift und Einleitung eines Abschnitts gehören zusammen, kleben aber
    nicht aneinander. */
 .ms-abschnitt > div:first-child { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* --- Ausschnitt des Profilbilds ------------------------------------------
+   Eine quadratische Bühne mit kreisrunder Maske. Das Bild darunter wird per
+   Skript verschoben und vergrößert; was ausserhalb des Kreises liegt, ist
+   abgedunkelt zu sehen, damit man weiss, wohin man schieben kann. */
+.ms-ausschnitt {
+  position: relative;
+  width: min(100%, 320px);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--color-bg);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.ms-ausschnitt:active { cursor: grabbing; }
+.ms-ausschnitt img {
+  position: absolute;
+  top: 0; left: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.ms-ausschnitt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px color-mix(in srgb, var(--color-bg) 72%, transparent);
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: -2px;
+  pointer-events: none;
+}
+input[type="range"] { width: 100%; min-height: var(--tippziel); accent-color: var(--color-accent-500); }

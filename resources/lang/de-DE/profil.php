@@ -118,6 +118,19 @@ return [
     'bild_feld' => 'Bilddatei',
     'bild_hochladen' => 'Hochladen',
     'bild_entfernen' => 'Bild entfernen',
+    'bild_ausschnitt' => 'Ausschnitt ändern',
+
+    // --- Ausschnitt wählen -------------------------------------------------
+    'ausschnitt_titel' => 'Ausschnitt wählen',
+    'ausschnitt_kicker' => 'Profilbild',
+    'ausschnitt_text' => 'Schieb das Bild mit dem Finger zurecht und stell ein, wie nah es sein '
+        . 'soll. Nur der Kreis ist später zu sehen — der Rest des Fotos bleibt bei dir.',
+    'ausschnitt_vorschau' => 'Vorschau des Ausschnitts',
+    'ausschnitt_zoom' => 'Größe',
+    'ausschnitt_x' => 'Links – rechts',
+    'ausschnitt_y' => 'Oben – unten',
+    'ausschnitt_speichern' => 'Ausschnitt übernehmen',
+    'ausschnitt_abbrechen' => 'So lassen',
     'bild_alt' => 'Profilbild von :name',
     'feld_anzeigename' => 'Anzeigename',
     'hinweis_anzeigename' => 'So heißt du auf deiner Seite. Leer gelassen, steht dort dein Pseudonym.',
@@ -156,6 +169,9 @@ return [
     'meldung.gespeichert' => 'Gespeichert.',
     'meldung.bild_gespeichert' => 'Dein Profilbild ist da.',
     'meldung.bild_entfernt' => 'Das Profilbild ist entfernt.',
+    'meldung.ausschnitt_gespeichert' => 'Der Ausschnitt ist übernommen.',
+    'meldung.kein_original' => 'Zu diesem Profilbild gibt es kein ganzes Foto mehr. Lade es noch '
+        . 'einmal hoch, dann kannst du den Ausschnitt wählen.',
     'meldung.link_gespeichert' => 'Der Link steht auf deiner Seite.',
     'meldung.link_entfernt' => 'Der Link ist entfernt.',
     'meldung.anzeigename_zu_lang' => 'Der Anzeigename darf höchstens 60 Zeichen haben.',

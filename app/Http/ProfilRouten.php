@@ -19,6 +19,7 @@ use MeinSlip\Domain\Account\Profile;
 use MeinSlip\Domain\Account\Sitzungen;
 use MeinSlip\Domain\Admin\Verwaltung;
 use MeinSlip\Domain\Catalog\Angebote;
+use MeinSlip\Domain\Media\Ausschnitt;
 use MeinSlip\Domain\Media\Bilder;
 use MeinSlip\Domain\Media\Medien;
 use MeinSlip\Domain\Media\MedienFehler;
@@ -65,7 +66,7 @@ final class ProfilRouten
 
     /** @var list<string> Rueckmeldungen, die eine Adresse tragen darf. */
     private const MELDUNGEN = [
-        'gespeichert', 'bild_gespeichert', 'bild_entfernt', 'link_gespeichert', 'link_entfernt',
+        'gespeichert', 'bild_gespeichert', 'bild_entfernt', 'ausschnitt_gespeichert', 'kein_original', 'link_gespeichert', 'link_entfernt',
         'anzeigename_zu_lang', 'vorstellung_zu_lang', 'link_titel_fehlt', 'link_titel_zu_lang',
         'link_adresse_ungueltig', 'link_zu_viele', 'keine_datei', 'gestoert',
         'unbestaetigt', 'passwort_falsch', 'bestellung_offen', 'verwalter_bleibt', 'zu_viele_versuche',
@@ -96,6 +97,9 @@ final class ProfilRouten
         $router->post(self::WURZEL . '/bearbeiten', fn (Request $a): Response => $this->speichern($a));
         $router->post(self::WURZEL . '/sichtbarkeit', fn (Request $a): Response => $this->sichtbarkeit($a));
         $router->post(self::WURZEL . '/bild', fn (Request $a): Response => $this->bildHochladen($a));
+        $router->get(self::WURZEL . '/bild/ausschnitt', fn (Request $a): Response => $this->ausschnittSeite($a));
+        $router->post(self::WURZEL . '/bild/ausschnitt', fn (Request $a): Response => $this->ausschnittSpeichern($a));
+        $router->get(self::WURZEL . '/bild/original', fn (Request $a): Response => $this->original($a));
         $router->post(self::WURZEL . '/bild/entfernen', fn (Request $a): Response => $this->bildEntfernen($a));
         $router->post(self::WURZEL . '/links', fn (Request $a): Response => $this->linkHinzufuegen($a));
         $router->post(
@@ -240,13 +244,92 @@ final class ProfilRouten
             // gibt hier keine Zone, in der sie gezeigt wuerde.
             @unlink($ergebnis['vorschau_pfad']);
 
+            // Sofort ein Quadrat aus der Mitte: Wer die Ausschnittwahl gleich
+            // wieder verlaesst, hat trotzdem ein brauchbares Profilbild.
+            $quadrat = dirname($ergebnis['pfad']) . '/a-' . bin2hex(random_bytes(12)) . '.jpg';
+            (new Ausschnitt())->quadrat($ergebnis['pfad'], $quadrat);
+
+            // ZWEI DATEIEN, ZWEI SPALTEN. bild_pfad ist das Quadrat, das alle
+            // sehen. bild_vorschau_pfad traegt das ganze Foto — es wird nie
+            // oeffentlich ausgeliefert und dient nur dazu, den Ausschnitt
+            // spaeter noch einmal anders zu waehlen. Der Spaltenname stammt aus
+            // der Zeit vor dieser Funktion; Ddl kann kein ALTER TABLE.
             $profile->speichern($ich, [
-                'bild_pfad' => $this->relativ($medienwurzel, $ergebnis['pfad']),
-                'bild_vorschau_pfad' => '',
+                'bild_pfad' => $this->relativ($medienwurzel, $quadrat),
+                'bild_vorschau_pfad' => $this->relativ($medienwurzel, $ergebnis['pfad']),
             ]);
 
-            // Das alte Bild erst jetzt entfernen: Scheitert der Upload, bleibt
-            // das bisherige stehen.
+            // Die alten Dateien erst jetzt entfernen: Scheitert der Upload,
+            // bleibt das bisherige Bild stehen.
+            foreach (['bild_pfad', 'bild_vorschau_pfad'] as $spalte) {
+                $this->bilddateiEntfernen($db, is_string($alt[$spalte]) ? $alt[$spalte] : null);
+            }
+        } catch (MedienFehler $fehler) {
+            return Response::weiterleitung(
+                self::WURZEL . '/bearbeiten?bildfehler=' . rawurlencode($fehler->schluessel()) . '#bild'
+            );
+        } catch (\Throwable $fehler) {
+            return $this->gestoert('/bearbeiten', $fehler);
+        }
+
+        return Response::weiterleitung(self::WURZEL . '/bild/ausschnitt');
+    }
+
+    /** Die Seite, auf der die Person den Ausschnitt waehlt. */
+    private function ausschnittSeite(Request $anfrage): Response
+    {
+        $sitzung = $this->sitzung($anfrage);
+
+        if ($sitzung === null) {
+            return Response::weiterleitung('/anmelden');
+        }
+
+        if ($this->originalDatei((int) $sitzung['benutzer_id']) === null) {
+            return $this->zurueck('/bearbeiten', 'kein_original');
+        }
+
+        return $this->rendern($anfrage, 'profil.ausschnitt', t('profil.ausschnitt_titel') . ' — ' . t('allgemein.marke'), [
+            'aktiv' => self::WURZEL,
+            'zoomMin' => Ausschnitt::ZOOM_MIN,
+            'zoomMax' => Ausschnitt::ZOOM_MAX,
+        ]);
+    }
+
+    private function ausschnittSpeichern(Request $anfrage): Response
+    {
+        $ich = $this->angemeldet($anfrage);
+
+        if ($ich === null) {
+            return Response::weiterleitung(self::WURZEL . '/bearbeiten');
+        }
+
+        $quelle = $this->originalDatei($ich);
+
+        if ($quelle === null) {
+            return $this->zurueck('/bearbeiten', 'kein_original');
+        }
+
+        try {
+            $db = $this->datenbankOderFehler();
+            $profile = new Profile($db);
+            $alt = $profile->laden($ich);
+
+            // Neue Datei mit neuem Namen statt Ueberschreiben: Die Adresse des
+            // Profilbilds bleibt gleich, aber der Browser haelt es fuenf
+            // Minuten vor — ein neuer Name macht die Aenderung nicht schneller
+            // sichtbar, verhindert aber, dass ein halb geschriebenes Bild
+            // ausgeliefert wird.
+            $ziel = dirname($quelle) . '/a-' . bin2hex(random_bytes(12)) . '.jpg';
+
+            (new Ausschnitt())->quadrat(
+                $quelle,
+                $ziel,
+                (int) ($anfrage->ganzzahl('zoom', 100) ?? 100),
+                (int) ($anfrage->ganzzahl('x', 50) ?? 50),
+                (int) ($anfrage->ganzzahl('y', 50) ?? 50)
+            );
+
+            $profile->speichern($ich, ['bild_pfad' => $this->relativ(Medien::verzeichnis($this->wurzel), $ziel)]);
             $this->bilddateiEntfernen($db, is_string($alt['bild_pfad']) ? $alt['bild_pfad'] : null);
         } catch (MedienFehler $fehler) {
             return Response::weiterleitung(
@@ -256,7 +339,40 @@ final class ProfilRouten
             return $this->gestoert('/bearbeiten', $fehler);
         }
 
-        return $this->zurueck('/bearbeiten', 'bild_gespeichert');
+        return $this->zurueck('/bearbeiten', 'ausschnitt_gespeichert');
+    }
+
+    /**
+     * Das ganze Foto — ausschliesslich fuer die Person selbst.
+     *
+     * Kein Pseudonym in der Adresse und keine Kennung: Welche Datei kommt,
+     * entscheidet allein die Sitzung. Es gibt damit keine Adresse, die man
+     * weitergeben oder durchzaehlen koennte.
+     */
+    private function original(Request $anfrage): Response
+    {
+        $sitzung = $this->sitzung($anfrage);
+        $datei = $sitzung === null ? null : $this->originalDatei((int) $sitzung['benutzer_id']);
+
+        if ($datei === null) {
+            return Response::text('', 404);
+        }
+
+        return Response::datei($datei, 'image/jpeg', ['Cache-Control' => 'private, no-store']);
+    }
+
+    /** Voller Pfad des ganzen Fotos, wenn es eines gibt. */
+    private function originalDatei(int $benutzerId): ?string
+    {
+        try {
+            $db = $this->datenbankOderFehler();
+            $profil = (new Profile($db))->laden($benutzerId);
+
+            return (new Medien($db, Medien::verzeichnis($this->wurzel)))
+                ->datei(is_string($profil['bild_vorschau_pfad']) ? $profil['bild_vorschau_pfad'] : null);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function bildEntfernen(Request $anfrage): Response
@@ -272,7 +388,10 @@ final class ProfilRouten
             $profile = new Profile($db);
             $alt = $profile->laden($ich);
             $profile->speichern($ich, ['bild_pfad' => '', 'bild_vorschau_pfad' => '']);
-            $this->bilddateiEntfernen($db, is_string($alt['bild_pfad']) ? $alt['bild_pfad'] : null);
+
+            foreach (['bild_pfad', 'bild_vorschau_pfad'] as $spalte) {
+                $this->bilddateiEntfernen($db, is_string($alt[$spalte]) ? $alt[$spalte] : null);
+            }
         } catch (\Throwable $fehler) {
             return $this->gestoert('/bearbeiten', $fehler);
         }
@@ -537,7 +656,11 @@ final class ProfilRouten
             return null;
         }
 
-        $erfolg = in_array($schluessel, ['gespeichert', 'bild_gespeichert', 'bild_entfernt', 'link_gespeichert', 'link_entfernt'], true);
+        $erfolg = in_array(
+            $schluessel,
+            ['gespeichert', 'bild_gespeichert', 'bild_entfernt', 'ausschnitt_gespeichert', 'link_gespeichert', 'link_entfernt'],
+            true
+        );
 
         return [
             'art' => $erfolg ? 'erfolg' : 'fehler',
