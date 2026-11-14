@@ -12,7 +12,9 @@ use MeinSlip\Core\Response;
 use MeinSlip\Core\Router;
 use MeinSlip\Core\View;
 use MeinSlip\Domain\Account\Konten;
+use MeinSlip\Domain\Account\Profile;
 use MeinSlip\Domain\Account\Sitzungen;
+use MeinSlip\Domain\Verification\Pruefbelege;
 use MeinSlip\Domain\Catalog\AngebotFehler;
 use MeinSlip\Domain\Catalog\Angebote;
 use MeinSlip\Domain\Ledger\Hauptbuch;
@@ -417,6 +419,25 @@ final class MarktRouten
 
         $daten['angebot'] = $angebot;
         $daten['verkaeufer'] = $verkaeufer;
+        $daten['eigenes'] = $benutzerId !== 0 && $benutzerId === $verkaeuferId;
+        // Rueckkehr von der Angabe "Wer schreibt hier?": Die Seite sagt dann,
+        // dass der Knopf jetzt durchgeht.
+        $daten['chatBereit'] = $anfrage->eingabe('erfolg') === 'deklaration_gesetzt';
+
+        // Das oeffentliche Profil der Anbieterin, falls sie eines eingeschaltet
+        // hat — dann fuehrt ihr Name dorthin und ihr Bild steht daneben. Und
+        // das Abzeichen nur, wenn sie es wirklich traegt: Vorher stand das
+        // Siegel neben JEDEM Namen, auch neben ungeprueften.
+        try {
+            $daten['verkaeuferProfil'] = $verkaeufer === null
+                ? null
+                : (new Profile($db))->nachPseudonym((string) $verkaeufer['pseudonym']);
+            $daten['verkaeuferGeprueft'] = (new Pruefbelege($db, Pruefbelege::verzeichnis($this->wurzel)))
+                ->abzeichenVorhanden($verkaeuferId);
+        } catch (\Throwable $fehlerProfil) {
+            error_log('[MeinSlip/Markt] Profil zum Angebot: ' . $fehlerProfil->getMessage());
+        }
+
         $daten['optionen'] = $this->aktiveOptionen($angebot);
         $daten['kategorie'] = $db->eine(
             'SELECT schluessel, pfad FROM kategorien WHERE id = :id',

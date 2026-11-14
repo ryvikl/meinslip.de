@@ -344,7 +344,7 @@ final class NachrichtenRouten
         }
 
         $ich = (int) $sitzung['benutzer_id'];
-        $umleitung = $this->deklarationVerlangen($db, $ich, self::WURZEL);
+        $umleitung = $this->deklarationVerlangen($db, $ich, $anfrage->eingabe('zurueck') ?? self::WURZEL);
 
         if ($umleitung !== null) {
             return $umleitung;
@@ -770,7 +770,15 @@ final class NachrichtenRouten
      */
     private function gepruefteRueckkehr(?string $roh): string
     {
-        if ($roh !== null && preg_match('#^/nachrichten(/[1-9]\d{0,17})?$#', $roh) === 1) {
+        // Neben dem Chat selbst die zwei Seiten, von denen aus man jemanden
+        // anschreibt: ein Angebot und ein oeffentliches Profil. Wer dort zum
+        // ersten Mal "Nachricht schreiben" drueckt, muss erst angeben, wer
+        // schreibt — und landete danach in der leeren Nachrichtenliste statt
+        // dort, wo er herkam. Weiterhin nur Pfade dieser Seite mit festem
+        // Aufbau; alles andere wird zur Nachrichtenliste.
+        $erlaubt = '#^/(nachrichten(/[1-9]\d{0,17})?|angebot/[1-9]\d{0,17}|p/[\p{L}\p{N}_-]{3,30})$#u';
+
+        if ($roh !== null && preg_match($erlaubt, $roh) === 1) {
             return $roh;
         }
 

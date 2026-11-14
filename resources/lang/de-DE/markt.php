@@ -98,6 +98,23 @@ return [
         . 'Es ist entweder ein Entwurf, pausiert, gesperrt oder zurückgezogen.',
     'angebot_beschreibung' => 'Beschreibung',
 
+    // --- Angebotsseite ------------------------------------------------------
+    'seite_kein_bild' => 'Noch kein Bild',
+    'seite_wischen' => 'Wischen für mehr Bilder',
+    'seite_preis_zusatz' => 'Endpreis, kein Versand extra',
+    'seite_bearbeiten' => 'Angebot bearbeiten',
+    'seite_nachricht_text' => 'Frag nach Größe, Zustand oder Tragedauer — oder sag, was du dir wünschst.',
+    'seite_chat_bereit' => 'Deine Angabe ist gespeichert. Jetzt kannst du schreiben.',
+    'seite_anmelden_schreiben' => 'Anmelden und Nachricht schreiben',
+    'seite_fertig' => 'Fertig in',
+    'seite_fertig_wert' => 'etwa :tage Tagen',
+    'seite_versand' => 'Versand',
+    'seite_versand_wert' => 'Per Post, anonym',
+    'seite_uebergabe' => 'Übergabe',
+    'seite_uebergabe_wert' => 'Persönlich möglich',
+    'seite_wuensche' => 'Das kannst du mitbestimmen',
+    'seite_wuensche_text' => 'Schreib in deiner Nachricht dazu, wie du es haben möchtest.',
+
     // --- Kontakt: die Hauptaktion der Angebotsseite ------------------------
     // Der Bestellvorgang ist verriegelt, solange die Frage nach § 1 Abs. 1
     // S. 2 Nr. 1 KWG offen ist. Diese Texte sind deshalb nicht der
