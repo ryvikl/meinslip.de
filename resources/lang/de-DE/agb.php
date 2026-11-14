@@ -57,6 +57,8 @@ return [
 
         - Du beschreibst deine Ware wahrheitsgemäß und vollständig.
         - Du lädst nur Bilder hoch, die du selbst aufgenommen hast oder verwenden darfst.
+        - Dein Profilbild ist für alle sichtbar und deshalb immer jugendfrei.
+        - Für die Seiten, auf die du von deinem Profil aus verweist, bist du verantwortlich. Verweise auf rechtswidrige Inhalte entfernen wir.
         - Auf deinen Bildern ist niemand außer dir zu sehen, es sei denn, die Person hat nachweislich zugestimmt und ist volljährig.
         - Du gibst an, ob Nachrichten von dir selbst, von einem Team oder mit KI-Unterstützung kommen.
         - Steuern und Abgaben auf deine Einnahmen klärst und zahlst du selbst.

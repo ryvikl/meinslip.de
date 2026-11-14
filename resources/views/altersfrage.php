@@ -28,7 +28,7 @@ declare(strict_types=1);
 </head>
 <body>
 <main class="ms-huelle ms-inhalt" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
-    <section class="card elev-sm" style="max-width:30rem;display:flex;flex-direction:column;gap:var(--space-5);text-align:center">
+    <section class="card elev-sm" style="max-width:30rem;display:flex;flex-direction:column;gap:var(--space-6);text-align:center">
         <img src="/assets/symbole/app-icon.png" alt="" width="56" height="56" style="margin:0 auto">
 
         <?php if ($abgelehnt): ?>

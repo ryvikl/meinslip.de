@@ -98,11 +98,13 @@ return [
 
     'inhalte_titel' => 'Profil, Angebote und Bilder',
     'inhalte' => <<<'TEXT'
-        Was du in dein Profil schreibst und als Angebot einstellst, ist für andere sichtbar — dafür ist es da. Grundlage ist der Nutzungsvertrag (Art. 6 Abs. 1 lit. b DSGVO).
+        Was du als Angebot einstellst, ist für andere sichtbar — dafür ist es da. Grundlage ist der Nutzungsvertrag (Art. 6 Abs. 1 lit. b DSGVO).
+
+        Dein Profil ist zunächst privat. Schaltest du es öffentlich, bekommt es eine eigene Adresse, die du weitergeben kannst. Wer sie kennt, sieht dort Anzeigenamen, Profilbild, Vorstellung, deine Verweise und deine aktuellen Angebote. Du kannst das jederzeit wieder abschalten. Verweise auf fremde Seiten öffnen sich in einem neuen Fenster; die Zielseite erfährt dabei nicht, dass du von hier kommst, verarbeitet deine Daten aber nach ihren eigenen Regeln.
 
         Jedes hochgeladene Bild wird von uns neu geschrieben, bevor es gespeichert wird. Dabei fallen alle eingebetteten Zusatzangaben weg: Aufnahmeort, Gerät, Zeitpunkt. Das Original mit diesen Angaben bewahren wir nicht auf.
 
-        Du kannst Angebote und Bilder jederzeit zurückziehen. Sie verschwinden dann aus dem Katalog.
+        Du kannst Angebote, Bilder, Profilbild und Verweise jederzeit entfernen. Sie verschwinden dann sofort.
         TEXT,
 
     'nachrichten_titel' => 'Nachrichten',

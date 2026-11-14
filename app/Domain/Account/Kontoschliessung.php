@@ -26,7 +26,7 @@ use MeinSlip\Domain\Verification\Pruefbelege;
  * eine Zeile, die niemanden mehr bezeichnet, und der Verlauf der Gegenseite
  * unter dem Namen 'geloescht-<Kennung>'.
  *
- * WAS GEHT: Profil, Angebote samt Bildern, Pruefbelege samt Dateien,
+ * WAS GEHT: Profil samt Bild und Verweisen, Angebote samt Bildern, Pruefbelege samt Dateien,
  * Identitaetsangaben, Sitzungen, eigene Sperrliste, offene Termine,
  * Faehigkeiten, Zustellungen.
  *
@@ -91,6 +91,8 @@ final class Kontoschliessung
             )
         );
 
+        $profilbild = $this->db->wert('SELECT bild_pfad FROM profile WHERE benutzer_id = :b', ['b' => $benutzerId]);
+
         $jetzt = gmdate('Y-m-d H:i:s');
 
         $this->db->transaktion(function () use ($benutzerId, $jetzt): void {
@@ -110,7 +112,7 @@ final class Kontoschliessung
                 ['a' => $benutzerId, 'b' => $benutzerId]
             );
 
-            foreach (['profile', 'benutzer_identitaeten', 'sitzungen', 'benachrichtigungen'] as $tabelle) {
+            foreach (['profile', 'profil_links', 'benutzer_identitaeten', 'sitzungen', 'benachrichtigungen'] as $tabelle) {
                 $this->db->ausfuehren('DELETE FROM ' . $tabelle . ' WHERE benutzer_id = :b', $b);
             }
 
@@ -149,6 +151,14 @@ final class Kontoschliessung
             } catch (\Throwable $fehler) {
                 error_log('[MeinSlip/Kontoschliessung] Medium ' . $medienId . ': ' . $fehler->getMessage());
             }
+        }
+
+        // Das Profilbild liegt im Medienverzeichnis; Medien::datei() gibt nur
+        // heraus, was wirklich darunter liegt.
+        $bilddatei = $this->medien->datei(is_string($profilbild) ? $profilbild : null);
+
+        if ($bilddatei !== null) {
+            @unlink($bilddatei);
         }
 
         try {
