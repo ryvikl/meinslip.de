@@ -19,6 +19,18 @@ use PHPUnit\Framework\TestCase;
  */
 abstract class Testfall extends TestCase
 {
+    /**
+     * Fertiger Hash von 'geheim-fuer-tests' mit den geringsten bcrypt-Kosten.
+     *
+     * Vorher rechnete jedes Testkonto password_hash(PASSWORD_DEFAULT). Seit
+     * PHP 8.4 liegen die Standardkosten bei 12 statt 10 — das Vierfache. Die
+     * Suite brauchte dadurch auf 8.4 und 8.5 rund 105 Sekunden statt 29 auf
+     * 8.2, und genau auf diese Laeufe wartet jedes Deployment. Die Helfer
+     * pruefen kein Passwort, sie brauchen nur eine gueltige Spalte. Wo es auf
+     * das echte Verfahren ankommt (KontenTest), laeuft weiter Konten selbst.
+     */
+    public const PASSWORT_HASH = '$2y$04$G90oFfVl7sXi3KVzkhLjPuyEosF69gKAcnFgTi7LUoPG.Yf7CGeFm';
+
     protected Database $db;
 
     protected Hauptbuch $hauptbuch;
@@ -59,7 +71,7 @@ abstract class Testfall extends TestCase
         return $this->db->einfuegen('benutzer', [
             'pseudonym' => $pseudonym,
             'email' => strtolower($pseudonym) . '@beispiel.test',
-            'passwort_hash' => password_hash('geheim-fuer-tests', PASSWORD_DEFAULT),
+            'passwort_hash' => self::PASSWORT_HASH,
             'status' => 'aktiv',
             'sprache' => 'de-DE',
             'land' => 'DE',

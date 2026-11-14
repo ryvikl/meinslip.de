@@ -2,14 +2,14 @@
 
 ## Der bequemste Weg: aus Git heraus
 
-Ein Push auf `main` deployt automatisch — aber erst, wenn alle Tests grün sind. Zusätzlich lässt sich das Deployment jederzeit von Hand auslösen unter *Actions → Deployen → Run workflow*.
+Ein Push auf `main` oder auf den Standardzweig deployt automatisch — also auch jeder gemergte Pull Request —, aber erst, wenn alle Tests grün sind. Zusätzlich lässt sich das Deployment jederzeit von Hand auslösen unter *Actions → Deployen → Run workflow*.
 
 Zwei Workflows:
 
 | Datei | Läuft wann | Was |
 | :--- | :--- | :--- |
-| `.github/workflows/pruefen.yml` | jeder Push, jeder Pull Request | Tests auf PHP 8.2 **und** 8.4, Kontrastprüfung, Syntaxprüfung, Verweisprüfung, Suche nach versehentlich versionierten Zugangsdaten |
-| `.github/workflows/deployen.yml` | Push auf `main`, oder auf Knopfdruck | Paket bauen → FTPS-Upload → Migrationen → Betriebsprüfung |
+| `.github/workflows/pruefen.yml` | jeder Push außer auf die Auslieferungszweige, jeder Pull Request | Tests auf PHP 8.2 **und** 8.4, Kontrastprüfung, Syntaxprüfung, Verweisprüfung, Suche nach versehentlich versionierten Zugangsdaten |
+| `.github/workflows/deployen.yml` | Push auf `main` oder den Standardzweig (auch per Merge), oder auf Knopfdruck | Paket bauen → FTPS-Upload → Migrationen → Betriebsprüfung |
 
 **Rote Tests blockieren das Deployment.** Der Deploy-Job wartet über `needs` auf die Prüfungen. Ohne diese Kopplung wäre die Automatik gefährlicher als Handarbeit.
 

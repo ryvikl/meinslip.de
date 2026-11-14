@@ -1,6 +1,11 @@
 # Deployment auf das All-Inkl-Webhosting über SSH.
 #
-# Läuft bei jedem Push auf main — aber erst, wenn alle Prüfungen grün sind.
+# Läuft bei jedem Push auf einen der Auslieferungszweige — also auch, sobald
+# ein Pull Request dorthin gemergt wird — aber erst, wenn alle Prüfungen grün
+# sind. Der zweite Zweig ist der Standardzweig des Repositorys: Dorthin gehen
+# die Pull Requests, und vorher musste nach jedem Merge von Hand ausgelöst
+# werden. Wer den Standardzweig umbenennt, trägt ihn hier UND in pruefen.yml
+# (branches-ignore) nach.
 # Zusätzlich jederzeit von Hand auslösbar unter Actions → Deployen → Run workflow.
 #
 # Übertragen wird per rsync über SSH: schneller als FTP, weil nur Geändertes
@@ -12,7 +17,9 @@ name: Deployen
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/meinslip-marketplace-concept-78znlm
   workflow_dispatch:
     inputs:
       migrationen:
@@ -94,25 +101,14 @@ jobs:
       - name: Quellcode holen
         uses: actions/checkout@v4
 
-      - name: PHP einrichten
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          # Muss zu composer.json passen: Das Paket-Skript ruft composer
-          # install auf, und der Plattformblock verlangt seit dem Medienpaket
-          # ext-gd. Fehlt sie hier, bricht der Paketbau ab, bevor irgendetwas
-          # den Server erreicht.
-          extensions: pdo, pdo_mysql, mbstring, json, gd, fileinfo
-          coverage: none
-          tools: composer:v2
-
       - name: Paket bauen
-        # Produktiv hat die Anwendung keine externen Abhängigkeiten — der
-        # eigene Klassenlader ersetzt Composer. Mit --no-dev ist PHPUnit nicht
-        # vorhanden, das Skript überspringt die Tests deshalb von selbst; sie
-        # liefen bereits im Prüf-Job.
+        # Braucht weder PHP noch Composer: Produktiv hat die Anwendung keine
+        # externen Abhängigkeiten, der eigene Klassenlader ersetzt Composer,
+        # und vendor/ wird ohnehin nicht übertragen. Ohne PHPUnit überspringt
+        # das Skript die Tests von selbst — sie liefen bereits im Prüf-Job.
+        # Das Einrichten von PHP kostete hier vorher sieben Sekunden für
+        # nichts.
         run: |
-          composer install --no-dev --optimize-autoloader --no-interaction --quiet
           ./deployment/paket-bauen.sh
           echo "Dateien: $(find deployment/upload -type f | wc -l)"
           echo "Größe:   $(du -sh deployment/upload | cut -f1)"
@@ -133,6 +129,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
+
+          # Eine Verbindung für alle folgenden Schritte. Ohne das baut jeder
+          # ssh- und rsync-Aufruf eine eigene auf, samt Schlüsseltausch und
+          # Anmeldung — fünfmal hintereinander.
+          cat > ~/.ssh/config <<'KONFIG'
+          Host *
+            ControlMaster auto
+            ControlPath ~/.ssh/verbindung-%C
+            ControlPersist 120
+          KONFIG
+          chmod 600 ~/.ssh/config
 
           ssh-keyscan -t ed25519 -p 22 "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
           chmod 600 ~/.ssh/known_hosts
@@ -223,15 +230,6 @@ jobs:
             ./deployment/upload/ \
             "${SSH_BENUTZER}@${SSH_HOST}:${SSH_ZIEL}/"
 
-      - name: Verzeichnisse anlegen und Rechte setzen
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_BENUTZER: ${{ secrets.SSH_BENUTZER }}
-          SSH_ZIEL: ${{ secrets.SSH_ZIEL }}
-        run: |
-          ssh "${SSH_BENUTZER}@${SSH_HOST}" \
-            "mkdir -p '${SSH_ZIEL}/storage/logs' '${SSH_ZIEL}/storage/uploads' && chmod -R 775 '${SSH_ZIEL}/storage'"
-
       - name: Konfiguration auf dem Server prüfen
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -244,7 +242,14 @@ jobs:
           # und enthält die Datenbankzugänge. Beim allerersten Deployment
           # existiert sie deshalb noch nicht, und die Migrationen würden mit
           # einer wenig hilfreichen Meldung scheitern.
-          if ssh "${SSH_BENUTZER}@${SSH_HOST}" "test -f '${SSH_ZIEL}/.env'"; then
+          #
+          # Im selben Aufruf: Ablageverzeichnisse anlegen und beschreibbar
+          # machen. storage/ ist vom rsync ausgenommen und entsteht nur hier.
+          if ssh "${SSH_BENUTZER}@${SSH_HOST}" "
+            mkdir -p '${SSH_ZIEL}/storage/logs' '${SSH_ZIEL}/storage/uploads' \
+              && chmod -R 775 '${SSH_ZIEL}/storage' \
+              && test -f '${SSH_ZIEL}/.env'
+          "; then
             echo "Die .env ist vorhanden."
             exit 0
           fi
@@ -296,7 +301,7 @@ jobs:
           fi
 
           # Nach dem Übertragen braucht der Server manchmal einen Moment.
-          for versuch in 1 2 3 4 5; do
+          for versuch in 1 2 3 4 5 6 7 8 9 10; do
             if antwort=$(curl -sS --fail-with-body --max-time 20 "${auth[@]}" "${SEITE}/zustand"); then
               echo "$antwort"
               if echo "$antwort" | grep -q '"hauptbuch":"ausgeglichen"'; then
@@ -305,8 +310,8 @@ jobs:
               fi
               echo "Antwort noch nicht in Ordnung."
             fi
-            echo "Versuch ${versuch} fehlgeschlagen, warte 10 Sekunden."
-            sleep 10
+            echo "Versuch ${versuch} fehlgeschlagen, warte 3 Sekunden."
+            sleep 3
           done
 
           echo "FEHLER: Die Seite meldet nach dem Deployment keinen gesunden Zustand."

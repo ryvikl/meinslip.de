@@ -7,6 +7,13 @@ name: Prüfen
 
 on:
   push:
+    # Die Auslieferungszweige prüft deployen.yml selbst (workflow_call unten).
+    # Ohne diese Ausnahme liefe nach jedem Merge dieselbe Prüfung zweimal
+    # nebeneinander — doppelte Rechenzeit, und der Deployment-Lauf stand
+    # dabei mit in der Warteschlange.
+    branches-ignore:
+      - main
+      - claude/meinslip-marketplace-concept-78znlm
   pull_request:
   # Erlaubt es deployen.yml, diesen Workflow als Vorbedingung aufzurufen.
   workflow_call:
