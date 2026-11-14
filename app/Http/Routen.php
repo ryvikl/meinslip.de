@@ -26,6 +26,12 @@ use MeinSlip\Domain\Ledger\Hauptbuch;
  */
 final class Routen
 {
+    /**
+     * Indexierungsverbot der Rechtsseiten: nicht aufnehmen, Verweisen nicht
+     * folgen, keine Kopie im Zwischenspeicher, kein Textauszug im Treffer.
+     */
+    public const ROBOTS_RECHTSSEITE = 'noindex, nofollow, noarchive, nosnippet';
+
     public function __construct(
         private readonly string $wurzel,
         private readonly View $ansicht,
@@ -72,23 +78,47 @@ final class Routen
             ]);
         });
 
-        // Textseiten. Der dritte Wert steuert, ob der Entwurfshinweis erscheint.
+        // Textseiten. Der dritte Wert sagt, ob es eine Rechtsseite ist.
+        //
+        // Rechtsseiten nennen die Betreibergesellschaft mit Namen und
+        // Anschrift. Sie bekommen deshalb ein eigenes Indexierungsverbot, das
+        // NICHT an der .htaccess haengt: Dort steht heute ein Verbot fuer die
+        // ganze Seite, aber das kann zum oeffentlichen Start fallen — und dann
+        // darf eine Suche nach dem Firmennamen trotzdem nicht hierher fuehren.
+        // Die Seiten bleiben fuer Menschen einen Klick entfernt (Fusszeile),
+        // nur Suchmaschinen nehmen sie nicht auf. Eine robots.txt-Sperre waere
+        // das falsche Mittel: Wer nicht abrufen darf, sieht das Verbot nicht
+        // und listet die Adresse womoeglich trotzdem.
         $textseiten = [
             '/sicherheit' => ['sicherheit', ['treuhand', 'versand', 'identitaet', 'inhalte', 'chat'], false],
             '/fuer-creator' => ['creator', ['anteil', 'adresse', 'impressum', 'zeit', 'steuer', 'stand'], false],
-            '/impressum' => ['impressum', ['stand', 'noetig', 'kommission'], true],
-            '/datenschutz' => ['datenschutz', ['stand', 'besondere', 'ausweis', 'schriften', 'hosting'], true],
-            '/agb' => ['agb', ['stand', 'rolle', 'treuhand', 'treffen'], true],
-            '/widerruf' => ['widerruf', ['stand', 'ware', 'digital', 'schutz'], true],
+            '/impressum' => ['impressum', [
+                'anbieter', 'vertretung', 'kontakt', 'steuer', 'verantwortlich', 'kontaktstelle',
+                'vertragspartner', 'streit', 'haftung', 'urheber', 'stand',
+            ], true],
+            '/datenschutz' => ['datenschutz', [
+                'verantwortlich', 'grundsatz', 'besondere', 'hosting', 'konto', 'sitzung', 'cookies',
+                'inhalte', 'nachrichten', 'termine', 'identitaet', 'meldungen', 'zahlung', 'empfaenger',
+                'dauer', 'rechte', 'beschwerde', 'pflicht', 'stand',
+            ], true],
+            '/agb' => ['agb', [
+                'geltung', 'konto', 'leistung', 'angebote', 'verbote', 'vertrag', 'preise', 'treuhand',
+                'versand', 'treffen', 'maengel', 'moderation', 'rechte', 'haftung', 'laufzeit',
+                'aenderung', 'schluss', 'stand',
+            ], true],
+            '/widerruf' => ['widerruf', [
+                'geltung', 'recht', 'folgen', 'ausnahmen', 'digital', 'schutz', 'formular', 'stand',
+            ], true],
             '/kuendigen' => ['kuendigen', ['stand', 'grundsatz'], false],
         ];
 
-        foreach ($textseiten as $pfad => [$bereich, $abschnitte, $entwurf]) {
+        foreach ($textseiten as $pfad => [$bereich, $abschnitte, $rechtsseite]) {
             $router->get($pfad, fn (Request $a): Response => $this->rendern(
                 $a,
                 'seite',
                 t($bereich . '.titel') . ' — ' . t('allgemein.marke'),
-                ['bereich' => $bereich, 'abschnitte' => $abschnitte, 'hinweisEntwurf' => $entwurf]
+                ['bereich' => $bereich, 'abschnitte' => $abschnitte, 'rechtsseite' => $rechtsseite],
+                $rechtsseite ? ['X-Robots-Tag' => self::ROBOTS_RECHTSSEITE] : []
             ));
         }
 
@@ -111,7 +141,6 @@ final class Routen
                     'aktiv' => $pfad,
                     'bereich' => 'bald',
                     'abschnitte' => [$name, $name . '_warum'],
-                    'hinweisEntwurf' => false,
                 ]
             ));
         }
@@ -358,8 +387,13 @@ final class Routen
     // --- Hilfen ----------------------------------------------------------
 
     /** @param array<string,mixed> $daten */
-    private function rendern(Request $anfrage, string $vorlage, string $titel, array $daten = []): Response
-    {
+    private function rendern(
+        Request $anfrage,
+        string $vorlage,
+        string $titel,
+        array $daten = [],
+        array $kopfzeilen = [],
+    ): Response {
         $sitzung = $this->sitzung($anfrage);
 
         return Response::html($this->ansicht->rendern($vorlage, $daten + [
@@ -368,7 +402,7 @@ final class Routen
             'sprache' => Lang::sprache(),
             'sitzung' => $sitzung,
             'verwalter' => $this->istVerwalter($sitzung),
-        ]));
+        ]), 200, $kopfzeilen);
     }
 
     /**
