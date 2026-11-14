@@ -456,8 +456,8 @@ $euro = static function (int $cent): string {
                                   // und schoebe die uebrigen Spalten weit nach rechts. ?>
                             <td style="overflow-wrap:anywhere"><?= e((string) $option['schluessel']) ?></td>
                             <td style="overflow-wrap:anywhere"><?= e((string) $option['bezeichnung']) ?></td>
-                            <td><?= te('markt.art.' . (string) $option['art']) ?></td>
-                            <td><?= e(geld((int) $option['aufpreis_cent'], $waehrung)) ?></td>
+                            <td data-label="<?= te('markt.option_art') ?>"><?= te('markt.art.' . (string) $option['art']) ?></td>
+                            <td data-label="<?= te('markt.option_aufpreis') ?>"><?= e(geld((int) $option['aufpreis_cent'], $waehrung)) ?></td>
                             <td>
                                 <?php if ((int) $option['ist_spezifikation'] === 1): ?>
                                     <span class="tag tag-accent-2"><?= te('markt.konfigurator_spezifikation') ?></span>

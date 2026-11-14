@@ -24,7 +24,8 @@ declare(strict_types=1);
     <meta name="RATING" content="RTA-5042-1996-1400-1577-RTA">
     <meta name="theme-color" content="#161826">
     <link rel="icon" href="/assets/symbole/app-icon.png" type="image/png">
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/nocturne.css')) ?>">
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/app.css')) ?>">
 </head>
 <body>
 <main class="ms-huelle ms-inhalt" style="min-height:100vh;display:flex;align-items:center;justify-content:center">

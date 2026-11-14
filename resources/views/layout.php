@@ -59,7 +59,8 @@ $symbol = static function (string $name): string {
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/assets/symbole/app-icon.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/symbole/app-icon.png">
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/nocturne.css')) ?>">
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/app.css')) ?>">
 </head>
 <body>
 <a class="ms-sprungmarke" href="#hauptinhalt"><?= te('allgemein.zum_inhalt') ?></a>
@@ -201,6 +202,6 @@ $symbol = static function (string $name): string {
     </div>
 </div>
 
-<script src="/assets/js/app.js" defer></script>
+<script src="<?= e(asset('/assets/js/app.js')) ?>" defer></script>
 </body>
 </html>

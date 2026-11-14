@@ -129,6 +129,7 @@ final class Einrichtung
             '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
             . '<meta name="robots" content="noindex,nofollow"><title>Einrichtung</title>'
+            . '<link rel="stylesheet" href="/assets/css/nocturne.css">'
             . '<link rel="stylesheet" href="/assets/css/app.css"></head>'
             . '<body><main class="ms-huelle ms-inhalt"><h1>Einrichtung</h1>'
             . '<ul style="list-style:none;padding:0">' . $zeilen . '</ul>'

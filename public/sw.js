@@ -10,7 +10,7 @@
  * bleiben. Zwischengespeichert wird nur die Hülle.
  */
 
-const VERSION = "v3";
+const VERSION = "v4";
 const HUELLE_CACHE = `meinslip-huelle-${VERSION}`;
 
 /*
@@ -81,8 +81,12 @@ self.addEventListener("fetch", (ereignis) => {
 
   // Statische Hülle: erst Cache, dann Netz.
   if (HUELLE.includes(url.pathname)) {
+    // Netz zuerst, Speicher nur ohne Verbindung. Vorher umgekehrt — und
+    // damit blieb nach jedem Deployment das alte Stylesheet stehen, bis sich
+    // der Service Worker erneuert hatte: neues HTML, alte Gestaltung.
+    // ignoreSearch, weil die Seiten die Dateien mit Versionsmarke anfordern.
     ereignis.respondWith(
-      caches.match(anfrage).then((treffer) => treffer || fetch(anfrage))
+      fetch(anfrage).catch(() => caches.match(anfrage, { ignoreSearch: true }))
     );
     return;
   }

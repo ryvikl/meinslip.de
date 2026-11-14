@@ -124,7 +124,7 @@ foreach ($angebote as $eintrag) {
                               // Verkaeuferin selbst gesetzt hat. ?>
                         <td><span class="tag <?= (string) $angebot['status'] === Angebote::STATUS_GESPERRT ? 'tag-accent' : 'tag-neutral' ?>"><?= te('markt.status.' . (string) $angebot['status']) ?></span></td>
                         <td><?= e(geld((int) $angebot['grundpreis_cent'], (string) $angebot['waehrung'])) ?></td>
-                        <td><?= e((string) $angebot['angelegt_am']) ?></td>
+                        <td data-label="<?= te('markt.spalte_angelegt') ?>"><?= e((string) $angebot['angelegt_am']) ?></td>
                         <td>
                             <a class="btn btn-ghost" href="/verkaufen/<?= (int) $angebot['id'] ?>"><?= te('markt.verkaufen_bearbeiten') ?></a>
                             <?php if ((string) $angebot['status'] === Angebote::STATUS_AKTIV): ?>
